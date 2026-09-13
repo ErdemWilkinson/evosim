@@ -2800,3 +2800,50 @@ git-tracked/tamamen geri alınabilir bir işlem olduğu değerlendirmesiyle.
 (sadece muteColor kullanıyordu) kaldırıldı, `rng.ts`'ten `pick`
 kaldırıldı. tsc --noEmit temiz. Commit atıldı (push yok, kullanıcı/PM
 onayı bekliyor).
+
+## Faz XXIII — Proje adı değişikliği taraması (arşiv)
+
+### Görev (2026-09-13, PM 31)
+Repo "Evosim" olarak yeniden adlandırıldıktan (`package.json`/
+`index.html` başlığı zaten güncellenmişti) sonra, kod tabanında hâlâ
+eski isme ("Evrimsel Gezegen") referans veren kullanıcı-görünür yerler
+kalıp kalmadığını tarama görevi.
+
+### Yöntem ve bulgular (coder a7)
+`git ls-files | xargs grep -ln "Evrimsel Gezegen"` ile TÜM tracked
+dosyalar tarandı (TASKS.md/TASKS_ARCHIVE.md hariç tutuldu — orada
+bilinçli bir "eski adıyla" tarihsel notu zaten var, PM'in önceki turda
+eklediği). Ayrıca büyük/küçük harf duyarsız ve tire/boşluk varyasyonları
+(`evrimsel gezegen`, `EvrimselGezegen`, `evrimsel-gezegen`) da tarandı.
+
+2 gerçek kullanıcı-görünür kalıntı bulundu:
+1. `src/exportimport.ts` `EXPORT_FILENAME_PREFIX = "evrimsel-gezegen-kayit"`
+   — kullanıcının "Dışa Aktar" butonuyla indirdiği kayıt dosyasının adı.
+   Saf kozmetik, format/uyumluluk etkisi yok (içe aktarma dosya adını
+   HİÇ okumuyor, sadece JSON içeriğini `isValidSaveData`'yla doğruluyor).
+2. `package-lock.json`'daki İKİ `"name"` alanı ("evrimsel-gezegen")
+   `package.json`'ın ("evosim") gerisinde kalmıştı — `npm` tarafından
+   otomatik senkronize edilmemiş, muhtemelen `package.json` elle
+   düzenlendiğinde `npm install` çalıştırılmamış.
+
+`dist/index.html`'de de eski isim vardı ama bu git-tracked DEĞİL (build
+artifact, `.gitignore`'da) — gerçek bir bulgu değil, sadece stale bir
+önceki build; yeniden `vite build` ile otomatik düzeldi.
+
+### Uygulama (coder a7)
+`EXPORT_FILENAME_PREFIX` → `"evosim-kayit"` — Playwright ile gerçek
+export akışı test edildi, indirilen dosya adı doğru üretiliyor
+(`evosim-kayit-<timestamp>.json`), sıfır page error. `package-lock.json`
+iki `"name"` alanı elle `"evosim"` yapıldı (dependency sürümlerini
+etkilememesi için `npm install --package-lock-only` ile "up to date, no
+changes" olduğu doğrulandı — sadece metadata, `git diff` ile 2 satırlık
+minimal değişiklik teyit edildi). tsc --noEmit ve `vite build` temiz.
+
+### Bilinçli olarak dokunulmayan: `savegame.ts` `SAVE_KEY`
+`SAVE_KEY = "evrimsel-gezegen-save-v8"` bir `localStorage` anahtarı —
+kullanıcı arayüzünde hiç görünmüyor ama değiştirilirse mevcut TÜM
+kayıtlı oyunlar (kullanıcının tarayıcısında, farklı bir anahtarda
+arandığı için) sessizce "kayıt yok" durumuna düşer. Bu saf bir isim
+değişikliği DEĞİL, geriye dönük uyumluluk kararı gerektiriyor — aday
+havuzuna "ONAY BEKLİYOR" olarak eklendi, kullanıcı/PM kararı olmadan
+uygulanmadı.
