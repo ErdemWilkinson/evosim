@@ -29,12 +29,18 @@ KURSUN.
   alınabilir adımlarla ilerlenir. Emin değilseniz PM'e danışın, PM de emin
   değilse ilerlemeyip not düşer, kullanıcı döndüğünde sorar.
 - **Git (2026-09-13'ten itibaren)**: Proje artık bir git deposu, adı "Evosim"
-  (GitHub: `ErdemWilkinson/evosim`, private). Coder her kod değişikliği
-  turu sonunda `git add`+`git commit` atar (küçük, açıklayıcı mesajlarla).
-  **`git push` SADECE PM onayıyla yapılır** — coder/tester kendi başına
-  push ATMAZ (uzak repo, geri alınması coder/tester'ın yetkisinde olmayan
-  bir eylem). `.env` zaten `.gitignore`'da, commit'lerde asla API anahtarı
-  olmadığından emin olun (özellikle yeni bir .env benzeri dosya eklenirse).
+  (GitHub: `ErdemWilkinson/evosim`, **2026-09-14'ten itibaren PUBLIC**).
+  Coder her kod değişikliği turu sonunda `git add`+`git commit` atar (küçük,
+  açıklayıcı mesajlarla). **`git push` SADECE PM onayıyla yapılır** —
+  coder/tester kendi başına push ATMAZ (uzak repo, geri alınması
+  coder/tester'ın yetkisinde olmayan bir eylem).
+- **KRİTİK — repo PUBLIC olduğu için**: `.env`'deki `GEMINI_API_KEY` HİÇBİR
+  ZAMAN (kod, yorum, commit mesajı, test script'i, geçici debug dosyası
+  dahil) gerçek DEĞERİYLE bir dosyaya yazılmayacak — sadece
+  `process.env.GEMINI_API_KEY` REFERANSI kullanılır. `.env` zaten
+  `.gitignore`'da; yeni bir `.env`-benzeri/sırlı dosya eklenirse hemen
+  `.gitignore`'a eklenmeli. Her commit öncesi `git diff --staged` ile
+  gözden geçirin, şüpheli bir string görürseniz commit ATMAYIN, PM'e sorun.
 
 ## Kullanıcının açık isteği
 - Proje sürekli mükemmelleştirilsin, kendi kendine yeni görevler seçip
