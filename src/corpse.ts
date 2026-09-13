@@ -45,7 +45,11 @@ export class Corpse extends Container {
 
     if (this.beingConsumed) {
       // Bakteri tarafından tüketilirken normalden hızlı solar (görsel olarak "yeniliyor"
-      // hissi versin diye) — basit tutuluyor, karmaşık bir animasyon yok.
+      // hissi versin diye) — basit tutuluyor, karmaşık bir animasyon yok. `0.18` katsayısı
+      // `decomposer.ts`'teki `CONSUME_DURATION`'a GERÇEKTEN bağlı DEĞİL — sadece görsel
+      // olarak yakın süre versin diye ELLE senkronize tutuluyor (LIFETIME*0.18=3.96 ≈
+      // CONSUME_DURATION=4). Biri değişirse diğeri elle güncellenmeli, aksi halde
+      // ceset/bakteri solma hızları sessizce uyumsuz hale gelir.
       const consumeFraction = Math.min(1, this.elapsed / (Corpse.LIFETIME * 0.18));
       this.redraw(1 - consumeFraction);
       if (consumeFraction >= 1) this.finished = true;
