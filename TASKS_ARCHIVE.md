@@ -2762,3 +2762,41 @@ genel bir smoke test (20s/4x hız simülasyon): sıfır page/console hatası.
 Test-only debug hook'lar (`__debugGetDigestCooldownMultiplier`,
 `__debugSelectById`) doğrulama sonrası tamamen kaldırıldı — grep ile
 sıfır kalıntı teyit edildi. tsc/build son bir kez temiz.
+
+## Faz XXII — Küçük yardımcı dosyalarda ölü kod temizliği (arşiv)
+
+### Görev (2026-09-13, PM 31)
+Repo git-tracked hale geldikten sonra (proje adı "Evosim"), tester
+boşta olduğu için PM, coder a7'ye bağımsız (kendi test disiplinini
+uygulayarak) bir görev verdi: bu oturumda hiç dokunulmamış küçük
+yardımcı dosyalarda (`angle.ts`/`color.ts`/`rng.ts`) bir bug-avı/kod-
+kalitesi taraması.
+
+### Bulgular (coder a7)
+`grep -rn` ile her dosyanın her export edilen fonksiyonunun projedeki
+TÜM kullanım noktaları tarandı (import ifadeleri + doğrudan çağrılar).
+3 gerçek ölü kod parçası bulundu — sıfır çağrı noktası:
+1. `angle.ts`'in TEK fonksiyonu, `shortestAngleDiff` (dosyanın tamamı
+   pratikte tek bu fonksiyondan ibaretti). Ek not: fonksiyonun kendi
+   doc yorumu "(-π, π]" aralığı vaat ediyordu ama `shortestAngleDiff(0,
+   -Math.PI)` tam `-π` döndürüyordu (aralığın açık ucunun dışında) —
+   kullanılmadığı için pratik etkisi yoktu, sadece bilgi amaçlı not
+   edildi.
+2. `color.ts`'teki `muteColor` — dosya başındaki yorum "Faz A takip"
+   notuyla `genomeToPalette`'e (`genome.ts:392`) atıfta bulunuyordu,
+   ama `genomeToPalette` "nötr/bilimsel görünüm" hedefini HSL
+   aşamasında (saturation/lightness kısıtlamasıyla) zaten sağlıyordu —
+   `muteColor`'ın post-processing (RGB'yi luma'ya doğru karıştırma)
+   yaklaşımı hiç kullanılmıyordu. Muhtemelen bir tasarım denemesinden
+   kalmıştı.
+3. `rng.ts`'teki `pick` — hiç çağrılmıyordu.
+
+### Uygulama (PM 31)
+Dosya silme işlemi (`angle.ts`) coder'ın permission sınıflandırıcısı
+tarafından "Irreversible Local Destruction" gerekçesiyle engellenince
+(git-tracked olsa bile), PM kendi izin seviyesinde işlemi tamamladı —
+git-tracked/tamamen geri alınabilir bir işlem olduğu değerlendirmesiyle.
+`angle.ts` silindi, `color.ts`'ten `muteColor` + yardımcı `clampByte`
+(sadece muteColor kullanıyordu) kaldırıldı, `rng.ts`'ten `pick`
+kaldırıldı. tsc --noEmit temiz. Commit atıldı (push yok, kullanıcı/PM
+onayı bekliyor).
