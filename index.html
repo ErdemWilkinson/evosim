@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Evosim</title>
+    <link rel="stylesheet" href="/src/dashboard.css" />
+  </head>
+  <body>
+    <div id="dashboard">
+      <header id="dash-header">
+        <div id="dash-title">
+          <span id="dash-title-mark">EG</span>
+          <span id="dash-title-text">Evosim</span>
+        </div>
+        <div id="dash-controls">
+          <button id="lineage-toggle-btn" class="ctrl-btn-danger" type="button">🌳 Soy Ağacı</button>
+          <span id="dash-controls-divider"></span>
+          <button id="export-save-btn" class="ctrl-btn-danger" type="button" title="Kayıt dosyasını indir">⬇️ Dışa Aktar</button>
+          <button id="import-save-btn" class="ctrl-btn-danger" type="button" title="Bir kayıt dosyası yükle">⬆️ İçe Aktar</button>
+          <input id="import-save-input" type="file" accept="application/json,.json" hidden />
+          <span id="dash-controls-divider-2"></span>
+        </div>
+      </header>
+
+      <main id="dash-body">
+        <section id="scene-panel">
+          <div id="app"></div>
+
+          <!-- Faz XVI Madde 2 — Gezegen oluşum ekranı (TASKS.md): simülasyon
+               başlamadan önce, mevcut rastgele harita seed'inden TÜRETİLEN
+               (deterministik) kısa bir özet. v3'ün minimal ilkesine uygun: tek
+               ekranlık, "Simülasyonu Başlat" butonuyla kapanan bir overlay —
+               büyük bir cutscene DEĞİL. Sadece YENİ bir simülasyonda gösterilir
+               (bkz. main.ts) — bir kayıt yüklenirken gezegen zaten "oluşmuş"
+               sayılır, tekrar gösterilmez. -->
+          <div id="planet-formation-overlay" class="overlay-panel overlay-panel-center" hidden>
+            <div class="overlay-panel-header">
+              <h3 class="panel-block-title overlay-panel-title">🪐 Gezegen Oluşumu</h3>
+            </div>
+            <div class="overlay-panel-body" id="planet-formation-body"></div>
+            <div id="planet-formation-footer">
+              <button id="planet-formation-start-btn" class="ctrl-btn-danger" type="button">Simülasyonu Başlat</button>
+            </div>
+          </div>
+
+          <div id="lineage-panel" class="overlay-panel overlay-panel-fullpage" hidden>
+            <div class="overlay-panel-header">
+              <h3 class="panel-block-title overlay-panel-title">Soy Ağacı</h3>
+              <div class="lineage-zoom-controls">
+                <button id="lineage-zoom-out" class="ctrl-btn-mini" type="button" title="Uzaklaştır">−</button>
+                <span id="lineage-zoom-value" class="stat-controls-value">100%</span>
+                <button id="lineage-zoom-in" class="ctrl-btn-mini" type="button" title="Yakınlaştır">+</button>
+                <button id="lineage-zoom-reset" class="ctrl-btn-mini" type="button" title="Yakınlaştırmayı sıfırla">1:1</button>
+              </div>
+              <button id="lineage-close" class="inspector-close" aria-label="Kapat">×</button>
+            </div>
+            <div id="lineage-filters" class="lineage-filters"></div>
+            <div class="overlay-panel-body">
+              <div id="lineage-empty" class="inspector-empty" hidden>Henüz veri yok.</div>
+              <div id="lineage-canvas-wrap">
+                <canvas id="lineage-canvas"></canvas>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside id="side-panel">
+          <div id="stats-panel" class="panel-block"></div>
+
+          <div id="inspector-panel" class="panel-block" hidden>
+            <div class="inspector-header">
+              <h3 class="panel-block-title inspector-title">Seçili Birey</h3>
+              <button id="inspector-close" class="inspector-close" aria-label="Kapat">×</button>
+            </div>
+            <div id="inspector-body"></div>
+          </div>
+
+          <div class="panel-block panel-block-grow">
+            <h3 class="panel-block-title">Evrim Olay Akışı</h3>
+            <ul id="event-log-list" class="event-log-list">
+              <li class="event-log-placeholder">
+                Henüz bir olay yok. Popülasyon evrimleştikçe (yeni bir özellik yayıldığında
+                veya bir mutasyon elendiğinde) burada kısa açıklamalar görünecek.
+              </li>
+            </ul>
+          </div>
+        </aside>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,1010 @@
+/*
+ * Faz I (v3) — Minimal dashboard kabuğu. v2'nin sekmeli/D3'lü analiz paneli
+ * TAMAMEN kaldırıldı (TASKS.md v3: "Yeni arayüz sade/minimal olmalı"). Sade/nötr
+ * renk paleti korunuyor, ama artık TEK, kompakt bir yan panel var: temel sayılar +
+ * boş bir event log listesi. Karmaşık sekme/grafik YOK.
+ */
+
+:root {
+  --bg-0: #0a0c10;
+  --bg-1: #12151b;
+  --bg-2: #181c24;
+  --bg-3: #20242e;
+  --border: #2a2f3a;
+  --border-strong: #3a4150;
+  --text-0: #e8eaef;
+  --text-1: #a8b0bf;
+  --text-2: #6b7280;
+  --accent: #4f8ff0;
+  --accent-dim: #2f5aa8;
+  --mono-font: "SFMono-Regular", "Consolas", "Cascadia Code", "Liberation Mono", monospace;
+  --ui-font: -apple-system, "Segoe UI", "Inter", system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: var(--ui-font);
+  overflow: hidden;
+}
+
+#dashboard {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  width: 100%;
+  height: 100%;
+}
+
+/* --- Header --- */
+
+#dash-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 52px;
+  padding: 8px 18px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+#dash-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+#dash-title-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 4px;
+  background: var(--accent-dim);
+  color: var(--text-0);
+  font-family: var(--mono-font);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+#dash-title-text {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-0);
+}
+
+#dash-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+/* Faz XI — UI/UX sadeleştirme: soy ağacı butonunu hız kontrolü/yeniden başlat
+   grubundan ince bir ayraçla ayırır, böylece kontroller tek bir kompakt kümede
+   ("görüntüleme" vs "simülasyon kontrolü") okunur — TASKS.md "butonları tek bir
+   kompakt satırda/menüde grupla" önerisi. */
+#dash-controls-divider,
+#dash-controls-divider-2 {
+  width: 1px;
+  height: 22px;
+  background: var(--border);
+  margin: 0 2px;
+}
+
+.ctrl-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.ctrl-btn {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-1);
+  font-family: var(--mono-font);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.ctrl-btn:hover {
+  background: var(--bg-3);
+  color: var(--text-0);
+}
+
+.ctrl-btn.active {
+  background: var(--accent-dim);
+  color: var(--text-0);
+}
+
+.ctrl-btn-danger {
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-family: var(--ui-font);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ctrl-btn-danger:hover {
+  background: var(--bg-3);
+  border-color: var(--border-strong);
+  color: var(--text-0);
+}
+
+/* Dar ekranlarda header butonları (Soy Ağacı/Dışa Aktar/İçe Aktar/hız/Yeniden
+   Başlat) daha kompakt olsun ki 2-3 satıra bölünüp header'ı devasa büyütmesin. */
+@media (max-width: 860px) {
+  #dash-title-text {
+    font-size: 12.5px;
+  }
+
+  .ctrl-btn-danger {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+
+  .ctrl-btn {
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+}
+
+@media (max-width: 680px) {
+  #dash-title-text {
+    display: none;
+  }
+}
+
+/* --- Body: scene + single compact side panel --- */
+
+#dash-body {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* --- Side panel (single, minimal — no tabs) ---
+   Bug-avı düzeltmesi (2026-09-10, tester 62'nin bulgusu, PM onaylı — dosya-sırası
+   kaskad hatası): bu koşulsuz (media-query'siz) kural eskiden dosyada AŞAĞIDA
+   duruyordu (aşağıdaki `@media`'lardan SONRA), aynı özgüllükteki (`#side-panel`,
+   tek ID seçici) çakışan kurallar arasında kaynak SIRASI belirleyici olduğundan
+   media query İÇİNDEKİ `flex-direction: row` (bkz. aşağıdaki 680px kuralı) HİÇBİR
+   ZAMAN gerçekten uygulanmıyordu — computed style ölçümüyle doğrulandı
+   (`getComputedStyle(...).flexDirection` her genişlikte "column" dönüyordu, media
+   query İÇİNDE olmak otomatik öncelik VERMİYOR). Görsel olarak "fena değil"
+   görünüyordu çünkü `flex-wrap` column-wrap modunda da ikinci öğeyi yeni bir
+   SÜTUNA (yan yana görünen ama farklı bir mekanizma) yerleştiriyordu — niyet
+   edilen satır-düzeni değildi. Düzeltme: `!important`/özgüllük hack'i DEĞİL,
+   kalıcı bir dosya-sırası refactor'ü — bu taban kural artık TÜM responsive medya
+   sorgularından ÖNCE geliyor, böylece aşağıdaki her `@media` kuralı onu
+   güvenilir şekilde ezebiliyor. */
+#side-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-1);
+  border-left: 1px solid var(--border);
+  padding: 14px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+/* --- Responsive/farklı ekran boyutu desteği (Faz XI) ---
+   Sabit 280px yan panel + sabit 52px header, dar/dizüstü pencerelerde (1024x768 ve
+   altı) sahne alanını çok fazla sıkıştırıyordu (ekran görüntüsüyle doğrulandı — bkz.
+   TASKS.md Faz XI Responsive Detayları). Üç kademeli düzeltme: orta ekranlarda yan
+   panel daralır, dar ekranlarda daha da daralır + header butonları kompaktlaşır,
+   çok dar/kısa ekranlarda (telefon yatay, bölünmüş pencere) yan panel sahnenin
+   ALTINA iner (dikey stack) ki hem harita hem panel kullanılabilir kalsın. */
+@media (max-width: 1100px) {
+  #dash-body {
+    grid-template-columns: 1fr 230px;
+  }
+}
+
+@media (max-width: 860px) {
+  #dash-body {
+    grid-template-columns: 1fr 190px;
+  }
+
+  #side-panel {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  .panel-block {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 680px), (max-height: 560px) {
+  #dash-body {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(160px, 1.4fr) minmax(140px, 1fr);
+  }
+
+  #scene-panel {
+    min-height: 0;
+  }
+
+  #side-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    overflow-y: auto;
+  }
+
+  #stats-panel,
+  #inspector-panel {
+    flex: 1 1 220px;
+    /* Bug-avı düzeltmesi (2026-09-10): flex öğeleri varsayılan olarak `min-width:
+       auto` kullanır (içeriğin intrinsic min genişliğine eşit) — SVG diyagram gibi
+       sabit-boyutlu içerik bu tabanı yükseltip panelin GERÇEKTEN küçülmesini
+       engelleyebiliyordu (`#side-panel` sadece dikey kaydırmalı, yatay taşma
+       erişilemez içerik anlamına geliyordu). `min-width: 0` + diyagramın kendi
+       `max-width: 100%` kuralı (yukarıda `.creature-diagram`) birlikte paneli
+       gerçekten küçültülebilir kılıyor. */
+    min-width: 0;
+  }
+
+  .panel-block-grow {
+    flex: 2 1 260px;
+    min-height: 120px;
+  }
+}
+
+/* Bug-avı düzeltmesi (2026-09-10, PM'in mobil/dar-ekran taraması görevlendirmesi
+   üzerine bulundu — canlı Playwright testiyle 375px genişlikte doğrulandı):
+   yukarıdaki satır-tabanlı (flex-wrap) düzende `#stats-panel` (2 sütunlu istatistik
+   ızgarası, büyük harf etiketler nedeniyle ~233px'lik gerçek bir min-content
+   tabanı var) ve `#inspector-panel` (organ diyagramı + metin satırları) YAN YANA
+   sığdırılmaya çalışıldığında, gerçek telefon genişliklerinde (375px gibi)
+   TOPLAM genişlikleri viewport'u ~60-75px AŞIYORDU — `#side-panel` SADECE dikey
+   kaydırmalı olduğundan bu taşan içerik (organ diyagramının bir kısmı dahil)
+   GERÇEKTEN ERİŞİLEMEZ hale geliyordu. Kök neden, tek bir CSS özelliğinden değil,
+   iki panelin (biri metin-ağırlıklı grid, diğeri SVG+metin) birlikte yan yana
+   sığdırılmaya ZORLANMASINDAN kaynaklanıyordu. Düzeltme: gerçekten dar ekranlarda
+   (480px altı — telefon dikey) yan yana sığdırmayı TAMAMEN bırakıp her panel tam
+   satır genişliğinde ALT ALTA istifleniyor — 480-680px arası (tablet/büyük
+   telefon yatay) mevcut yan-yana düzen KORUNUYOR, orada yeterli yer var.
+   NOT: ilk denemede `flex-basis: 100%` kullanıldı ama iç içe flex-wrap satır
+   kırılımı beklendiği gibi tetiklenmedi (canlı testte doğrulandı, panel hâlâ
+   aynı satırda kalıp taşıyordu) — bunun yerine `#side-panel`'i doğrudan
+   `flex-direction: column`'a döndürmek (masaüstünün ZATEN kullandığı, kanıtlanmış
+   düzen) çok daha güvenilir: her panel kesin olarak tam genişlikte, ayrı bir
+   satırda, flex-wrap satır-kırılım belirsizliğine hiç girmeden. */
+@media (max-width: 480px) {
+  #side-panel {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  #stats-panel,
+  #inspector-panel {
+    flex: none;
+    width: 100%;
+  }
+}
+
+#scene-panel {
+  position: relative;
+  background: var(--bg-0);
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+#app canvas {
+  display: block;
+}
+
+.panel-block {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  flex-shrink: 0;
+}
+
+.panel-block-grow {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel-block-title {
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-2);
+}
+
+/* --- Basic stats grid ---
+   Faz XI (UI/UX sadeleştirme, TASKS.md): #stats-panel artık iki parçalı — her zaman
+   görünen "birincil" ızgara (popülasyon/zaman/nesil/bölünme) + varsayılan KAPALI bir
+   <details> "Detaylar" bölmesi (dünya su/kara %, diyet, atmosfer — ikincil bilgi).
+   Görsel hiyerarşi: en önemli sayılar en görünür, geri kalanı bir tık uzakta. */
+
+.stat-primary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-cell-wide {
+  grid-column: 1 / -1;
+}
+
+.stat-label {
+  font-size: 10.5px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stat-value {
+  font-family: var(--mono-font);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.stat-cell-wide .stat-value {
+  font-size: 13px;
+}
+
+.stat-sub {
+  color: var(--text-2);
+  font-size: 12px;
+}
+
+.stat-details {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.stat-details-summary {
+  cursor: pointer;
+  list-style: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  user-select: none;
+}
+
+.stat-details-summary::-webkit-details-marker {
+  display: none;
+}
+
+.stat-details-summary::before {
+  content: "▸ ";
+  display: inline-block;
+  transition: transform 0.12s ease;
+}
+
+.stat-details[open] .stat-details-summary::before {
+  transform: rotate(90deg);
+}
+
+.stat-details-summary:hover {
+  color: var(--text-0);
+}
+
+.stat-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.stat-details-body .stat-cell-wide .stat-value {
+  font-size: 12.5px;
+}
+
+/* --- Faz XII — Manuel kontroller (besin oranı/doğa olayı tetikleme/durdurma):
+   Detaylar bölmesinin bir parçası, ayrı bir panel/modal DEĞİL (TASKS.md "minimal
+   menü" ilkesi). --- */
+.stat-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.stat-controls-value {
+  font-family: var(--mono-font);
+  font-size: 12px;
+  color: var(--text-0);
+  min-width: 42px;
+  text-align: center;
+}
+
+.stat-controls-toggle {
+  flex: 1;
+}
+
+.ctrl-btn-mini {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--text-1);
+  font-family: var(--ui-font);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.ctrl-btn-mini:hover {
+  background: var(--bg-3);
+  border-color: var(--border-strong);
+  color: var(--text-0);
+}
+
+/* --- Faz V — Canlı inceleme paneli: küçük, minimal bir yan kutu (v2'deki karmaşık
+   modal DEĞİL — v3'ün sade diline uygun, mevcut panel-block stiliyle tutarlı). --- */
+
+/* Faz XI — UI/UX sadeleştirme: inceleme paneli açıkken artık kendi içinde kaydırılıyor
+   (max-height) — önceden sınırsız büyüyüp Evrim Olay Akışı'nı ekrandan neredeyse
+   tamamen itebiliyordu (bkz. TASKS.md Faz XI ekran görüntüsü kanıtı). Event log her
+   zaman en az biraz görünür kalsın diye #side-panel'de flex-shrink:0 verildi. */
+#inspector-panel {
+  flex-shrink: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+/* Bug-avı düzeltmesi (2026-09-10, PM'in mobil/dar-ekran taraması görevlendirmesi
+   üzerine bulundu): yukarıdaki `flex-shrink: 0` (dikey/masaüstü sütun düzeninde event
+   log'un sıkışmaması için, Faz XI UI/UX sadeleştirme) kaynak SIRASI gereği 223. satır
+   civarındaki mobil medya sorgusunun `flex: 1 1 220px` kuralını EZİYORDU — panel
+   `#side-panel`'in SATIR-tabanlı (flex-wrap) mobil düzeninde hiç küçülemiyor, sabit
+   ~220px genişlikte kalıp `#stats-panel` ile birlikte 375px'lik bir viewport'u ~60px
+   taşırıyordu (yeni organ diyagramı bu taşan içeriğin bir parçasıydı, ama panelin
+   kendisi ZATEN küçülemiyordu — diyagram sadece BELİRGİNLEŞTİRDİ). `#side-panel`
+   sadece dikey kaydırmalı olduğundan bu taşma GERÇEKTEN erişilemez içerik demekti.
+   Düzeltme: mobil satır-düzeninde `flex-shrink`i tekrar 1'e döndürüyoruz — masaüstü/
+   dikey düzendeki orijinal davranış (event log'un sıkışmaması) DEĞİŞMEDİ, sadece
+   mobil satır-düzeninde panel artık gerçekten küçülebiliyor. */
+@media (max-width: 680px), (max-height: 560px) {
+  #inspector-panel {
+    flex-shrink: 1;
+  }
+}
+
+.inspector-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.inspector-title {
+  margin: 0;
+}
+
+.inspector-close {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+
+.inspector-close:hover {
+  color: var(--text-0);
+  background: var(--bg-3);
+}
+
+.inspector-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.inspector-row:last-child {
+  border-bottom: none;
+}
+
+.inspector-row-label {
+  color: var(--text-2);
+}
+
+.inspector-row-value {
+  font-family: var(--mono-font);
+  color: var(--text-0);
+  text-align: right;
+}
+
+/* --- Kullanıcı isteği (2026-09-10) — Plague Inc tarzı şematik canlı diyagramı:
+   organ listesinin ÜSTÜNDE, gövde + organ ikonlarını gösteren küçük bir SVG. Sadece
+   görsel — `hud.ts` `buildCreatureDiagram` gerçek `InspectionData.organs`'tan üretiyor,
+   uydurma ikon yok. En son kazanılan organ hafif bir pulse ile öne çıkıyor. --- */
+.creature-diagram-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 10px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+/* Bug-avı düzeltmesi (2026-09-10, PM'in "mobil/dar-ekran taraması" görevlendirmesi
+   üzerine bulundu): SVG'nin `width="140" height="140"` özniteliği (hud.ts) tarayıcıya
+   140px'lik SABİT bir intrinsic boyut veriyordu — dar ekranlarda (Faz XI Responsive'in
+   `flex: 1 1 220px` iki-panelli satır-sarma düzeninde, bkz. 223. satır civarı) bu,
+   `#inspector-panel`'in küçülemeyeceği bir taban genişlik oluşturuyor, panel #side-panel
+   dikey-kaydırmalı (yatay DEĞİL) olduğundan diyagramın bir kısmı GERÇEKTEN erişilemez
+   hale geliyordu (375px viewport'ta ölçülen: panel sağ kenarı ~62px taşıyordu).
+   Düzeltme: SVG artık kendi flex kapsayıcısına göre küçülebiliyor — `viewBox` zaten
+   orantıyı koruyor, sadece görüntülenen piksel boyutu artık esnek. */
+.creature-diagram {
+  max-width: 100%;
+  height: auto;
+  /* SVG, `.creature-diagram-wrap`'in (display:flex) DOĞRUDAN flex öğesi — flex
+     öğeleri varsayılan `min-width: auto` (intrinsic boyut, burada 140px) kullanır,
+     bu da `max-width: 100%` ile ÇAKIŞIP onu geçersiz kılıyordu (min-width, max-width'i
+     ezer). `min-width: 0` olmadan üstteki kural tek başına yetersizdi. */
+  min-width: 0;
+}
+
+.creature-diagram-icon title {
+  pointer-events: none;
+}
+
+@keyframes creature-diagram-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(1.25);
+  }
+}
+
+.creature-diagram-icon-pulse {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: creature-diagram-pulse 1.6s ease-in-out infinite;
+}
+
+.inspector-organs {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.inspector-organs-title {
+  font-size: 10.5px;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.inspector-organ-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--mono-font);
+  padding: 3px 7px;
+  margin: 0 4px 4px 0;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-0);
+}
+
+/* Faz XIV — organ açıklamaları (TASKS.md madde 3): her organ artık kendi satırında,
+   chip'in hemen altında kısa bir mekanik-etki cümlesiyle gösteriliyor. */
+.inspector-organ-row {
+  margin-bottom: 4px;
+}
+
+.inspector-organ-desc {
+  font-size: 10.5px;
+  color: var(--text-2);
+  padding: 0 2px 2px 2px;
+  line-height: 1.35;
+}
+
+/* Faz XI — organ trend oku (TASKS.md, PM onaylı): popülasyon genelindeki yaygınlık
+   yönü — sadece yeterli veri birikince gösteriliyor (`insufficient-data` hiç
+   render edilmiyor, bkz. hud.ts). */
+.inspector-organ-trend {
+  font-weight: 700;
+}
+.inspector-organ-trend-up {
+  color: #4caf50;
+}
+.inspector-organ-trend-down {
+  color: #e57373;
+}
+.inspector-organ-trend-stable {
+  color: var(--text-2);
+}
+
+.inspector-empty {
+  font-size: 12px;
+  color: var(--text-2);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+/* --- Faz IX — Soy analizi butonu/sonucu (madde 7) + evrim geçmişi listesi
+   (madde 6): mevcut inspector-* stiliyle tutarlı, yeni bir panel/modal DEĞİL. --- */
+
+.inspector-analyze-btn {
+  width: 100%;
+  margin-top: 10px;
+  text-align: center;
+}
+
+.inspector-analyze-result {
+  margin-top: 8px;
+  padding: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-1);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+
+.inspector-analyze-result.inspector-analyze-error {
+  color: #d68a8a;
+}
+
+.inspector-history-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+}
+
+/* --- Faz VI — Soy ağacı overlay paneli: VARSAYILAN OLARAK KAPALI, sahne üzerinde
+   yüzen bir overlay (sürekli görünür bir dashboard DEĞİL, TASKS.md). --- */
+
+#lineage-toggle-btn.active {
+  background: var(--accent-dim);
+  border-color: var(--accent-dim);
+  color: var(--text-0);
+}
+
+.overlay-panel {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: min(520px, calc(100% - 28px));
+  height: min(380px, calc(100% - 28px));
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.45);
+  flex-direction: column;
+  z-index: 20;
+  overflow: hidden;
+}
+
+.overlay-panel:not([hidden]) {
+  display: flex;
+}
+
+.overlay-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+.overlay-panel-title {
+  margin: 0;
+}
+
+.overlay-panel-body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+}
+
+/* Faz XII — Soy ağacı filtreleri (madde 6): tek satır, kompakt dropdown/inputlar —
+   ayrı bir panel/modal DEĞİL, mevcut overlay'in başlığı ile gövdesi arasında. */
+.lineage-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+.lineage-filter-select,
+.lineage-filter-num {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--bg-1);
+  color: var(--text-1);
+  font-family: var(--ui-font);
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+
+.lineage-filter-num {
+  width: 72px;
+}
+
+.lineage-filter-select:hover,
+.lineage-filter-num:hover {
+  border-color: var(--border-strong);
+  color: var(--text-0);
+}
+
+/* Faz XII — BUG düzeltmesi (madde 4): düğümler artık popülasyon büyüdükçe sıkışıp
+   üst üste binmiyor — canvas'ın SANAL boyutu büyüyüp bu sarmalayıcı yatay/dikey
+   kaydırma sağlıyor (bkz. lineagetree.ts render mantığı). */
+#lineage-canvas-wrap {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+}
+
+#lineage-canvas {
+  display: block;
+}
+
+#lineage-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* --- Faz VI — Seçim halkası: v2'den beri bilinen "canlıyı vurgula" ihtiyacı, ekstra
+   bir DOM elemanı gerekmiyor (Pixi Graphics ile sahne içinde çiziliyor, bkz.
+   main.ts) — burada sadece toggle butonuyla ilgili stil var. --- */
+
+/* --- Faz XVI Madde 2 — Gezegen oluşum ekranı: `.overlay-panel`'in konumlandırmasını
+   (sağ üst köşe, soy ağacıyla aynı) EZEN, ORTALANMIŞ bir varyant — bu ekran bir
+   yan-panel değil, simülasyon başlamadan önceki TEK SEFERLİK bir odak noktası. --- */
+.overlay-panel-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
+  width: min(460px, calc(100% - 32px));
+  height: auto;
+  max-height: calc(100% - 32px);
+  z-index: 30;
+}
+
+#planet-formation-body {
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-1);
+}
+
+/* --- Kullanıcı isteği (2026-09-10) — Soy ağacı "bir sayfa gibi" açılsın: sağ üst
+   köşede sıkışık 520x380 yerine, sahne alanının neredeyse tamamını kaplayan bir
+   tam-sayfa görünüm. Zoom/pan/filtre mantığı DEĞİŞMEDİ (lineagetree.ts) — sadece
+   panelin boyutu/konumu büyütüldü + açık +/- zoom butonları eklendi (mevcut fare
+   tekerleği zoom'u hâlâ çalışıyor, bu butonlar ek/daha keşfedilebilir bir yol). */
+.overlay-panel-fullpage {
+  top: 14px;
+  right: 14px;
+  left: 14px;
+  bottom: 14px;
+  width: auto;
+  height: auto;
+}
+
+.lineage-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 10px;
+}
+
+.lineage-zoom-controls .stat-controls-value {
+  min-width: 38px;
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.planet-formation-narrative {
+  margin: 0 0 12px 0;
+  color: var(--text-0);
+}
+
+.planet-formation-section-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-2);
+  margin: 12px 0 6px 0;
+}
+
+.planet-formation-section-title:first-child {
+  margin-top: 0;
+}
+
+.planet-formation-atmosphere-bar {
+  display: flex;
+  width: 100%;
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+}
+
+.planet-formation-atmosphere-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-bottom: 4px;
+}
+
+.planet-formation-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-1);
+}
+
+.planet-formation-legend-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.planet-formation-bio-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.planet-formation-bio-list li {
+  margin-bottom: 3px;
+}
+
+#planet-formation-footer {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  display: flex;
+  justify-content: flex-end;
+}
+
+#planet-formation-start-btn {
+  font-weight: 600;
+}
+
+/* --- Evrim olay akışı (event log) --- */
+
+.event-log-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-log-item {
+  padding: 8px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-0);
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+}
+
+/* Faz V — Gemini derin analiz yorumları, eşik-tabanlı olaylardan görsel olarak
+   ayrışsın diye farklı bir vurgu rengi/kenarlık kullanıyor (aynı liste, farklı stil). */
+.event-log-item-insight {
+  border-left-color: #9b6fd6;
+  background: #1d1a26;
+}
+
+.event-log-placeholder {
+  padding: 10px 2px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-2);
+  font-style: italic;
+}
+
+/* --- Scrollbar --- */
+
+#side-panel::-webkit-scrollbar,
+.event-log-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+#side-panel::-webkit-scrollbar-track,
+.event-log-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#side-panel::-webkit-scrollbar-thumb,
+.event-log-list::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
