@@ -195,6 +195,30 @@ aksi belirtilmedikçe. Detaylar için `TASKS_ARCHIVE.md`'ye bakın.
   kullanılmadığı teyit edildi), `rng.ts`'teki `pick`. PM 31, dosya silme
   işlemini (`angle.ts`) kendi izin seviyesinde uygulayıp commit attı
   (git-tracked/geri alınabilir). tsc --noEmit temiz. `TASKS_ARCHIVE.md#faz-xxii`.
+- **Faz XXIII — Proje adı değişikliği taraması: "Evrimsel Gezegen" →
+  "Evosim" (2026-09-13, coder a7)**: TAMAMLANDI. `git ls-files | grep`
+  ile TÜM tracked dosyalar tarandı (TASKS*.md hariç — orada bilinçli
+  bir "eski adıyla" tarihsel notu var, dokunulmadı). 2 gerçek kullanıcı-
+  görünür kalıntı bulundu ve düzeltildi: (1) `exportimport.ts`'teki
+  `EXPORT_FILENAME_PREFIX` ("evrimsel-gezegen-kayit" → "evosim-kayit",
+  indirilen kayıt dosyası adı, saf kozmetik, format/uyumluluk etkisi
+  yok — Playwright ile gerçek dosya adının doğru üretildiği doğrulandı);
+  (2) `package-lock.json`'daki iki `"name"` alanı `package.json`'la
+  senkronize edildi ("evrimsel-gezegen" → "evosim", `npm install
+  --package-lock-only` ile doğrulandı, bağımlılık sürümlerinde HİÇBİR
+  değişiklik yok). `dist/` klasöründeki eski isim referansı (git-tracked
+  DEĞİL, stale build artifact) yeniden build ile otomatik düzeldi.
+
+  **Bilinçli olarak DOKUNULMADI**: `savegame.ts`'teki `SAVE_KEY =
+  "evrimsel-gezegen-save-v8"` — bu bir `localStorage` anahtarı, kullanıcı
+  arayüzünde hiç görünmüyor ama değiştirilirse mevcut TÜM kayıtlı oyunlar
+  (kullanıcının tarayıcısındaki) sessizce erişilemez hale gelir (farklı
+  anahtar = "kayıt yok" görünür). Bu saf bir isim değişikliği değil,
+  geriye dönük uyumluluk kararı — kullanıcı/PM onayı olmadan
+  uygulanmamalı. Aday havuzuna eklendi.
+
+  tsc --noEmit ve `vite build` temiz. Commit atıldı (push yok).
+  `TASKS_ARCHIVE.md#faz-xxiii`.
 
 ## Güncel/Açık Konular (bir sonraki PM/coder turunda ele alınmalı)
 - **Faz XIV Madde 2 — soy ağacı seçim bug'ı**: kod hem coder hem tester
@@ -253,6 +277,14 @@ PM, kullanıcıdan yeni bir talimat gelmediği sürece kendi kararıyla değerli
 iyileştirmeler seçip ilerletir.
 
 ### Aday yön havuzu (PM her turda buradan seçer veya yeni bir fikir üretir)
+- **`savegame.ts` `SAVE_KEY` eski isim taşıyor (Faz XXIII, 2026-09-13,
+  ONAY BEKLİYOR)**: `"evrimsel-gezegen-save-v8"` — değiştirilirse mevcut
+  TÜM kayıtlı oyunlar (kullanıcının tarayıcısında) sessizce erişilemez
+  hale gelir. Saf bir isim değişikliği değil, kullanıcı/PM onayı
+  gerektiren bir geriye-dönük-uyumluluk kararı (örn. eski anahtardan
+  yeni anahtara TEK SEFERLİK bir migration eklenebilir, ya da
+  kullanıcının hiç eski kaydı yoksa doğrudan yeniden adlandırılabilir —
+  karar kullanıcıya ait).
 - Yeni organ/davranış fikirleri (kullanıcı istediğinde).
 - Genel performans/entegrasyon yeniden-denetimi (periyodik olarak
   tekrarlanabilir, en son 2026-09-09 yapıldı — sonuç: mevcut kod zaten
