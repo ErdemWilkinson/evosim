@@ -1,0 +1,20 @@
+{
+  "name": "evosim",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pixi.js": "^8.4.1"
+  },
+  "devDependencies": {
+    "playwright": "^1.62.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.2"
+  }
+}
