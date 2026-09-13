@@ -5,7 +5,7 @@ mutasyonla yeni organlar kazanır, üreyip çoğalır, avlanır/avlanılır ve
 soy ağaçları boyunca gözlemlenebilir bir evrim tarihi biriktirir. Sabit bir
 "evrim ağacı" sırası yok — hangi organın ne zaman ortaya çıkacağı, hangilerinin
 yayılıp hangilerinin eleneceği tamamen popülasyonun/çevrenin gerçek durumuna
-bağlı.
+bağlı. Yapay zeka destekli bir evrim simulasyonu.
 
 ## Kurulum ve çalıştırma
 
