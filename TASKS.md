@@ -277,14 +277,10 @@ PM, kullanıcıdan yeni bir talimat gelmediği sürece kendi kararıyla değerli
 iyileştirmeler seçip ilerletir.
 
 ### Aday yön havuzu (PM her turda buradan seçer veya yeni bir fikir üretir)
-- **`savegame.ts` `SAVE_KEY` eski isim taşıyor (Faz XXIII, 2026-09-13,
-  ONAY BEKLİYOR)**: `"evrimsel-gezegen-save-v8"` — değiştirilirse mevcut
-  TÜM kayıtlı oyunlar (kullanıcının tarayıcısında) sessizce erişilemez
-  hale gelir. Saf bir isim değişikliği değil, kullanıcı/PM onayı
-  gerektiren bir geriye-dönük-uyumluluk kararı (örn. eski anahtardan
-  yeni anahtara TEK SEFERLİK bir migration eklenebilir, ya da
-  kullanıcının hiç eski kaydı yoksa doğrudan yeniden adlandırılabilir —
-  karar kullanıcıya ait).
+- **`savegame.ts` `SAVE_KEY` eski isim taşıyor (Faz XXIII, 2026-09-13)**:
+  `"evrimsel-gezegen-save-v8"` — **Karar (PM 31): DEĞİŞTİRİLMEYECEK**
+  (risk asimetrik, mevcut kayıtları sessizce kırma riski isim kozmetiğine
+  değmez). Düşük öncelik, `TASKS_ARCHIVE.md#faz-xxiii`'te detay var.
 - Yeni organ/davranış fikirleri (kullanıcı istediğinde).
 - Genel performans/entegrasyon yeniden-denetimi (periyodik olarak
   tekrarlanabilir, en son 2026-09-09 yapıldı — sonuç: mevcut kod zaten
@@ -313,30 +309,13 @@ iyileştirmeler seçip ilerletir.
   EMIR.md'nin "mimari değişiklik, kullanıcı yokken yapılmaz" kategorisine
   giriyor, kullanıcı/PM onayı olmadan uygulanmamalı.
 
-### Tamamlanan turlar (kronolojik, detaylar `TASKS_ARCHIVE.md`'de)
-- **Gemini gerçek uçtan uca doğrulama + ölü kod taraması + baştan sona akış +
-  mobil/responsive CSS kaskad düzeltmesi + kombinasyon senaryosu + arşiv
-  anchor taraması + soy ağacı entegrasyon testi** (coder 6f/c2, tester 62,
-  2026-09-10): hepsi TAMAMLANDI/TEMİZ/GEÇTİ. `TASKS_ARCHIVE.md#faz-xi-gemini-gerçek-çağrı--ölü-kod-taraması`,
-  `#faz-xi-baştan-sona-kullanıcı-akışı-taraması`, `#faz-xi-mobildar-ekran-responsive-taraması`.
-- **Dünya olayları tetikleme + `dominantOrganType()`/ESC-kapat/Content-Type/
-  Gemini whitelist/`crossoverGenomes` adalet düzeltmeleri + Plague Inc canlı
-  diyagramı + soy ağacı tam sayfa + bug-avı taraması** (2026-09-10, coder
-  6f/c2): hepsi TAMAMLANDI, Tester GEÇTİ (bağımsız, 62, farklı açılardan).
-- **Organ açıklaması tutarlılığı + `loadFromSave` temizliği + içe aktarma
-  bug + organ trend oku + uzamsal bölümleme + performans denetimi 2. tur +
-  ayrıştırıcı-besin katkısı** (2026-09-05—10, coder c5/6f/c2): hepsi
-  TAMAMLANDI, Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-xi-organ-açıklaması-tutarlılığı-2-bağımsız-tur`
-  (diğer anchor'lar aynı dosyada `faz-xi-*` ile aranabilir).
-- **Çoklu kayıt slotu** (2026-09-03): eklendi + doğrulandı, sonra kaldırıldı.
-  `TASKS_ARCHIVE.md#faz-xi-çoklu-kayıt-slotu`.
-- **Soy ağacı zoom/pan + performans denetimi + UI/UX sadeleştirme + Dışa/İçe
-  Aktarma + Responsive destek** (2026-09-03): hepsi TAMAMLANDI + Tester GEÇTİ.
-
-## Temizlik Notu (tester 0f, 2026-09-11)
-Proje kökü process/dosya kalıntı taraması: orphan process yok, 3 gerçek
-dosya leftover'ı (`diag_server.pid`, 2 Faz XV temp script'i) silindi, tsc
-temiz doğrulandı.
+### Tamamlanan turlar (kronolojik, 2026-09-03—11)
+Tüm detaylar `TASKS_ARCHIVE.md`'nin "Faz XI — Tamamlanan turlar" ve
+"Temizlik Notu" bölümlerinde — Gemini uçtan uca doğrulama, ölü kod
+taramaları, baştan sona kullanıcı akışı, mobil/responsive CSS düzeltmesi,
+dünya olayları/organ açıklaması/içe aktarma bug düzeltmeleri, soy ağacı
+zoom/pan + tam sayfa, çoklu kayıt slotu (eklendi sonra kaldırıldı), proje
+kökü dosya kalıntı taraması — hepsi TAMAMLANDI, bağımsız tester GEÇTİ.
 
 ## Süreç Notu (PM, 2026-09-01)
 Coder/tester (veya coder/coder) görevleri PARALEL çalıştırılınca aynı dosyalar
