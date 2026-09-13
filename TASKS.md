@@ -185,6 +185,16 @@ aksi belirtilmedikçe. Detaylar için `TASKS_ARCHIVE.md`'ye bakın.
   etçillerde anlamlı" iddiası hem kod-yolu izlemesiyle hem canlı testle
   (otçula zorla eklenip 15s çalıştırıldı, davranış hiç etkilenmedi)
   doğrulandı. `TASKS_ARCHIVE.md#faz-xxi`.
+- **Faz XXII — Küçük yardımcı dosyalarda ölü kod temizliği (2026-09-13)**:
+  TAMAMLANDI. Coder a7'nin bug-avı taraması (`angle.ts`/`color.ts`/`rng.ts`)
+  3 gerçek ölü kod parçası buldu — hiçbiri hiçbir dosyada import/çağrı
+  edilmiyordu (grep ile teyit): `angle.ts`'in TEK fonksiyonu
+  `shortestAngleDiff` (dosyanın tamamı), `color.ts`'teki `muteColor`
+  (`genomeToPalette`'in "nötr/bilimsel görünüm" hedefini HSL aşamasında
+  zaten kısıtlayarak sağladığı, post-processing yaklaşımının hiç
+  kullanılmadığı teyit edildi), `rng.ts`'teki `pick`. PM 31, dosya silme
+  işlemini (`angle.ts`) kendi izin seviyesinde uygulayıp commit attı
+  (git-tracked/geri alınabilir). tsc --noEmit temiz. `TASKS_ARCHIVE.md#faz-xxii`.
 
 ## Güncel/Açık Konular (bir sonraki PM/coder turunda ele alınmalı)
 - **Faz XIV Madde 2 — soy ağacı seçim bug'ı**: kod hem coder hem tester
