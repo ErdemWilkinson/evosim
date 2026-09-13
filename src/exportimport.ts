@@ -8,7 +8,7 @@ import { SaveData, isValidSaveData } from "./savegame";
  * YENİDEN KULLANILIYOR — "ya tam kabul ya tam red" felsefesi burada da geçerli.
  */
 
-const EXPORT_FILENAME_PREFIX = "evrimsel-gezegen-kayit";
+const EXPORT_FILENAME_PREFIX = "evosim-kayit";
 
 /** Mevcut `Ecosystem.serialize()` çıktısını (main.ts'te `{ version: SAVE_VERSION, ...snapshot }`
  *  olarak zaten kuruluyor) bir JSON dosyası olarak kullanıcının tarayıcısına indirir.
