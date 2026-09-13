@@ -2846,4 +2846,32 @@ kayıtlı oyunlar (kullanıcının tarayıcısında, farklı bir anahtarda
 arandığı için) sessizce "kayıt yok" durumuna düşer. Bu saf bir isim
 değişikliği DEĞİL, geriye dönük uyumluluk kararı gerektiriyor — aday
 havuzuna "ONAY BEKLİYOR" olarak eklendi, kullanıcı/PM kararı olmadan
-uygulanmadı.
+uygulanmadı. **Karar (PM 31, 2026-09-13)**: şimdilik DEĞİŞTİRİLMEYECEK
+— risk asimetrik (isim kozmetiği için veri kaybı riski almaya değmez).
+Aday havuzunda "düşük öncelik" olarak kalıyor, ileride istenirse bir
+migration (eski anahtarı oku, bulamazsan yeni anahtarla dene, eski
+bulunursa yeni anahtara taşı) eklenebilir.
+
+## Faz XI — Tamamlanan turlar (arşiv, TASKS.md'den taşındı)
+
+### Gemini gerçek uçtan uca doğrulama + ölü kod taraması + baştan sona akış + mobil/responsive CSS kaskad düzeltmesi + kombinasyon senaryosu + arşiv anchor taraması + soy ağacı entegrasyon testi (coder 6f/c2, tester 62, 2026-09-10)
+Hepsi TAMAMLANDI/TEMİZ/GEÇTİ. Anchor'lar: `#faz-xi-gemini-gerçek-çağrı--ölü-kod-taraması`,
+`#faz-xi-baştan-sona-kullanıcı-akışı-taraması`, `#faz-xi-mobildar-ekran-responsive-taraması`.
+
+### Dünya olayları tetikleme + dominantOrganType()/ESC-kapat/Content-Type/Gemini whitelist/crossoverGenomes adalet düzeltmeleri + Plague Inc canlı diyagramı + soy ağacı tam sayfa + bug-avı taraması (2026-09-10, coder 6f/c2)
+Hepsi TAMAMLANDI, Tester GEÇTİ (bağımsız, 62, farklı açılardan).
+
+### Organ açıklaması tutarlılığı + loadFromSave temizliği + içe aktarma bug + organ trend oku + uzamsal bölümleme + performans denetimi 2. tur + ayrıştırıcı-besin katkısı (2026-09-05—10, coder c5/6f/c2)
+Hepsi TAMAMLANDI, Tester GEÇTİ. Anchor: `#faz-xi-organ-açıklaması-tutarlılığı-2-bağımsız-tur`
+(diğer anchor'lar aynı dosyada `faz-xi-*` ile aranabilir).
+
+### Çoklu kayıt slotu (2026-09-03)
+Eklendi + doğrulandı, sonra kaldırıldı. Anchor: `#faz-xi-çoklu-kayıt-slotu`.
+
+### Soy ağacı zoom/pan + performans denetimi + UI/UX sadeleştirme + Dışa/İçe Aktarma + Responsive destek (2026-09-03)
+Hepsi TAMAMLANDI + Tester GEÇTİ.
+
+## Temizlik Notu (tester 0f, 2026-09-11, arşiv)
+Proje kökü process/dosya kalıntı taraması: orphan process yok, 3 gerçek
+dosya leftover'ı (`diag_server.pid`, 2 Faz XV temp script'i) silindi, tsc
+temiz doğrulandı.
