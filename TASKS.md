@@ -219,6 +219,18 @@ aksi belirtilmedikçe. Detaylar için `TASKS_ARCHIVE.md`'ye bakın.
 
   tsc --noEmit ve `vite build` temiz. Commit atıldı (push yok).
   `TASKS_ARCHIVE.md#faz-xxiii`.
+- **Faz XXIV — `decomposer.ts`/`corpse.ts` ölü kod + kırılgan senkron
+  (2026-09-14, coder a7)**: TAMAMLANDI. Tarama sırasında `Decomposer.progress`
+  adında public bir getter bulundu — docstring'i "Ecosystem bunu bağlı
+  cesedin solma hızını hızlandırmak için kullanabilir" diyordu ama grep ile
+  sıfır kullanım teyit edildi (ölü kod). Bunun yerine `corpse.ts` kendi
+  `elapsed` sayacıyla `LIFETIME*0.18` (≈3.96s) kullanarak tüketim oranını
+  BAĞIMSIZ hesaplıyordu — `Decomposer.CONSUME_DURATION=4`'e sadece tesadüfen
+  yakın, gerçek bir bağlantı yok. `progress` getter'ı kaldırıldı, her iki
+  dosyadaki yorum bu iki sabitin ELLE senkronize tutulması gerektiğini (biri
+  değişirse diğeri sessizce kayar) açıkça belirtecek şekilde güncellendi.
+  tsc/build temiz, 30s'lik gerçek bir simülasyon koşusuyla (doğal ölüm/ceset/
+  ayrıştırıcı döngüsü) doğrulandı, sıfır hata. Commit atıldı (push yok).
 
 ## Güncel/Açık Konular (bir sonraki PM/coder turunda ele alınmalı)
 - **Faz XIV Madde 2 — soy ağacı seçim bug'ı**: kod hem coder hem tester
