@@ -28,6 +28,13 @@ KURSUN.
   yokken YAPILMAZ — sadece yerel/geliştirme ortamında kalan, geri
   alınabilir adımlarla ilerlenir. Emin değilseniz PM'e danışın, PM de emin
   değilse ilerlemeyip not düşer, kullanıcı döndüğünde sorar.
+- **Git (2026-09-13'ten itibaren)**: Proje artık bir git deposu, adı "Evosim"
+  (GitHub: `ErdemWilkinson/evosim`, private). Coder her kod değişikliği
+  turu sonunda `git add`+`git commit` atar (küçük, açıklayıcı mesajlarla).
+  **`git push` SADECE PM onayıyla yapılır** — coder/tester kendi başına
+  push ATMAZ (uzak repo, geri alınması coder/tester'ın yetkisinde olmayan
+  bir eylem). `.env` zaten `.gitignore`'da, commit'lerde asla API anahtarı
+  olmadığından emin olun (özellikle yeni bir .env benzeri dosya eklenirse).
 
 ## Kullanıcının açık isteği
 - Proje sürekli mükemmelleştirilsin, kendi kendine yeni görevler seçip

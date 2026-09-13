@@ -43,30 +43,3 @@ export function shade(color: number, amount: number): number {
   return (mix(r) << 16) | (mix(g) << 8) | mix(b);
 }
 
-/**
- * Faz A takip — bilimsel/nötr görsel dil: verilen rengi kendi algısal parlaklığına
- * (luma) sahip bir griye doğru karıştırarak doygunluğunu düşürür (basit bir
- * desaturasyon), ardından hafifçe koyulaştırır. `creature.ts`'teki
- * `genomeToPalette`'in "doygunluk/parlaklığı bastır" mantığıyla aynı — parlak/oyunsu
- * renkler yerine "veri kategorisi" gibi okunan, laboratuvar örneği hissi veren tonlar
- * üretir. `desaturate` 0 (değişiklik yok) .. 1 (tam gri) arası, `darken` 0..1 arası
- * ek bir koyulaştırma miktarıdır.
- */
-export function muteColor(color: number, desaturate: number, darken = 0): number {
-  const r = (color >> 16) & 0xff;
-  const g = (color >> 8) & 0xff;
-  const b = color & 0xff;
-  const luma = r * 0.299 + g * 0.587 + b * 0.114;
-  const mixR = r + (luma - r) * desaturate;
-  const mixG = g + (luma - g) * desaturate;
-  const mixB = b + (luma - b) * desaturate;
-  const dk = 1 - darken;
-  const R = Math.round(clampByte(mixR * dk));
-  const G = Math.round(clampByte(mixG * dk));
-  const B = Math.round(clampByte(mixB * dk));
-  return (R << 16) | (G << 8) | B;
-}
-
-function clampByte(v: number): number {
-  return Math.min(255, Math.max(0, v));
-}

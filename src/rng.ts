@@ -24,8 +24,3 @@ export function mulberry32(seed: number): () => number {
 export function randRange(rng: () => number, min: number, max: number): number {
   return min + rng() * (max - min);
 }
-
-/** dizi içinden rastgele bir eleman seçer. */
-export function pick<T>(rng: () => number, items: readonly T[]): T {
-  return items[Math.floor(rng() * items.length)];
-}
