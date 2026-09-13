@@ -11,7 +11,13 @@ import { Container, Graphics } from "pixi.js";
  */
 export class Decomposer extends Container {
   /** Bir cesedi tüketmek için geçen süre (saniye) — Corpse.LIFETIME'dan belirgin
-   *  kısa tutuluyor ki "bakteriler cesedi daha erken temizler" gözle görülsün. */
+   *  kısa tutuluyor ki "bakteriler cesedi daha erken temizler" gözle görülsün.
+   *  UYARI: `corpse.ts`'teki tüketim-solma hesabı (`beingConsumed` dalı,
+   *  `LIFETIME * 0.18`) bu sabite GERÇEKTEN BAĞLI DEĞİL — sadece görsel olarak
+   *  yakın süre versin diye ELLE senkronize tutuluyor (4 ≈ 22*0.18=3.96). Bu
+   *  değeri değiştirirsen `corpse.ts`'teki katsayıyı da elle güncellemen
+   *  gerekir, aksi halde ceset/bakteri solma hızları görsel olarak uyumsuz
+   *  hale gelir (derleme hatası vermez, sessizce kayar). */
   public static readonly CONSUME_DURATION = 4;
 
   public finished = false;
@@ -41,12 +47,6 @@ export class Decomposer extends Container {
     const t = Math.min(1, this.elapsed / Decomposer.CONSUME_DURATION);
     this.redraw(t);
     if (t >= 1) this.finished = true;
-  }
-
-  /** Tüketimin ne kadarının tamamlandığını (0..1) döndürür — `Ecosystem` bunu
-   *  bağlı cesedin solma hızını hızlandırmak için kullanabilir. */
-  public get progress(): number {
-    return Math.min(1, this.elapsed / Decomposer.CONSUME_DURATION);
   }
 
   private redraw(t: number): void {
