@@ -1,2877 +1,2633 @@
-# Evrimsel Gezegen — Arşiv (Faz Detayları ve Tester Doğrulamaları)
+# Evosim — Archive (Phase Details and Tester Verifications)
 
-Bu dosya, `TASKS.md`'nin okunabilir kalması için ayrıştırılan **tarihsel** içeriği
-tutar: her fazın uygulama detayları ve bağımsız tester doğrulama raporları. Güncel
-özet/durum için `TASKS.md`'ye bakın. Fazlar kronolojik sırayla (I → XII) verilmiştir;
-her faz kendi içinde "Detaylar" (coder) ve "Tester doğrulaması" alt bölümlerini içerir.
-
----
-
-## Faz I — Detaylar ve Tester Doğrulaması (arşiv)
-
-### Detaylar (tamamlandı)
-- **Eski v2 kodu temizlendi**: `planet.ts`, `phylotree.ts`, `traithistogram.ts`,
-  `populationhistory.ts` (D3 sürümü), `selectionanalysis.ts`, `selectiontrends.ts`,
-  `biome.ts`, `pheromone.ts`, `plant.ts` silindi. `package.json`'dan `d3`/`@types/d3`
-  kaldırıldı (`npm uninstall` ile node_modules'tan da temizlendi).
-- **Düz harita** (`src/world.ts`): sabit boyutlu (1600×1000) dikdörtgen `World`.
-  Su/kara ayrımı, her biri rastgele YÖNDE ilerleyen düzlemsel sinüs dalgalarının
-  (3 oktav: kaba/orta/ince frekans) toplamıyla üretiliyor — kütüphane yok, sabit
-  `MAP_SEED` ile deterministik, simülasyon boyunca sabit. İlk denemede tüm dalgalar
-  eksen-hizalı (freqX/freqY) tutulunca köşegen "çizgili kumaş" deseni oluşmuştu;
-  düzeltme olarak her dalgaya bağımsız rastgele bir açı verildi — sonuç organik
-  ada/kıta şekilleri (~%47 su / %53 kara, ekran görüntüsüyle doğrulandı). Harita bir
-  kez canvas dokusuna bake ediliyor, render döngüsüne ek maliyet yok. Su/kara oranı
-  `World.waterFraction` ile dışarı açık, HUD'da gösteriliyor.
-- **Mikroorganizma** (`src/genome.ts`, `src/creature.ts`): genomda organ/uzuv/diyet
-  YOK — sadece yarıçap, renk, hız, algı menzili, metabolizma, bölünme eşiği. Görünüş
-  tek bir daire. Konum artık theta değil düz (x,y). Üreme, eşleşme değil **bölünme**
-  (aseksüel, `divideGenome` — küçük mutasyonlarla).
-- **Ekosistem** (`src/ecosystem.ts`): canlılar SADECE su bölgelerinde spawn olur ve
-  kalır (`moveWithinWater` — karaya/harita dışına çıkacak hareketi iptal edip yönü
-  rastgele çevirir). Basit besin mekaniği: `Nutrient` parçacıkları periyodik olarak
-  suda beliriyor, canlı yakındakini algılayıp yönelip yiyor, enerji kazanıyor;
-  metabolizma sürekli enerji tüketiyor, enerji biterse ölüyor; enerji eşiğe ulaşınca
-  ikiye bölünüyor. Headless testte (4x hız, ~80s simülasyon) 11 bölünme, nesil 2'ye
-  ulaştı, popülasyon dengeli kaldı — mekanik çalışıyor.
-- **Minimal UI** (`index.html`, `src/dashboard.css`, `src/hud.ts`): v2'nin sekmeli/
-  D3'lü sağ paneli TAMAMEN kaldırıldı. Yeni panel: tek, kompakt bir blok (popülasyon,
-  zaman, nesil, toplam bölünme, su/kara %) + altında boş bir "Evrim Olay Akışı"
-  listesi (placeholder metinli, Faz III'te dolacak — `Hud.pushEvent` hazır ama şimdilik
-  hiçbir yerden çağrılmıyor, kasıtlı). Sekme/grafik YOK. Hız kontrolü (II/1x/2x/4x) ve
-  "Yeniden Başlat" v2'den korundu (DOM tabanlı, basit).
-- **Kaydet/Yükle** (`src/savegame.ts`): yeni genom/konum şekline göre güncellendi,
-  save-key sürümü v2'ye çıkarıldı (eski v1 kayıtları otomatik reddediliyor — "ya tam
-  kabul ya tam red" felsefesi korundu).
-- **Doğrulama**: `npx tsc -b --force` ve `npm run build` temiz geçti. Playwright ile
-  headless tarayıcı testi: konsol hatası yok, harita görünüyor, canlılar (küçük renkli
-  noktalar) suda hareket ediyor (iki farklı zaman noktasında pozisyon değişimi
-  doğrulandı), event log gerçekten boş/placeholder, `.tab-btn` sayısı 0 (sekme
-  kalmadığı doğrulandı). Ekran görüntüleri dürüstçe değerlendirildi: arayüz gerçekten
-  sade — tek panel, büyük harita alanı, göze çarpan tek bir grafik/sekme yok.
-
-### Tester doğrulaması (bağımsız, 2026-09-01): GEÇTİ
-`npx tsc --noEmit` ve `npm run build` temiz (0 hata). `package.json`'da
-`dependencies`/`devDependencies` içinde `d3` yok, `node_modules`'ta da yok. Eski v2
-dosyalarının (`planet.ts`, `phylotree.ts`, `traithistogram.ts`, `populationhistory.ts`,
-`selectionanalysis.ts`, `selectiontrends.ts`, `biome.ts`, `pheromone.ts`, `plant.ts`)
-hepsi `src/`'den kaldırılmış. Headless Playwright ile `npm run dev` üzerinde tam sayfa
-ekran görüntüleri (t=0s, ~20s, ~80s, 4x hızda) alındı ve dürüstçe incelendi: harita
-gerçekten sabit 1600×1000 dikdörtgen (dairesel değil), su/kara sınırları organik
-ada/kıta şekilleri — coder'ın bahsettiği köşegen "çizgili kumaş" artefaktı YOK,
-düzeltme kalıcı görünüyor. Canlılar sade tek renkli daireler, hiçbir organ/uzuv/segment
-yok (`creature.ts` `drawBody` sadece `circle().fill()+stroke()`; `genome.ts` `Genome`
-arayüzünde organ alanı yok — kod incelemesiyle de teyit edildi). UI tek, kompakt bir
-yan panel (`#side-panel`: istatistik bloğu + "Evrim Olay Akışı" listesi); `index.html`
-içinde sekme/tab yapısı hiç yok, headless testte `.tab-btn` sayısı 0. Olay akışı
-gerçekten boş/placeholder metinli (Faz III'e bırakılmış, kasıtlı). Canlıların su
-dışına/karaya çıkmadığı hem görsel olarak (3 ekran görüntüsünde tüm noktalar
-koyu-lacivert su alanı üzerinde, yeşil-gri kara üzerinde hiç nokta yok) hem kod
-incelemesiyle (`ecosystem.ts` `moveWithinWater` — hedef nokta kara/sınır dışıysa
-hareket iptal edilip yön rastgele çevriliyor; `randomWaterPoint` sadece su koordinatı
-üretiyor) doğrulandı. Bölünme/nüfus mekaniği çalışıyor: 4x hızda ~80s'de popülasyon
-22→22 (dengeli, ölüm de var), nesil 0→2→4, toplam bölünme 0→9→50 — canlı bir ekosistem,
-sabit/statik değil. Konsol hatası ve sayfa hatası: 0. Tek risk/not: `randomGenome`'daki
-hız/algı gibi parametrelerin dar aralıkları (Faz II'de organ sistemi eklenince
-genişleyecek, bu fazda kapsam dışı bırakılması doğru). Sonuç: Faz I gerçekten
-hedeflenen "minimal arayüz + düz harita + organsız mikroorganizma" konseptini
-karşılıyor, v2'nin dashboard/D3/sekme/dairesel-gezegen izleri kalmamış.
+This file holds the **historical** content split out to keep `TASKS.md`
+readable: each phase's implementation details and independent tester
+verification reports. See `TASKS.md` for the current summary/status. Phases
+are given in chronological order (I → XII); each phase contains its own
+"Details" (coder) and "Tester verification" subsections.
 
 ---
 
-## Faz II — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase I — Details and Tester Verification (archive)
 
-### Detaylar (PM'in kod incelemesiyle doğrulandı; coder raporlama adımında takıldığı
-### için PM tarafından tamamlandı)
-- **`src/organs.ts` (yeni)**: Kapalı bir enum/switch yerine genişletilebilir bir
-  `ORGAN_DEFINITIONS` kaydı. 4 kategori: hareket (fin/leg/wing/tentacle), algı
-  (eyespot/eye), beslenme (mouth), savunma (shell/camouflage/spike) — 10 organ tipi.
-  Her tanım kendi şematik çizim fonksiyonunu (çizgi/üçgen/nokta, karikatür DEĞİL) ve
-  ağırlığını taşıyor. `pickRandomOrganType` ağırlıklı rastgele seçim yapıyor — sabit
-  bir evrim sırası yok, tamamen fırsatçı (TASKS.md gereksinimi karşılanıyor).
-  `LAND_CAPABLE_ORGAN_TYPES = ["leg"]` ile karaya çıkış yetkisi organ bazlı tanımlı,
-  ileride genişletilebilir.
-- **`src/genome.ts`**: `Genome.organs: Organ[]` eklendi, başlangıçta boş (mikroorganizma
-  organsız — Faz I korunuyor). `divideGenome` içinde `maybeGainOrgan` (düşük olasılıkla
-  yeni organ tipi kazanımı, `MAX_ORGAN_TYPES` ile sınırlı) ve `mutateOrganPowers`
-  (mevcut organ güçlerinde küçük mutasyon) çağrılıyor. `MUTATION_CHANCE=0.25`,
-  `ORGAN_POWER_MUTATION_CHANCE=0.3` — makul, agresif olmayan oranlar.
-- **`src/creature.ts`**: Genomdaki organlar tipe göre gruplanıp gövde dairesi
-  üzerine/etrafına çiziliyor (`ORGAN_DEFINITIONS[type].draw`) — v2'nin nötr/bilimsel
-  görsel dili korunuyor.
-- **`src/ecosystem.ts`**: Su→kara geçişi — `creature.canWalkOnLand()` (bacak organı)
-  true ise birey karaya çıkabiliyor; ayrı bir `landNutrients` havuzu (daha yavaş
-  spawn ama "rakipsiz besin kaynağı" mantığıyla ödüllendirici) karada beslenmeyi
-  sağlıyor. Bacaksız bireyler için kara hâlâ tamamen yasak.
-- **PM doğrulaması**: `npx tsc --noEmit` ve `npm run build` temiz (PM tarafından
-  tekrar çalıştırıldı). Kod okuması ile mantığın TASKS.md gereksinimleriyle (açık
-  organ havuzu, mutasyonla kazanım, görsel şematik temsil, su→kara geçişi) tutarlı
-  olduğu doğrulandı.
-- **Not**: Coder bu fazda raporlama/doğrulama adımında iki kez kendi başlattığı bir
-  arka plan işini bekleyip takıldı (önceki fazlarda da görülen bir davranış paterni)
-  — kod kalitesinden bağımsız bir süreç sorunu.
+### Details (complete)
+- **Old v2 code cleaned up**: `planet.ts`, `phylotree.ts`, `traithistogram.ts`,
+  `populationhistory.ts` (D3 version), `selectionanalysis.ts`, `selectiontrends.ts`,
+  `biome.ts`, `pheromone.ts`, `plant.ts` deleted. `d3`/`@types/d3` removed from
+  `package.json` (also cleaned from node_modules with `npm uninstall`).
+- **Flat map** (`src/world.ts`): fixed-size (1600×1000) rectangular `World`.
+  The water/land split is generated by summing planar sine waves, each
+  traveling in a random DIRECTION (3 octaves: coarse/medium/fine frequency)
+  — no library, deterministic with a fixed `MAP_SEED`, constant throughout
+  the simulation. In the first attempt, keeping all waves axis-aligned
+  (freqX/freqY) produced a diagonal "striped fabric" pattern; the fix was
+  to give each wave an independently random angle — the result is organic
+  island/continent shapes (~47% water / 53% land, verified with a
+  screenshot). The map is baked into a canvas texture once, adding no cost
+  to the render loop. The water/land ratio is exposed via
+  `World.waterFraction` and shown in the HUD.
+- **Microorganism** (`src/genome.ts`, `src/creature.ts`): the genome has NO
+  organs/limbs/diet — only radius, color, speed, sense range, metabolism,
+  division threshold. Appearance is a single circle. Position is now flat
+  (x,y) rather than theta. Reproduction is **division**, not mating
+  (asexual, `divideGenome` — with small mutations).
+- **Ecosystem** (`src/ecosystem.ts`): creatures spawn and stay ONLY in water
+  regions (`moveWithinWater` — cancels any movement that would go onto land/
+  off the map and randomizes the heading instead). Simple food mechanic:
+  `Nutrient` particles periodically appear in the water, a creature senses
+  a nearby one, steers toward it and eats it, gaining energy; metabolism
+  continuously consumes energy, and the creature dies if energy runs out;
+  it divides in two once energy reaches a threshold. In a headless test
+  (4x speed, ~80s simulation): 11 divisions, generation reached 2,
+  population stayed balanced — the mechanic works.
+- **Minimal UI** (`index.html`, `src/dashboard.css`, `src/hud.ts`): v2's
+  tabbed/D3 right panel was COMPLETELY removed. New panel: a single, compact
+  block (population, time, generation, total divisions, water/land %) with
+  an empty "Evolution Event Feed" list below (placeholder text, to be
+  filled in Phase III — `Hud.pushEvent` is ready but deliberately not
+  called from anywhere yet). NO tabs/charts. Speed control (II/1x/2x/4x)
+  and "Restart" carried over from v2 (DOM-based, simple).
+- **Save/Load** (`src/savegame.ts`): updated to match the new genome/
+  position shape, save-key version bumped to v2 (old v1 saves are
+  automatically rejected — the "either fully accept or fully reject"
+  philosophy preserved).
+- **Verification**: `npx tsc -b --force` and `npm run build` passed clean.
+  Headless browser test with Playwright: no console errors, map is
+  visible, creatures (small colored dots) move in the water (position
+  change verified at two different time points), event log is genuinely
+  empty/placeholder, `.tab-btn` count is 0 (confirmed no tabs remain).
+  Screenshots were assessed honestly: the interface is genuinely simple —
+  a single panel, a large map area, no conspicuous chart/tab.
 
-### Tester doğrulaması (bağımsız, 2026-09-01): GEÇTİ
-`npx tsc --noEmit` ve `npm run build` temiz (0 hata, testerın kendi ortamında tekrar
-çalıştırıldı, test sırasında coder'ın `ecosystem.ts` üzerinde eşzamanlı yaptığı bir
-dengeleme düzeltmesi (besin üretim hızının popülasyona göre ölçeklenmesi) sonrası da
-temiz kaldığı doğrulandı). Playwright headless tarayıcı ile SENKRON davranış testi
-(`npm run dev`, port 5199, hiçbir adım arka plana atılmadı):
-- **Başlangıç**: 24 canlının tamamı organsız (`getCreatureSummaries()` → `organs: []`),
-  ekran görüntüsünde sadece düz renkli daireler, hiçbiri kara üzerinde değil.
-- **4x hızda ~4 dakikalık gerçek-zamanlı (≈967 sim-saniyesi) koşu**, 20 saniyede bir
-  `window.__debug.getCreatureSummaries()` ile örneklendi: organsız popülasyondan
-  başlayarak t=20s'de ilk organlar (fin/wing/eyespot) belirdi, t=100-140s aralığında
-  `leg` popülasyona hızla yayıldı (muhtemelen karadaki rakipsiz besin avantajı
-  sayesinde — TASKS.md'nin öngördüğü tam senaryo), t=160s'de organ dağılımı fin:6,
-  leg:92, camouflage:14, eye:2, mouth:4 idi. Deney sonunda (t=967s) 140 canlının
-  96'sında en az bir organ vardı, 5 farklı organ TİPİ (fin/leg/camouflage/eye/mouth)
-  gözlemlendi — kapalı/sabit bir sıra değil, organik/fırsatçı bir dağılım. Konsol/sayfa
-  hatası: 0 (hem uzun koşu hem zoom testinde).
-- **Görsel doğrulama**: id=241 (leg+camouflage+mouth, nesil 10, karada) ve id=81
-  (fin+eye) gibi organlı bireylere kamera dönüşümü (fitCamera matematiği) ile
-  hesaplanan ekran koordinatından yakınlaştırılmış kırpma ekran görüntüleri alındı —
-  organlar gerçekten şematik (küçük üçgen/çizgi uzantılar gövde dairesinden dışarı
-  çıkıyor), karikatür yüz/ifade YOK, v2'nin "bilimsel/nötr" görsel dili korunmuş.
-- **Su→kara geçişi**: `getCreatureSummaries()`'teki `onLand`/`canWalkOnLand` alanları
-  çapraz kontrol edildi — her örnekte `onLand` sayısı HİÇBİR ZAMAN `canWalkOnLand`
-  (bacaklı birey) sayısını aşmadı (örn. t=160s: onLand=36, landCapable=92; t=200s:
-  onLand=48, landCapable=90) — bacaksız bireyler için kara yasağı koşu boyunca hiç
-  ihlal edilmedi.
-- **Test metodolojisi notu**: Ekran-koordinatına yakınlaştırma için `window.__debug`'a
-  geçici olarak `x2`/`y2`/`radius` alanları eklendi (main.ts), test bitince TAMAMEN
-  geri alındı. Playwright test amaçlı geçici bir devDependency olarak eklenip test
-  sonunda `npm uninstall` ile tamamen kaldırıldı.
-- **Regresyon (Faz I)**: popülasyon 24→140 (tavana ulaşıp dengede kaldı), nesil 0→10,
-  toplam bölünme 0→390, su/kara oranı hâlâ %47/%53 sabit.
-- **Risk/not**: Test sırasında coder'ın aynı anda `ecosystem.ts` üzerinde canlı bir
-  dosya düzenlemesi (besin dengeleme düzeltmesi) tespit edildi — tester bunu fark edip
-  dosyanın durulmasını bekledi, tsc'yi tekrar çalıştırıp temiz olduğunu doğruladıktan
-  sonra teste devam etti. Sonuç etkilenmedi.
-
----
-
-## Faz III — Detaylar ve Tester Doğrulaması (arşiv)
-
-### Detaylar (coder, 2026-09-01, tamamen senkron çalıştırıldı)
-- **`src/ecosystem.ts`**: Faz III mantığı mevcut besin/ölüm/bölünme koduna
-  DOKUNMADAN eklendi (sadece yeni sabitler/state/metodlar; `update()` sonuna tek bir
-  `this.updateEvolutionEvents(dt)` çağrısı eklendi):
-  - `getOrganPrevalence()`: her `OrganType` için canlı popülasyonda kaç bireyin o
-    organı taşıdığını sayan basit bir histogram.
-  - `updateEvolutionEvents` (2 saniyede bir kontrol):
-    - **Yaygınlık eşiği** (`checkPrevalenceMilestones`): popülasyon ≥10 ise, her organ
-      tipi için taşıyanların oranı %20/%40/%60/%80 eşiklerinden birini ilk kez
-      geçtiğinde bir olay üretir. Her eşik organ başına bir kez tetiklenir.
-    - **Enerji avantajı/dezavantajı** (`checkEnergyAdvantage`): her organ tipi için
-      taşıyan/taşımayan gruplarının ortalama enerji ORANI karşılaştırılır. DÜRÜSTLÜK
-      kuralı: her iki grupta da en az 12 birey yoksa karşılaştırma atlanır. Fark ≥%15
-      ise organ tipi başına BİR KEZ olay üretilir.
-  - `pollEvolutionEvents()`: bekleyen olayları döndürüp iç kuyruğu boşaltan public
-    metod — `main.ts` her karede çağırıp `Hud.pushEvent`'e basıyor.
-  - `reset()` içine Faz III state'inin sıfırlanması eklendi.
-- **`src/hud.ts`**: `pushEvent` artık liste 30 satırı (`MAX_EVENTS`) aşarsa en eski
-  satırı buduyor.
-- **Örnek gerçek olay metinleri** (senkron testte gerçekten üretildi):
-  - `t=135s — Kamuflaj taşıyan bireylerin ortalama enerjisi, taşımayanlardan %17
-    daha yüksek — hayatta kalma avantajı gözlemleniyor`
-  - `t=233s — Ağız/Çene taşıyan bireylerin oranı %20'i geçti (beslenme verimliliği
-    avantajı yayılıyor)`
-  - Küçük not: ünlü uyumu eki her zaman tam doğru değil (kozmetik, Faz IV'te
-    düzeltilebilir).
-- **Doğrulama (SENKRON)**: `npx tsc --noEmit`/`npm run build` temiz. 4 dakikalık koşuda
-  6 gerçek olay düştü, YİNELENEN olay metni YOK, konsol/sayfa hatası 0.
-- **Gözlemlenen ama Faz III kapsamı DIŞINDA bir bulgu**: bu koşuda popülasyon 140'tan
-  0'a çöktü — event mekaniği doğru şekilde sessiz kaldı (yeni olay üretmedi). Var olan
-  bir ekosistem besin dengeleme kırılganlığı (Faz IV'e bırakıldı).
-
-### Tester doğrulaması (bağımsız, 2026-09-01): GEÇTİ
-`npx tsc --noEmit` ve `npm run build`: 0 hata. **İki bağımsız koşu** (4x hızda 4'er
-dakika, 15 saniyede bir örneklendi):
-- **RUN1**: 9 gerçek olay düştü — 4 yaygınlık eşiği, 4 enerji avantajı. **RUN2**: 2
-  olay. Yinelenen olay metni HİÇBİR run'da YOK.
-- **Mantıklılık/dürüstlük çapraz kontrolü**: olay metnindeki yüzdeler elle yeniden
-  hesaplanıp tutarlı bulundu.
-- **Dürüstlük eşiği (min 12/12)**: ayrı bir 40 saniyelik koşuda hiçbir organ tipi
-  12/12 eşiğine ulaşmadı VE 0 olay düştü — doğru davranış.
-- **Event log 30 sınırı**: kod incelemesiyle doğrulandı.
-- **Konsol/sayfa hatası**: 3 koşunun tamamında 0.
-- **Popülasyon çöküşü gözlemi (Faz III kapsamı dışı)**: RUN2'de popülasyon 133'ten
-  0'a çöktü; RUN1'de 140→45'e düşüp kendiliğinden toparlandı. İki bağımsız koşuda da
-  ciddi düşüş görülmesi — Faz IV'te erken ele alınması önerildi.
-- **Sonuç**: Faz III mekaniği (histogram, eşik tespiti, event kuyruğu) sağlam ve
-  bağımsız doğrulandı. Tek risk ekosistem dengesi (Faz IV'e ait).
+### Tester verification (independent, 2026-09-01): PASSED
+`npx tsc --noEmit` and `npm run build` clean (0 errors). `package.json` has
+no `d3` in `dependencies`/`devDependencies`, and none in `node_modules`.
+All old v2 files (`planet.ts`, `phylotree.ts`, `traithistogram.ts`,
+`populationhistory.ts`, `selectionanalysis.ts`, `selectiontrends.ts`,
+`biome.ts`, `pheromone.ts`, `plant.ts`) removed from `src/`. Full-page
+screenshots taken with headless Playwright on `npm run dev` (t=0s, ~20s,
+~80s, at 4x speed) and honestly reviewed: the map is genuinely a fixed
+1600×1000 rectangle (not circular), water/land boundaries form organic
+island/continent shapes — the diagonal "striped fabric" artifact the coder
+mentioned is GONE, the fix appears durable. Creatures are plain single-color
+circles, with no organ/limb/segment whatsoever (`creature.ts` `drawBody` is
+just `circle().fill()+stroke()`; `genome.ts`'s `Genome` interface has no
+organ field — confirmed by code review too). The UI is a single, compact
+side panel (`#side-panel`: stat block + "Evolution Event Feed" list);
+`index.html` has no tab structure at all, `.tab-btn` count is 0 in the
+headless test. The event feed is genuinely empty/placeholder text (left for
+Phase III, deliberate). Creatures never leave water/go onto land, confirmed
+both visually (in all 3 screenshots every dot sits on the dark-navy water
+area, no dots on the green-gray land) and by code review (`ecosystem.ts`
+`moveWithinWater` — cancels movement and randomizes heading if the target
+point is off-land/out-of-bounds; `randomWaterPoint` only generates water
+coordinates). Division/population mechanics work: at 4x speed over ~80s
+population went 22→22 (balanced, deaths occur too), generation 0→2→4, total
+divisions 0→9→50 — a living ecosystem, not static. Console errors and page
+errors: 0. Sole risk/note: the narrow ranges of parameters like speed/sense
+in `randomGenome` (will widen once the organ system is added in Phase II,
+correctly out of scope for this phase). Conclusion: Phase I genuinely
+delivers the targeted "minimal interface + flat map + organless
+microorganism" concept, with no remaining traces of v2's dashboard/D3/tabs/
+circular-planet.
 
 ---
 
-## Faz IV — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase II — Details and Tester Verification (archive)
 
-### Detaylar (coder, 2026-09-01, tamamen senkron çalıştırıldı — popülasyon çöküşü
-### acil önceliği)
-- **Kök neden analizi metodolojisi**: kod incelemesiyle başlandı, sonra Playwright ile
-  gerçek `npm run dev` üzerinde SENKRON, 4x hızda 240 saniyelik (≈960 sim-saniyesi)
-  koşular yapılıp popülasyon/nutrient/enerji-oranı zaman serisi toplandı.
-- **BULGU 1 (ilk hipotez, doğru ama TEK BAŞINA yetersiz)**: `MAX_NUTRIENTS=160` sabit
-  besin stoku tavanı, `MAX_CREATURES=140` popülasyonun talebini karşılamaya
-  yetmiyordu. İlk düzeltme (`nutrientCapacity` popülasyona göre büyütüldü) SONRASI bir
-  doğrulama koşusunda popülasyon YİNE 140→0 çöktü (nutrient stoku bol olsa bile) — bu,
-  "besin miktarı" hipotezinin eksik olduğunu kanıtladı.
-- **BULGU 2 (gerçek/asıl kök neden)**: Sorun besin MİKTARI değil besin
-  ERİŞİLEBİLİRLİĞİYDİ. Yeni nutrient'lar haritanın TÜM alanına tamamen rastgele
-  dağıtılıyordu — ortalama komşu mesafesi canlıların `senseRadius`ıyla aynı mertebede
-  kalıyor, çoğu nutrient hiçbir canlının algı menzilinde olmuyordu. Popülasyon tavana
-  yapıştığında bu düşük bulma verimliliği enerji dengesini negatife çevirip geri
-  dönüşsüz bir açlık sarmalı yaratıyordu.
-- **Düzeltme (üç parça, `src/ecosystem.ts`)**:
-  1. `BASE_MAX_NUTRIENTS=120`/`BASE_MAX_LAND_NUTRIENTS=60` + `nutrientCapacity()` —
-     besin stok tavanı popülasyonla birlikte büyüyor.
-  2. `nutrientSpawnRateMultiplier` — düşük/çöken popülasyonda üretim hızının aşırı
-     düşmesini önleyen bir taban korunuyor.
-  3. **`spawnPointNear()` (asıl belirleyici düzeltme)** — yeni nutrient'ların
-     `NEAR_CREATURE_SPAWN_CHANCE=0.75` ihtimalle rastgele bir canlının 20-70px
-     yakınına doğması. Kalan %25 hâlâ tamamen rastgele (keşif teşviki korunsun diye).
-  4. Bölünme/metabolizma/organ eşiklerine DOKUNULMADI.
-- **Doğrulama**: **Düzeltme SONRASI 5 bağımsız koşu**: 5/5 koşu hiç çökmedi, popülasyon
-  her koşuda 140 tavanına ulaşıp koşu sonuna kadar dengede kaldı. Ortalama enerji
-  oranı sağlıklı bir bantta (0.5-0.87) dalgalandı. Konsol/sayfa hatası: 0.
-  - **Regresyon — Faz II**: organ çeşitliliği bozulmadı, kara yasağı ihlal edilmedi.
-  - **Regresyon — Faz III**: event mekaniği besin düzeltmesinden etkilenmedi.
-- **Kapsam dışı bırakılanlar**: "Faz IV — Cila" maddesindeki küçük UI/performans
-  iyileştirmeleri — popülasyon dengesi çözülmeden bu maddelere geçilmedi.
+### Details (verified by the PM's code review; the coder got stuck at the
+### reporting step so the PM completed this)
+- **`src/organs.ts` (new)**: an extensible `ORGAN_DEFINITIONS` registry
+  instead of a closed enum/switch. 4 categories: movement (fin/leg/wing/
+  tentacle), sensing (eyespot/eye), feeding (mouth), defense (shell/
+  camouflage/spike) — 10 organ types. Each definition carries its own
+  schematic drawing function (line/triangle/dot, NOT cartoonish) and a
+  weight. `pickRandomOrganType` does weighted random selection — there's no
+  fixed evolution order, it's entirely opportunistic (satisfies TASKS.md's
+  requirement). `LAND_CAPABLE_ORGAN_TYPES = ["leg"]` defines land-access
+  eligibility per-organ, expandable later.
+- **`src/genome.ts`**: added `Genome.organs: Organ[]`, empty at the start
+  (microorganism has no organs — Phase I preserved). Inside `divideGenome`,
+  `maybeGainOrgan` (low-probability new organ type gain, capped by
+  `MAX_ORGAN_TYPES`) and `mutateOrganPowers` (small mutation of existing
+  organ powers) are called. `MUTATION_CHANCE=0.25`,
+  `ORGAN_POWER_MUTATION_CHANCE=0.3` — reasonable, non-aggressive rates.
+- **`src/creature.ts`**: organs in the genome are grouped by type and drawn
+  on/around the body circle (`ORGAN_DEFINITIONS[type].draw`) — v2's neutral/
+  scientific visual language preserved.
+- **`src/ecosystem.ts`**: water→land transition — if
+  `creature.canWalkOnLand()` (leg organ) is true, an individual can move
+  onto land; a separate `landNutrients` pool (slower spawn but rewarding
+  via a "rival-free food source" logic) enables feeding on land. Legless
+  individuals still have land completely forbidden.
+- **PM verification**: `npx tsc --noEmit` and `npm run build` clean
+  (re-run by the PM). Code review confirmed the logic is consistent with
+  TASKS.md requirements (open organ pool, mutation-based gain, schematic
+  visual representation, water→land transition).
+- **Note**: the coder got stuck twice this phase waiting on its own
+  background job during the reporting/verification step (a pattern also
+  seen in previous phases) — a process issue unrelated to code quality.
 
-(Faz IV için ayrı bir tester doğrulaması TASKS.md'de kayıtlı değil — Faz III/V/VI/VII
-tester turlarının her biri popülasyon dengesini regresyon kontrolü olarak ayrıca
-doğrulamış ve sağlam bulmuştur.)
-
----
-
-## Faz V — Detaylar ve Tester Doğrulaması (arşiv)
-
-### Detaylar (coder, 2026-09-02, tamamen senkron çalıştırıldı)
-
-**Önce Gemini API anahtarı testi:**
-- `.env`'deki `GEMINI_API_KEY` standart "AIzaSy..." formatında DEĞİL. Doğrudan `curl`
-  ile gerçek Gemini REST API'sine test isteği atıldı.
-- **SONUÇ: Anahtar ÇALIŞIYOR/GEÇERLİ.** `gemini-2.0-flash`/`gemini-2.5-flash` 404
-  döndü (bu hesapta emekli edilmiş modeller). `gemini-3.6-flash` ile yapılan gerçek
-  istek HTTP 200 döndü. **Model seçimi: `gemini-3.6-flash`** (`vite.config.ts`'te
-  sabit).
-
-**1) Canlı inceleme paneli**:
-- `Ecosystem.findNearestCreature(x, y, maxDistance)` — 16px dışı tıklamalar hiçbir
-  şeyi seçmiyor.
-- `main.ts`: tıklanan ekran koordinatı world koordinatına çevrilip
-  `findNearestCreature` çağrılıyor.
-- `Creature.getInspectionSummary(onLand)`: id, nesil, yaş, enerji/maxEnerji, etkin
-  hız, algı menzili, kara/su konumu, organ listesi döndürüyor.
-- **Doğrulama**: gerçek tıklamayla panel açıldı, içerik (`ID #1, Nesil 0, Yaş 3.8s,
-  Enerji 47.4/87.9...`) doğru render edildi.
-
-**2) Üreme/büyüme/gelişme görselliği**:
-- `Creature` constructor'ına `isNewborn` parametresi — `scale=0.15`'ten
-  `GROWTH_DURATION=0.6s` boyunca DOĞRUSAL olarak `scale=1`'e büyüyor.
-- `DivisionEffect` (yeni): bölünme anında kısa (0.5s) bir bağlantı çizgisi + halka.
-- **Doğrulama**: `scale.x` değeri 100ms aralıklarla örneklendi:
-  `0.292→0.457→0.669→0.882→1.0` (~0.6s'de tamamlandı).
-
-**3) Gemini API ile derin analiz**:
-- **Güvenlik**: `GEMINI_API_KEY` client'a ASLA gönderilmiyor. `vite.config.ts`'e
-  `/api/gemini-insight` proxy middleware'i eklendi — anahtar SADECE sunucu tarafında
-  okunuyor. `dist/` içinde anahtar/`GEMINI_API_KEY` string'i hiç bulunamadı.
-  `dotenv` paketi kalıcı `dependencies`'e eklendi.
-- `src/geminiinsight.ts`: `buildPrompt` HAM veriyi metne döküyor, "SADECE verilen
-  sayısal veriye dayan, UYDURMA YAPMA" talimatı içeriyor.
-  `fetchGeminiInsight`: TÜM hata yollarında fırlatmaz, `null` döner.
-- `src/hud.ts`: `pushEvent(text, isInsight=true)` — metnin başına "🔬 " ekleniyor.
-- **Doğrulama**: proxy'ye gerçek istek `{"text":"test-ok"}` döndü. Hata toleransı
-  doğrudan test edildi (`window.fetch` reddedilen Promise'e sarmalandı) — fırlatmadı,
-  `null` döndürdü, nazikçe logladı.
-
-### Tester doğrulaması (bağımsız, 2026-09-02): GEÇTİ
-- `npx tsc --noEmit` ve `npm run build`: 0 hata.
-- **API anahtarı sızıntısı: SIZINTI YOK.** `dist/` içinde `grep -rn
-  "AQ.Ab8RN6\|GEMINI_API_KEY\|generativelanguage" dist/` hiçbir eşleşme bulmadı.
-- **Canlı inceleme paneli**: gerçek tıklamayla panel açıldı, içerik debug hook'undaki
-  gerçek veriyle birebir eşleşti.
-- **Büyüme animasyonu**: `scale.x` değeri ölçüldü:
-  `0.22→0.29→0.41→0.55→0.69→0.83→1.0` (~350ms'de tamamlandı, doğrusal).
-- **Gemini entegrasyonu — uçtan uca GERÇEKTEN çalıştığı doğrulandı**: 100s'lik koşuda
-  gerçek bir istek atıldığı network seviyesinde doğrulandı; bir denemede Gemini
-  kendisi HTTP 503 döndürdü ve kod bunu sessizce yuttu (sayfa hatası YOK). Ayrı bir
-  koşuda başarı senaryosu da yakalandı: event log'a "🔬 Popülasyon genelinde
-  ortalama..." metni gerçekten düştü.
-- **Regresyon (Faz II/III/IV)**: organ çeşitliliği, su→kara kısıtı, Faz III eşik
-  olayı, popülasyon dengesi (24→140) — hepsi sağlam.
-- **Sonuç**: Faz V'in üç maddesi de çalışıyor, API anahtarı sızıntısı YOK, regresyon
-  yok.
+### Tester verification (independent, 2026-09-01): PASSED
+`npx tsc --noEmit` and `npm run build` clean (0 errors, re-run in the
+tester's own environment; also confirmed clean after a concurrent balancing
+fix the coder made to `ecosystem.ts` during testing — food production rate
+scaling with population). Playwright headless browser SYNCHRONOUS behavior
+test (`npm run dev`, port 5199, no step backgrounded):
+- **Start**: all 24 creatures are organless (`getCreatureSummaries()` →
+  `organs: []`), screenshot shows only plain colored circles, none on land.
+- **~4-minute real-time run at 4x speed (≈967 sim-seconds)**, sampled every
+  20 seconds with `window.__debug.getCreatureSummaries()`: starting from an
+  organless population, the first organs (fin/wing/eyespot) appeared at
+  t=20s, `leg` spread rapidly across the population between t=100-140s
+  (likely due to the rival-free food advantage on land — exactly the
+  scenario TASKS.md anticipated); at t=160s organ distribution was fin:6,
+  leg:92, camouflage:14, eye:2, mouth:4. By the end (t=967s), 96 of 140
+  creatures had at least one organ, 5 distinct organ TYPES (fin/leg/
+  camouflage/eye/mouth) were observed — not a closed/fixed order, an
+  organic/opportunistic distribution. Console/page errors: 0 (both in the
+  long run and the zoom test).
+- **Visual verification**: zoomed-in cropped screenshots were taken of
+  organ-bearing individuals such as id=241 (leg+camouflage+mouth,
+  generation 10, on land) and id=81 (fin+eye), using screen coordinates
+  computed via the camera transform (fitCamera math) — organs are indeed
+  schematic (small triangle/line extensions protruding from the body
+  circle), NO cartoon face/expression, v2's "scientific/neutral" visual
+  language preserved.
+- **Water→land transition**: `onLand`/`canWalkOnLand` fields in
+  `getCreatureSummaries()` were cross-checked — in every sample, the
+  `onLand` count NEVER exceeded the `canWalkOnLand` (leg-bearing individual)
+  count (e.g. t=160s: onLand=36, landCapable=92; t=200s: onLand=48,
+  landCapable=90) — the land ban for legless individuals was never violated
+  throughout the run.
+- **Test methodology note**: temporary `x2`/`y2`/`radius` fields were added
+  to `window.__debug` (main.ts) for zooming into screen coordinates, and
+  FULLY reverted once the test was done. Playwright was added as a
+  temporary devDependency for testing and fully removed with `npm
+  uninstall` at the end of the test.
+- **Regression (Phase I)**: population 24→140 (hit the cap and stayed
+  balanced), generation 0→10, total divisions 0→390, water/land ratio still
+  fixed at 47%/53%.
+- **Risk/note**: during testing, a live concurrent edit by the coder to
+  `ecosystem.ts` (a food-balancing fix) was detected — the tester noticed
+  this, waited for the file to settle, re-ran tsc to confirm it was clean,
+  and then continued testing. The result was unaffected.
 
 ---
 
-## Faz VI — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase III — Details and Tester Verification (archive)
 
-### Detaylar (coder, 2026-09-02, tamamen senkron çalıştırıldı)
+### Details (coder, 2026-09-01, run fully synchronously)
+- **`src/ecosystem.ts`**: Phase III logic was added WITHOUT touching the
+  existing food/death/division code (only new constants/state/methods; a
+  single `this.updateEvolutionEvents(dt)` call added at the end of
+  `update()`):
+  - `getOrganPrevalence()`: a simple histogram counting, for each
+    `OrganType`, how many individuals in the living population carry that
+    organ.
+  - `updateEvolutionEvents` (checked every 2 seconds):
+    - **Prevalence threshold** (`checkPrevalenceMilestones`): if
+      population ≥10, for each organ type, an event fires the first time
+      the fraction of carriers crosses one of the 20%/40%/60%/80%
+      thresholds. Each threshold fires once per organ.
+    - **Energy advantage/disadvantage** (`checkEnergyAdvantage`): for each
+      organ type, the average energy RATIO of carrier vs. non-carrier
+      groups is compared. HONESTY rule: the comparison is skipped unless
+      both groups have at least 12 individuals. If the difference is ≥15%,
+      an event fires ONCE per organ type.
+  - `pollEvolutionEvents()`: a public method that returns pending events
+    and drains the internal queue — `main.ts` calls it every frame and
+    pushes to `Hud.pushEvent`.
+  - Reset of Phase III state added inside `reset()`.
+- **`src/hud.ts`**: `pushEvent` now trims the oldest line if the list
+  exceeds 30 lines (`MAX_EVENTS`).
+- **Sample real event texts** (genuinely produced during a synchronous
+  test):
+  - `t=135s — Individuals carrying Camouflage have 17% higher average
+    energy than those without — a survival advantage is being observed`
+  - `t=233s — The share of individuals with Mouth/Jaw passed 20% (feeding
+    efficiency advantage is spreading)`
+  - Small note: vowel-harmony suffixes aren't always perfectly correct in
+    the original Turkish text generator (cosmetic, fixable in Phase IV).
+- **Verification (SYNCHRONOUS)**: `npx tsc --noEmit`/`npm run build` clean.
+  In a 4-minute run, 6 real events fired, NO duplicate event text, console/
+  page errors 0.
+- **A finding observed but OUT OF SCOPE for Phase III**: in this run the
+  population collapsed from 140 to 0 — the event mechanism correctly stayed
+  silent (didn't produce a fake event). An existing ecosystem food-balance
+  fragility (left for Phase IV).
 
-**Kısıt (birebir uyuldu)**: su→kara geçiş mekaniği hiç değiştirilmedi.
-
-**1) Ölüm görünürlüğü** (`src/corpse.ts`, `src/ecosystem.ts`):
-- `Corpse` — soluk/gri daire konturu + "X" iskelet çizgisi. `LIFETIME=22s` sonunda
-  soluyor; ayrıştırıcı tarafından tüketilirse daha hızlı (~%18'i).
-- `killCreature` artık `spawnCorpse()` çağırıyor (+%55 ihtimalle `Decomposer`).
-
-**2) Soy ağacı grafiği** (`src/lineagetree.ts`):
-- D3 YENİDEN EKLENMEDİ — düz bir `<canvas>` 2D çizimi. `LineageRecord[]` nesile göre
-  satırlara ayrılıyor.
-- **VARSAYILAN OLARAK KAPALI**: `#lineage-panel` `hidden` ile başlıyor, toggle butonu
-  açıp kapatıyor.
-
-**3) Seçim halkası** (`src/main.ts`):
-- Pixi `Graphics` katmanı (`selectionRing`), seçili canlının konumunu her karede
-  takip ediyor. Canlı ölünce veya boş alana tıklanınca kayboluyor.
-
-**4) Soy tükenmesi takibi** (`src/ecosystem.ts`):
-- `checkExtinctions()` — Faz III'ün döngüsüne eklendi. DÜRÜSTLÜK kuralı: bir organ
-  tipi GERÇEKTEN gözlemlenmiş VE şimdi 0 ise tükenme olayı düşüyor.
-
-**5) Ayrıştırıcı bakteriler** (`src/decomposer.ts`):
-- Ayrı bir hareket/AI sistemi YOK — cesede sabit bir ofsetle "yapışık" beliriyor,
-  `CONSUME_DURATION=4s` sonunda cesetle birlikte kayboluyor. %55 ihtimalle beliriyor.
-
-### Tester doğrulaması (bağımsız, 2026-09-02): GEÇTİ
-- `npx tsc --noEmit` ve `npm run build`: 0 hata. API anahtarı sızıntısı: YOK.
-- Kod incelemesi: `canWalkOnLand`/`LAND_CAPABLE_ORGAN_TYPES`/`moveCreature` bu turda
-  hiç değişmemiş.
-- **ÖNEMLİ ARA OLAY**: test sırasında eşzamanlı bir Faz VII coder oturumu tespit
-  edildi (geçici bir `TypeError` sayfa hatası yakalandı) — test DURDURULDU, dosyaların
-  durulması beklendi, `tsc` tekrar temiz olduktan SONRA test baştan tekrarlandı. İlk
-  (kirli) koşunun sonuçları rapora dahil edilmedi.
-- **3 dakikalık senkron koşu (temiz kod tabanında tekrarlandı)**:
-  - Ceset/ayrıştırıcı sayıları gerçek zamanlı dalgalandı (0-8 / 0-1 arası).
-  - Soy ağacı: `hidden:true`→toggle→`hidden:false` (502×321 canvas, 24 düğüm)→tekrar
-    `hidden:true`.
-  - Seçim halkası + inceleme paneli: gerçek fare tıklamasıyla doğrulandı, ekran
-    görüntüsünde halka görsel olarak teyit edildi.
-  - Soy tükenmesi: gerçek bir tükenme olayı düştü ("Işık Noktası organı
-    popülasyondan tamamen kayboldu").
-  - **Su→kara mekaniği (KRİTİK) — SAĞLAM**: 12/12 örnekte ihlal yok.
-  - Konsol/sayfa hatası: 0.
-- **Not (kapsam dışı)**: eşzamanlı coder/tester oturumlarının aynı dosyalarda
-  çalışmaması için sıralama netleştirilmesi önerisi (Faz II'de de yapılmıştı) —
-  bu, "Süreç Notu"na dönüştü.
-- **Sonuç**: Faz VI'nın 5 alt özelliği de çalışıyor, su→kara mekaniği SAĞLAM.
-
----
-
-## Faz VII — Detaylar ve Tester Doğrulaması (arşiv)
-
-### Detaylar (coder, 2026-09-02, tamamen senkron çalıştırıldı)
-
-**Kısıt**: Gemini simülasyona DOĞRUDAN karışmıyor — sadece periyodik çağrıda küçük
-bir sayısal "eğilim" sinyali üretip mutasyon ağırlıklarını hafifçe (±%10-20 sınırı)
-kaydırabiliyor.
-
-**1) Çiftleşme (cinsel üreme)**: `Genome.reproductionStrategy: "asexual"|"sexual"` —
-mutasyonla (`REPRODUCTION_STRATEGY_FLIP_CHANCE=0.03`) fırsatçı şekilde ortaya çıkıyor.
-`crossoverGenomes(a,b)` — uniform crossover + organ tipi birleşimi.
-`Ecosystem.updateSexualReproduction()` — bağımsız kuluçka sayacı, `MATING_RADIUS=60px`.
-**ÖNEMLİ DÜZELTME**: `updateDivision` artık `"sexual"` bireyleri atlıyor (`continue`) —
-ilk implementasyonda bu kontrol eksikti, aseksüel bölünme cinsel eşleşmeye hiç sıra
-bırakmıyordu.
-
-**2) Yumurtalama** (`src/egg.ts`): `Genome.laysEggs: boolean` — bağımsız bir gen.
-`Egg`: kuluçka süresi 8-15s arası, sade görsel. `hatchEgg()` süre dolunca
-`Creature`'a dönüştürüyor.
-
-**3) Yavru bakımı**: `Creature.isNearCaringParent(maxDistance)` — sadece mesafe
-kontrolü, `PARENTAL_CARE_RADIUS=50px` içinde metabolizma %30 indirim.
-
-**4) Gemini'nin hafif yönlendirmesi**: `buildPrompt()`'a JSON öneri formatı eklendi
-(`{"target":..., "weightAdjustment":...}`). `extractSuggestion()` parse hatasında
-sessizce `null` döner. `applyOrganWeightSuggestion`: delta önce ±0.2'ye clamp, sonra
-çarpan `[0.8,1.2]` aralığına clamp — birikimli sınırsız büyüme YOK, bir organı tamamen
-açıp kapatamaz.
-
-**Kaydet/Yükle**: save-key sürümü v4'e çıkarıldı.
-
-### Tester doğrulaması (bağımsız, 2026-09-02): GEÇTİ
-- `npx tsc --noEmit`/`npm run build`: 0 hata. API anahtarı sızıntısı: YOK.
-- **KRİTİK — bug düzeltmesi davranışsal olarak doğrulandı**: iki `"sexual"` birey
-  zorla yakın mesafeye getirildi; 20 saniyelik izlemede İKİ FARKLI ebeveynli
-  (`[1,2]`) bir soy kaydı oluştu, aseksüel bölünme olmadı.
-- **Çiftleşme (organik)**: zorlama olmadan `"sexual"` bireyler 3'ten 5'e organik çıktı.
-- **Yumurtalama**: `getEggCount()` 0→1→0 döngüsü gözlemlendi.
-- **Yavru bakımı**: `nearCaringParent` sayısı 5-19 arası gerçek zamanlı değişti.
-- **Gemini clamp (kritik)**: aşırı bir değer (`weightAdjustment:5`) TEK çağrıda
-  `mouth:1.2`'ye sıçradı (0.2 adım sınırı), 20 kez tekrar uygulanınca `1.2`'de SABİT
-  kaldı — birikimli sınırsız büyüme YOK.
-- **Eski kayıt (v3) reddi**: sahte v3 kaydı enjekte edilip reload edildi — çökme YOK,
-  sessizce reddedildi.
-- **Kritik regresyon — su→kara**: `onLand > landCapable` hiç olmadı.
-- **Sonuç**: Faz VII'nin 4 alt özelliği de çalışıyor. "Sexual" bireylerin aseksüel
-  bölünmeyi GERÇEKTEN atladığı kanıtlandı. Gemini clamp'i sınırı hiç aşmadı.
+### Tester verification (independent, 2026-09-01): PASSED
+`npx tsc --noEmit` and `npm run build`: 0 errors. **Two independent runs**
+(4 minutes each at 4x speed, sampled every 15 seconds):
+- **RUN1**: 9 real events fired — 4 prevalence thresholds, 4 energy
+  advantages. **RUN2**: 2 events. No duplicate event text in EITHER run.
+- **Plausibility/honesty cross-check**: percentages in event text were
+  manually recomputed and found consistent.
+- **Honesty threshold (min 12/12)**: in a separate 40-second run, no organ
+  type reached the 12/12 threshold AND 0 events fired — correct behavior.
+- **Event log 30-line cap**: verified by code review.
+- **Console/page errors**: 0 across all 3 runs.
+- **Population collapse observation (out of scope for Phase III)**: in
+  RUN2, population collapsed from 133 to 0; in RUN1, it dropped from 140 to
+  45 and recovered on its own. Serious drops seen in both independent runs
+  — recommended to be addressed early in Phase IV.
+- **Conclusion**: Phase III's mechanics (histogram, threshold detection,
+  event queue) are solid and independently verified. The only risk is
+  ecosystem balance (belongs to Phase IV).
 
 ---
 
-## Faz VIII — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase IV — Details and Tester Verification (archive)
 
-### Detaylar (coder, 2026-09-02, tamamen senkron çalıştırıldı)
+### Details (coder, 2026-09-01, run fully synchronously — population
+### collapse was an urgent priority)
+- **Root-cause analysis methodology**: started with code review, then
+  SYNCHRONOUS 240-second (≈960 sim-second) runs at 4x speed were done with
+  Playwright on a real `npm run dev`, collecting a population/nutrient/
+  energy-ratio time series.
+- **FINDING 1 (initial hypothesis, correct but INSUFFICIENT ON ITS OWN)**:
+  the fixed food-stock cap `MAX_NUTRIENTS=160` wasn't enough to meet the
+  demand of `MAX_CREATURES=140`. AFTER the first fix (`nutrientCapacity`
+  scaled up with population), a follow-up verification run showed the
+  population STILL collapsing 140→0 (even with an ample nutrient stock) —
+  proving the "food quantity" hypothesis was incomplete.
+- **FINDING 2 (the real/actual root cause)**: the problem wasn't the
+  QUANTITY of food but its ACCESSIBILITY. New nutrients were being
+  scattered completely randomly across the ENTIRE map area — average
+  neighbor distance stayed on the same order as creatures' `senseRadius`,
+  so most nutrients were outside any creature's sense range. Once
+  population hit the cap, this low find-efficiency turned the energy
+  balance negative, creating an irreversible starvation spiral.
+- **Fix (three parts, `src/ecosystem.ts`)**:
+  1. `BASE_MAX_NUTRIENTS=120`/`BASE_MAX_LAND_NUTRIENTS=60` +
+     `nutrientCapacity()` — the food stock cap grows along with
+     population.
+  2. `nutrientSpawnRateMultiplier` — keeps a floor that prevents
+     production rate from dropping too far during a low/collapsing
+     population.
+  3. **`spawnPointNear()` (the actually decisive fix)** — new nutrients
+     have a `NEAR_CREATURE_SPAWN_CHANCE=0.75` chance of spawning 20-70px
+     near a random creature. The remaining 25% is still fully random (to
+     keep encouraging exploration).
+  4. Division/metabolism/organ thresholds were NOT touched.
+- **Verification**: **5 independent runs AFTER the fix**: 5/5 runs never
+  collapsed, population reached the cap of 140 in every run and stayed
+  balanced until the end. Average energy ratio fluctuated in a healthy band
+  (0.5-0.87). Console/page errors: 0.
+  - **Regression — Phase II**: organ diversity intact, land ban not
+    violated.
+  - **Regression — Phase III**: event mechanism unaffected by the food fix.
+- **Left out of scope**: minor UI/performance improvements under the
+  "Phase IV — Polish" item — not addressed until population balance was
+  solved.
 
-**1. Rastgele harita**: sabit `MAP_SEED` kaldırıldı, `generateMapSeed()`
-(`Date.now() ^ rastgele`) eklendi. `World` constructor'ı `seed` parametresi alıyor.
-Kaydedilmiş durum yoksa yeni seed, varsa `savedGame.mapSeed` geri yükleniyor.
-"Yeniden Başlat" haritayı DEĞİŞTİRMİYOR (bilinçli karar).
-
-**Kaydet/yükle uyumluluğu**: `SaveData.mapSeed: number` eklendi. `SAVE_VERSION` → 7.
-
-**KRİTİK — SAVE_VERSION senkronizasyonu**: `main.ts`'teki iki save-yazma noktası
-önceden sabit bir sayı literali yazıyordu (uyuşmazlık riski). Artık ikisi de
-`SAVE_VERSION` sabitini import ediyor — sayı literali YOK.
-
-**2. Rastgele dünya olayları** (`src/worldevents.ts`, yeni): `WorldEventManager` — 4
-bağımsız zamanlayıcı (`EVENT_CHECK_INTERVAL=8s`):
-- **Meteor** (☄️): `applyMeteorImpact` — rastgele bölgedeki canlıların/besinlerin
-  ~%60'ını yok ediyor.
-- **İklim** (🌡️): 45-90s süren metabolizma/besin üretim çarpanı dalgası.
-- **Rüzgar** (💨): 12-25s süren itiş vektörü, küçük gövdeliler daha fazla sürükleniyor.
-- **Deprem** (🌍): GEÇİCİ (25-50s) küçük bir su<->kara override'ı.
-
-**Görsel**: `EventFlash` — basit, kendi kendini söndüren daire konturu.
-
-### Tester doğrulaması (bağımsız, 2026-09-02): GEÇTİ
-- `npx tsc --noEmit`/`npm run build`: 0 hata. API anahtarı sızıntısı: YOK.
-- **Rastgele harita — KESİN KANIT**: 3 bağımsız sayfa yüklemesinde 3 FARKLI `mapSeed`
-  üretildi. 20×20 örnekleme ızgarasında su hücre sayıları 186/223/204 — 3 desenin 3'ü
-  de birbirinden FARKLI (Hamming mesafeleri 207-216/400).
-- **Kaydet/yükle + seed korunumu — KESİN KANIT**: reload SONRASI `mapSeed` birebir
-  aynı, TÜM 24 canlı ID'si korunmuş.
-- **Eski (v6) kayıt reddi**: sahte kayıt enjekte edilip reload edildi — çökme YOK,
-  sessizce reddedildi.
-- **Dünya olayları — mekanik etkiler ölçüldü**: Meteor (popülasyon 24→23), Rüzgar
-  (deplasman ~5px→~149px), İklim (0.5→1.4 enerji düşüşü oranı ~2.8x), Deprem
-  (su→kara→su override döngüsü doğrulandı).
-- **Gemini kota düzeltmesi — KESİN KANIT**: `GEMINI_MODEL="gemini-flash-lite-latest"`
-  doğrulandı, proxy'ye gerçek istek `{"text":"Test"}` HTTP 200 döndü.
-- **SAVE_VERSION senkronizasyon düzeltmesi doğrulandı**: iki `writeSaveData`
-  çağrısının ikisi de `SAVE_VERSION` kullanıyor, sayı literali yok.
-- **Kritik regresyon (~240 sim-saniyelik koşu)**: popülasyon dengesi (40→140, çöküş
-  YOK), su→kara mekaniği SAĞLAM (12/12), diyet/etoloji dinamik, ceset/ayrıştırıcı
-  dalgalı, soy ağacı toggle bozulmamış.
-- **Sonuç**: Faz VIII'in rastgele harita + kaydet/yükle uyumu + 4 dünya olayı + Gemini
-  kota düzeltmesi hepsi bağımsız doğrulandı. Bulunan risk: yok.
-
-**Ek düzeltme (aynı gün, kullanıcı geri bildirimi — Gemini model kotası)**:
-Kullanıcı "yanıt alınamadı" hatası bildirdi; kök neden: `gemini-3.6-flash` ücretsiz
-katmanda günde 20 istek kotasına sahip ve doldurulmuştu. Düzeltme:
-`GEMINI_MODEL` → `gemini-flash-lite-latest`, periyodik yorum aralığı 75s→120s'ye
-çıkarıldı (kota paylaşımı için).
+(No separate tester verification for Phase IV is recorded in TASKS.md — each
+of the Phase III/V/VI/VII tester rounds separately verified population
+balance as a regression check and found it sound.)
 
 ---
 
-## Faz IX — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase V — Details and Tester Verification (archive)
 
-### Detaylar — Madde 1-2 (öncelikli bug fix'ler, coder, 2026-09-02)
-1. **Soy ağacı paneli kapanmıyor — KÖK NEDEN BULUNDU VE DÜZELTİLDİ**: JS mantığı
-   aslında hep doğruydu. Gerçek sebep `.overlay-panel { display: flex; }` kuralının
-   `[hidden]` UA stilini her zaman override etmesiydi. Düzeltme:
-   `.overlay-panel:not([hidden]) { display: flex; }`. Playwright ile doğrulandı: açık
-   520×380, kapalı 0×0.
-2. **Ceset mantığı "işlemiyor" — KÖK NEDEN: mekanik çalışıyordu, GÖRÜNÜRLÜK
-   sorunuydu**: ceset görseli (1px kontur, max alpha ~0.6) canlı popülasyon noktaları
-   arasında fark edilemiyordu. Düzeltme: kontur 1px→1.5px, max alpha 0.7→0.9, minimum
-   görsel yarıçap `max(radius,5)`, hafif dolgu eklendi.
+### Details (coder, 2026-09-02, run fully synchronously)
 
-### Detaylar — Madde 3-7 + 4 ek bug (coder, 2026-09-02, tamamen SENKRON)
+**First, a Gemini API key test:**
+- The `GEMINI_API_KEY` in `.env` is NOT in the standard "AIzaSy..." format.
+  A test request was sent directly with `curl` to the real Gemini REST API.
+- **RESULT: the key WORKS/is VALID.** `gemini-2.0-flash`/`gemini-2.5-flash`
+  returned 404 (models retired on this account). A real request with
+  `gemini-3.6-flash` returned HTTP 200. **Model choice:
+  `gemini-3.6-flash`** (fixed in `vite.config.ts`).
 
-**Madde 3 — Diyet sistemi**: `Genome.diet: "herbivore"|"carnivore"` — mutasyonla
-(`DIET_FLIP_CHANCE=0.035`) değişebilir. Etçiller `stepCarnivore`/`findNearestPrey`/
-`huntCreature` ile avlanıyor (`EAT_RADIUS` + `PREY_ENERGY_TRANSFER_FRACTION=0.6`).
-Görsel ayrım: etçillerde 8 küçük kırmızı "diş" üçgeni + kalın kırmızı kontur. Save
-format v4→v5.
+**1) Creature inspection panel**:
+- `Ecosystem.findNearestCreature(x, y, maxDistance)` — clicks more than
+  16px away select nothing.
+- `main.ts`: the clicked screen coordinate is converted to world coordinates
+  and `findNearestCreature` is called.
+- `Creature.getInspectionSummary(onLand)`: returns id, generation, age,
+  energy/maxEnergy, effective speed, sense range, land/water location,
+  organ list.
+- **Verification**: the panel opened via a real click, content (`ID #1,
+  Generation 0, Age 3.8s, Energy 47.4/87.9...`) rendered correctly.
 
-**Madde 4 — Etoloji**: `Creature.behaviorState: "wander"|"seek"|"flee"|"hunt"`.
-Otçullar tehdit varsa toklukça bağımsız önce kaçar; etçiller av kovalar (sadece
-otçul hedefliyor).
+**2) Reproduction/growth/development visuals**:
+- The `Creature` constructor takes an `isNewborn` parameter — grows
+  LINEARLY from `scale=0.15` to `scale=1` over `GROWTH_DURATION=0.6s`.
+- `DivisionEffect` (new): a brief (0.5s) connecting line + ring at the
+  moment of division.
+- **Verification**: `scale.x` value sampled at 100ms intervals:
+  `0.292→0.457→0.669→0.882→1.0` (completed in ~0.6s).
 
-**Madde 5 — Emoji + animasyonlar**: 🍽️/🦴/🌱 emoji eklendi.
-`triggerHuntFlash()` — 0.35s büyüyüp normale dönen görsel vurgu.
+**3) Deep analysis via the Gemini API**:
+- **Security**: `GEMINI_API_KEY` is NEVER sent to the client. A
+  `/api/gemini-insight` proxy middleware was added to `vite.config.ts` —
+  the key is read ONLY server-side. No key/`GEMINI_API_KEY` string was
+  found anywhere in `dist/`. The `dotenv` package was added as a
+  persistent `dependencies` entry.
+- `src/geminiinsight.ts`: `buildPrompt` dumps RAW data to text, and
+  includes the instruction "rely ONLY on the given numerical data, DO NOT
+  MAKE THINGS UP." `fetchGeminiInsight`: never throws on any error path,
+  returns `null`.
+- `src/hud.ts`: `pushEvent(text, isInsight=true)` — prepends "🔬 " to the
+  text.
+- **Verification**: a real request to the proxy returned
+  `{"text":"test-ok"}`. Error tolerance was tested directly (`window.fetch`
+  wrapped in a rejected Promise) — it didn't throw, returned `null`, logged
+  gracefully.
 
-**Madde 6 — Soy ağacından canlı seçimi + evrim geçmişi**: `lineagetree.ts`'e MİNİMAL
-dokunuldu — `onNodeClick(handler)` + click listener. `LineageRecord` genişletildi
-(`organs`, `diet`, `offspringCount`). `getAncestryChain`/`getEvolutionHistory` —
-her nesilde yeni kazanılan organı listeliyor.
-
-**Madde 7 — Gemini soy analizi**: `fetchLineageAnalysis` — aynı proxy, farklı prompt.
-İnceleme panelinde isteğe bağlı "Bu soyu analiz et 🔬" butonu.
-
-**4 ek sorun (kullanıcı geri bildirimiyle bulunan)**:
-1. **Flee-lock bug'ı (kök neden bulundu ve düzeltildi)**: `moveCreature` tam vektörü
-   tek parça deniyordu — engellenen hedefte hareket TAMAMEN iptal ediliyordu, "flee"
-   her karede heading'i yeniden hesapladığından `bounceHeading` etkisi anında
-   eziliyordu. Düzeltme: eksenleri ayrı ayrı dene (önce dx, sonra dy).
-2. **Enerji her zaman azalmalı**: zaten doğruydu, kullanıcının gözlemi madde 1'in
-   sonucuydu.
-3. **Yaşlanma ölümü (yeni özellik)**: `Genome.maxLifespan` (180-320s) eklendi.
-   Save v5→v6.
-4. **Açlık/tokluk + av-avcı dengesi**: ilk uygulamada bir koşuda etçil sayısı 4'ten
-   32'ye çıkıp otçul popülasyonunu çökertti. Düzeltme (3 parça): tokluk eşiği ikiye
-   ayrıldı (etçil 0.6/otçul 0.75), sindirim molası uzatıldı (10-20s→20-35s), av
-   sığınağı eşiği density-dependent yapıldı, etçil-etçil avlanması KALDIRILDI.
-
-### Tester doğrulaması (bağımsız, 2026-09-02, tamamen SENKRON): GEÇTİ (ve 1 bug bulundu)
-
-**1) Flee-lock bug — GERÇEKTEN DÜZELMİŞ, kanıtlı**: 3 bağımsız izole koşuda otçul her
-üçünde de tehditten gerçekten uzaklaştı (8.9px/27.7px/48.5px — önceki bug'da 0 olurdu).
-
-**2) Sürekli enerji azalması — DOĞRULANDI**: 8s'de 36.2→26.8.
-
-**3) Yaşlılıktan ölüm — DOĞRULANDI**: zorla yaşlandırılan birey öldü, ceset bırakıldı.
-
-**4) Av-avcı dengesi — 3/3 BAĞIMSIZ KOŞUDA SAĞLAM**: 3 koşuda otçul hiç kritik
-seviyeye inmedi (aksine sürekli arttı), etçil dengeli bir bantta kaldı.
-Etçil-etçil avlanmasının kalktığı ayrıca doğrulandı.
-
-**5) Diyet görsel ayrımı — DOĞRULANDI**: yakın çekimde otçul/etçil net ayırt
-edilebiliyor.
-
-**6) Soy ağacından canlı seçimi — ÇALIŞIYOR**.
-
-**7) Gemini soy analizi — ÇALIŞIYOR, hata toleranslı**.
-
-**8-10) Regresyonlar (su→kara, organ çeşitliliği, ceset görünürlüğü)**: hepsi sağlam.
-
-**11) BULUNAN VE DÜZELTİLEN GERÇEK BUG — Kaydet/Yükle TAMAMEN BOZUKTU**:
-`SAVE_VERSION` 6'ya çıkarılmış ama `main.ts`'teki İKİ save-yazma noktası hâlâ
-`version: 5` yazıyordu — her sayfa yenilemesinde kayıt sessizce reddediliyor, tüm
-simülasyon durumu kayboluyordu. **Düzeltildi**: her iki `writeSaveData` çağrısı da
-`version: 6`'ya güncellendi. Doğrudan kayıt→yenile→yükle turuyla yeniden doğrulandı
-(27 canlı korundu).
-
-**Genel sonuç**: Faz IX'un 4 ek düzeltmesi + orijinal 7 madde hepsi çalışıyor. TEK
-bulunan gerçek sorun (kaydet/yükle version uyuşmazlığı) bu tester turunda tespit
-edilip düzeltildi.
+### Tester verification (independent, 2026-09-02): PASSED
+- `npx tsc --noEmit` and `npm run build`: 0 errors.
+- **API key leakage: NO LEAKAGE.** `grep -rn
+  "AQ.Ab8RN6\|GEMINI_API_KEY\|generativelanguage" dist/` found no matches
+  in `dist/`.
+- **Creature inspection panel**: panel opened via a real click, content
+  matched the debug hook's real data exactly.
+- **Growth animation**: `scale.x` measured:
+  `0.22→0.29→0.41→0.55→0.69→0.83→1.0` (completed in ~350ms, linear).
+- **Gemini integration — verified GENUINELY working end-to-end**: a real
+  request during a 100s run was confirmed at the network level; in one
+  trial, Gemini itself returned HTTP 503 and the code swallowed it
+  silently (NO page error). A success scenario was also captured in a
+  separate run: text like "🔬 Across the population, the average..."
+  genuinely appeared in the event log.
+- **Regression (Phase II/III/IV)**: organ diversity, water→land
+  restriction, Phase III threshold events, population balance (24→140) —
+  all sound.
+- **Conclusion**: all three items of Phase V work, NO API key leak, no
+  regression.
 
 ---
 
-## Faz X — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase VI — Details and Tester Verification (archive)
 
-### Detaylar (coder, 2026-09-02, tamamen SENKRON çalıştırıldı)
+### Details (coder, 2026-09-02, run fully synchronously)
 
-**1. Sığ/derin su ayrımı** (`src/world.ts`): mevcut ızgara üstüne ince, salt-okunur
-bir katman — `World.isShallowWater(x,y)`/`isDeepWater(x,y)`.
-`approxDistanceToLandPx` genişleyen halka araması ile en yakın kara hücresine
-yaklaşık mesafe buluyor. Eşik `SHALLOW_WATER_BAND_PX=70`. Bacaklı-ama-yüzgeçsiz/
-solungaçsız birey derin suya giren hareketi engelleniyor (`canEnterDeepWater()`).
+**Constraint (followed exactly)**: the water→land transition mechanic was
+never changed.
 
-*Doğrulama*: 1855+ hareket denemesinde 0 adet izinsiz derin suya giriş. Test-ölçüm
-hassasiyeti sorunu (yuvarlama) tespit edilip düzeltildikten sonra sızıntı SIFIR'a
-indi.
+**1) Death visibility** (`src/corpse.ts`, `src/ecosystem.ts`):
+- `Corpse` — a faded gray circle outline + an "X" skeleton line. Fades
+  after `LIFETIME=22s`; faster (~18% of it) if consumed by a decomposer.
+- `killCreature` now calls `spawnCorpse()` (+55% chance of a `Decomposer`).
 
-**2. Avlanma event log gürültüsü**: Tekil avlanma olayları event log'dan TAMAMEN
-KALDIRILDI (mekanik hâlâ çalışıyor, sadece log'a düşmüyor). Gerekçe: (a) tam kaldırma
-periyodik özetten daha temiz, (b) diyet sayıları HUD'da zaten sürekli görünür, (c)
-tekil av olayları tek seferlik kilometre taşı değil. `checkFirstCarnivore` (İLK
-etçilin ortaya çıkışı) BİLEREK korundu.
+**2) Lineage tree graphic** (`src/lineagetree.ts`):
+- D3 was NOT reintroduced — a plain `<canvas>` 2D drawing. `LineageRecord[]`
+  is split into rows by generation.
+- **OFF BY DEFAULT**: `#lineage-panel` starts `hidden`, a toggle button
+  opens/closes it.
 
-**3. Solunum organları + iç organlar + atmosfer**: `gill`/`lung` eklendi (solunum),
-`heart`/`stomach` (iç organlar, mekanik etkili ama görsel çizim gerektirmiyor).
-`src/atmosphere.ts` (yeni): global oksijen seviyesi (0..1) yavaş sinüs dalgası
-(`OXYGEN_CYCLE_SECONDS=240`) + iklim olayı etkisiyle ek ofset. Save format
-DEĞİŞMEDİ (organ listesi zaten jenerik).
+**3) Selection ring** (`src/main.ts`):
+- A Pixi `Graphics` layer (`selectionRing`) tracks the selected creature's
+  position every frame. Disappears when the creature dies or empty space is
+  clicked.
 
-*Doğrulama*: uç değerlerde metabolizma çarpanı %25'e kadar değişti. Organik koşuda
-`lung` organı 0'dan 9'a yayıldı, oksijen seviyesi 0.58→0.43 gerçekten dalgalandı.
+**4) Lineage extinction tracking** (`src/ecosystem.ts`):
+- `checkExtinctions()` — added to Phase III's cycle. HONESTY rule: an
+  extinction event fires only if an organ type was GENUINELY observed AND
+  is now at 0.
 
-**Regresyon (Faz I-IX)**: tümü temiz — su→kara SAĞLAM, kaydet/yükle organlar dahil
-korundu, diyet/etoloji/ceset/ayrıştırıcı dinamik.
+**5) Decomposer bacteria** (`src/decomposer.ts`):
+- No separate movement/AI system — appears "stuck" to the corpse at a
+  fixed offset, disappears along with the corpse after `CONSUME_DURATION=4s`.
+  Appears with 55% probability.
 
-### Tester doğrulaması (bağımsız, 2026-09-02/03): GEÇTİ
-- `npx tsc --noEmit`/`npm run build`: 0 hata. API anahtarı sızıntısı: YOK.
-- **Sığ/derin su ayrımı — KESİN KANIT**: bacaklı-ama-yüzgeçsiz birey, çevresi
-  TAMAMEN derin su olan bir noktaya yerleştirildi — 50 örnekte TOPLAM YER DEĞİŞTİRME
-  SIFIR, tamamen donmuş kaldı. Kontrol grubu (bacak+yüzgeç) 10s'de 145px yer
-  değiştirdi.
-- **Avlanma event log gürültüsü — KESİN KANIT**: organik koşuda popülasyon 24→79,
-  etçil 0→2, ceset 0→2 arttı ama event log'da SADECE 1 satır kaldı ("İlk etçil ortaya
-  çıktı"). Zorlanmış bir avlanmada av öldü ama log'da av metni YOK, meteor/tükenme
-  olayları log'a DÜŞMEYE DEVAM ETTİ.
-- **Solunum organları + atmosfer — KESİN KANIT**: gill (suda) düşük O2'de çarpan
-  0.896 (avantaj); lung (karada) yüksek O2'de 0.980 (avantaj), düşük O2'de 1.104
-  (dezavantaj — bedava bonus değil). Atmosfer 60s'de 0.515→0.620 gerçekten
-  dalgalandı. Save/load roundtrip'i (gill/lung/heart/stomach) tam korundu.
-- **Kritik regresyonlar**: su→kara SAĞLAM, popülasyon dengesi normal (24→79, çöküş
-  yok), diyet/etoloji dinamik, soy ağacı toggle çalışıyor. Konsol/sayfa hatası: SIFIR.
-- **Yan not (kapsam dışı)**: `npm run dev` konsol çıktısında proje kodundan
-  kaynaklanmayan şüpheli bir satır ("auth for agents" + üçüncü taraf domain)
-  gözlemlendi — proje dosyalarında kaynağı bulunamadı, muhtemelen proje dışı bir
-  ortam/kabuk kaynaklı.
-- **Sonuç**: Faz X'in 3 maddesi de bağımsız olarak, gerçek ölçümle doğrulandı.
-  Bulunan risk: yok.
+### Tester verification (independent, 2026-09-02): PASSED
+- `npx tsc --noEmit` and `npm run build`: 0 errors. API key leakage: NONE.
+- Code review: `canWalkOnLand`/`LAND_CAPABLE_ORGAN_TYPES`/`moveCreature`
+  unchanged this round.
+- **IMPORTANT INTERIM EVENT**: during testing, a concurrent Phase VII coder
+  session was detected (a temporary `TypeError` page error was caught) —
+  testing was STOPPED, the files were allowed to settle, and the test was
+  re-run from scratch AFTER `tsc` was clean again. Results from the first
+  (dirty) run were not included in the report.
+- **3-minute synchronous run (repeated on the clean codebase)**:
+  - Corpse/decomposer counts fluctuated in real time (0-8 / 0-1 range).
+  - Lineage tree: `hidden:true`→toggle→`hidden:false` (502×321 canvas, 24
+    nodes)→back to `hidden:true`.
+  - Selection ring + inspection panel: verified with a real mouse click,
+    the ring was visually confirmed in a screenshot.
+  - Lineage extinction: a real extinction event fired ("The Light Spot
+    organ has completely disappeared from the population").
+  - **Water→land mechanic (CRITICAL) — SOLID**: no violation in 12/12
+    samples.
+  - Console/page errors: 0.
+- **Note (out of scope)**: a recommendation to clarify ordering so
+  concurrent coder/tester sessions don't work on the same files (also made
+  in Phase II) — this became the "Process Note."
+- **Conclusion**: all 5 Phase VI sub-features work, water→land mechanic is
+  SOLID.
 
 ---
 
-## Faz XI — Detaylar (Sürekli İyileştirme, arşiv)
+## Phase VII — Details and Tester Verification (archive)
 
-### Performans/entegrasyon denetimi (GEÇTİ, 2026-09-03)
-Saf okuma/test (kaynak dosya değiştirilmedi) — 9+ dakikalık 4x hız koşusu (~545
-sim-saniyesi):
-- FPS ilk yükten sonra 16-17'de düz kaldı, bellek 9dk boyunca tam 15.4MB'de sabit
-  (sızıntı yok), DOM node sayısı 300s civarı 95'te platoya oturdu. Popülasyon
-  24→140'a çıkıp orada dengeye oturdu. 4 dünya olayı da organik tetiklendi.
-  `lung`/`stomach` organik ortaya çıktı. Sıfır konsol/sayfa hatası.
-- **Karar gereken bulgu**: sayfa yenilenince ceset sayacı sıfırlanıyor (10→0). PM
-  kararı: bu KASITLI/kabul edilebilir — proje zaten geçici/görsel-çevresel durumları
-  kaydetmiyor.
-- **Sonuç: proje uzun vadede sağlam.**
+### Details (coder, 2026-09-02, run fully synchronously)
 
-### Faz XI — Responsive Detayları (coder, 2026-09-03)
-- **Dürüst değerlendirme (öncesi)**: 5 viewport'ta headless ölçüm yapıldı.
-  Geniş/orta ekranlarda sorun yoktu. Dar ekranlarda: `#dash-body` grid'i sabit
-  `1fr 280px` idi — 800x600'de sağ panel ekranın %35'ini alıp sahne alanını
-  520×548px'e sıkıştırıyordu. 640x480'de sahne 360×428px'e düşüyordu VE header
-  metni 2 satıra bölünüyordu.
-- **Yapılan değişiklikler (sadece `src/dashboard.css`)**:
+**Constraint**: Gemini does NOT directly interfere with the simulation —
+only produces a small numeric "trend" signal on a periodic call and can
+lightly shift mutation weights (within a ±10-20% cap).
+
+**1) Mating (sexual reproduction)**: `Genome.reproductionStrategy:
+"asexual"|"sexual"` — emerges opportunistically via mutation
+(`REPRODUCTION_STRATEGY_FLIP_CHANCE=0.03`). `crossoverGenomes(a,b)` —
+uniform crossover + organ-type merging. `Ecosystem.updateSexualReproduction()`
+— an independent incubation counter, `MATING_RADIUS=60px`. **IMPORTANT
+FIX**: `updateDivision` now skips (`continue`) `"sexual"` individuals — this
+check was missing in the first implementation, so asexual division never
+left any room for sexual mating.
+
+**2) Egg-laying** (`src/egg.ts`): `Genome.laysEggs: boolean` — an
+independent gene. `Egg`: incubation time between 8-15s, simple visual.
+`hatchEgg()` converts to a `Creature` once the time is up.
+
+**3) Offspring care**: `Creature.isNearCaringParent(maxDistance)` — just a
+distance check, 30% metabolism discount within `PARENTAL_CARE_RADIUS=50px`.
+
+**4) Gemini's light guidance**: a JSON suggestion format added to
+`buildPrompt()` (`{"target":..., "weightAdjustment":...}`).
+`extractSuggestion()` returns `null` silently on a parse error.
+`applyOrganWeightSuggestion`: the delta is first clamped to ±0.2, then the
+multiplier is clamped to the `[0.8,1.2]` range — NO unlimited cumulative
+growth, it can never fully turn an organ on or off.
+
+**Save/Load**: save-key version bumped to v4.
+
+### Tester verification (independent, 2026-09-02): PASSED
+- `npx tsc --noEmit`/`npm run build`: 0 errors. API key leakage: NONE.
+- **CRITICAL — bug fix behaviorally verified**: two `"sexual"` individuals
+  were forced into close proximity; over a 20-second observation, a lineage
+  record with TWO DIFFERENT parents (`[1,2]`) was created, with no asexual
+  division occurring.
+- **Mating (organic)**: without forcing, `"sexual"` individuals grew
+  organically from 3 to 5.
+- **Egg-laying**: a 0→1→0 cycle of `getEggCount()` was observed.
+- **Offspring care**: `nearCaringParent` count varied 5-19 in real time.
+- **Gemini clamp (critical)**: an extreme value (`weightAdjustment:5`)
+  jumped `mouth` to 1.2 in a SINGLE call (the 0.2-step cap), and stayed
+  FIXED at 1.2 after 20 repeated applications — no unlimited cumulative
+  growth.
+- **Old save (v3) rejection**: a fake v3 save was injected and reloaded —
+  NO crash, silently rejected.
+- **Critical regression — water→land**: `onLand > landCapable` never
+  occurred.
+- **Conclusion**: all 4 Phase VII sub-features work. "Sexual" individuals
+  were proven to GENUINELY skip asexual division. The Gemini clamp never
+  exceeded its limit.
+
+---
+
+## Phase VIII — Details and Tester Verification (archive)
+
+### Details (coder, 2026-09-02, run fully synchronously)
+
+**1. Random map**: the fixed `MAP_SEED` was removed, `generateMapSeed()`
+(`Date.now() ^ random`) added. The `World` constructor now takes a `seed`
+parameter. If no saved state exists, a new seed is used; if one does,
+`savedGame.mapSeed` is restored. "Restart" does NOT change the map
+(deliberate decision).
+
+**Save/load compatibility**: added `SaveData.mapSeed: number`.
+`SAVE_VERSION` → 7.
+
+**CRITICAL — SAVE_VERSION synchronization**: the two save-writing points in
+`main.ts` used to write a hardcoded number literal (mismatch risk). Both
+now import the `SAVE_VERSION` constant — no number literals remain.
+
+**2. Random world events** (`src/worldevents.ts`, new): `WorldEventManager`
+— 4 independent timers (`EVENT_CHECK_INTERVAL=8s`):
+- **Meteor** (☄️): `applyMeteorImpact` — destroys ~60% of creatures/food in
+  a random region.
+- **Climate** (🌡️): a metabolism/food-production multiplier wave lasting
+  45-90s.
+- **Wind** (💨): a push vector lasting 12-25s, smaller bodies drift more.
+- **Earthquake** (🌍): a TEMPORARY (25-50s) small water<->land override.
+
+**Visual**: `EventFlash` — a simple, self-extinguishing circle outline.
+
+### Tester verification (independent, 2026-09-02): PASSED
+- `npx tsc --noEmit`/`npm run build`: 0 errors. API key leakage: NONE.
+- **Random map — DEFINITIVE PROOF**: 3 independent page loads produced 3
+  DIFFERENT `mapSeed`s. In a 20×20 sampling grid, water cell counts were
+  186/223/204 — all 3 patterns were DIFFERENT from each other (Hamming
+  distances 207-216/400).
+- **Save/load + seed preservation — DEFINITIVE PROOF**: AFTER reload,
+  `mapSeed` is exactly the same, ALL 24 creature IDs preserved.
+- **Old (v6) save rejection**: a fake save was injected and reloaded — NO
+  crash, silently rejected.
+- **World events — mechanical effects measured**: Meteor (population
+  24→23), Wind (displacement ~5px→~149px), Climate (energy drop ratio
+  0.5→1.4, ~2.8x), Earthquake (water→land→water override cycle verified).
+- **Gemini quota fix — DEFINITIVE PROOF**:
+  `GEMINI_MODEL="gemini-flash-lite-latest"` confirmed, a real request to
+  the proxy returned HTTP 200 with `{"text":"Test"}`.
+- **SAVE_VERSION synchronization fix verified**: both `writeSaveData`
+  calls now use `SAVE_VERSION`, no number literals.
+- **Critical regression (~240 sim-second run)**: population balance
+  (40→140, NO collapse), water→land mechanic SOLID (12/12), diet/ethology
+  dynamic, corpse/decomposer counts fluctuating, lineage tree toggle
+  unbroken.
+- **Conclusion**: Phase VIII's random map + save/load compatibility + 4
+  world events + Gemini quota fix all independently verified. Risk found:
+  none.
+
+**Additional fix (same day, based on user feedback — Gemini model quota)**:
+The user reported a "no response received" error; root cause:
+`gemini-3.6-flash` has a 20-requests-per-day quota on the free tier, and it
+was exhausted. Fix: `GEMINI_MODEL` → `gemini-flash-lite-latest`, periodic
+insight interval raised from 75s→120s (to conserve quota).
+
+---
+
+## Phase IX — Details and Tester Verification (archive)
+
+### Details — Items 1-2 (priority bug fixes, coder, 2026-09-02)
+1. **Lineage tree panel wouldn't close — ROOT CAUSE FOUND AND FIXED**: the
+   JS logic had actually always been correct. The real cause was that the
+   rule `.overlay-panel { display: flex; }` was always overriding the
+   `[hidden]` UA style. Fix: `.overlay-panel:not([hidden]) { display:
+   flex; }`. Verified with Playwright: open 520×380, closed 0×0.
+2. **Corpse logic "not working" — ROOT CAUSE: the mechanic worked, it was
+   a VISIBILITY problem**: the corpse visual (1px outline, max alpha ~0.6)
+   was indistinguishable among the live population's dots. Fix: outline
+   1px→1.5px, max alpha 0.7→0.9, minimum visual radius `max(radius,5)`, a
+   light fill added.
+
+### Details — Items 3-7 + 4 additional bugs (coder, 2026-09-02, fully
+### SYNCHRONOUS)
+
+**Item 3 — Diet system**: `Genome.diet: "herbivore"|"carnivore"` — can
+change via mutation (`DIET_FLIP_CHANCE=0.035`). Carnivores hunt via
+`stepCarnivore`/`findNearestPrey`/`huntCreature` (`EAT_RADIUS` +
+`PREY_ENERGY_TRANSFER_FRACTION=0.6`). Visual distinction: carnivores get 8
+small red "tooth" triangles + a thick red outline. Save format v4→v5.
+
+**Item 4 — Ethology**: `Creature.behaviorState: "wander"|"seek"|"flee"|"hunt"`.
+Herbivores flee first if satiated and a threat is present; carnivores chase
+prey (only targeting herbivores).
+
+**Item 5 — Emoji + animations**: 🍽️/🦴/🌱 emoji added.
+`triggerHuntFlash()` — a visual highlight that grows over 0.35s and returns
+to normal.
+
+**Item 6 — Selecting a creature from the lineage tree + evolution history**:
+`lineagetree.ts` was touched MINIMALLY — `onNodeClick(handler)` + click
+listener. `LineageRecord` expanded (`organs`, `diet`, `offspringCount`).
+`getAncestryChain`/`getEvolutionHistory` — lists the newly gained organ at
+each generation.
+
+**Item 7 — Gemini lineage analysis**: `fetchLineageAnalysis` — same proxy,
+different prompt. An optional "Analyze this lineage 🔬" button in the
+inspection panel.
+
+**4 additional issues (found via user feedback)**:
+1. **Flee-lock bug (root cause found and fixed)**: `moveCreature` used to
+   try the full vector as one piece — if the target was blocked, movement
+   was CANCELLED ENTIRELY, and since "flee" recomputes heading every
+   frame, the `bounceHeading` effect was crushed instantly. Fix: try the
+   axes separately (dx first, then dy).
+2. **Energy should always decrease**: this was already correct; the user's
+   observation was a consequence of item 1.
+3. **Death of old age (new feature)**: added `Genome.maxLifespan`
+   (180-320s). Save v5→v6.
+4. **Hunger/satiation + prey-predator balance**: in the first
+   implementation, carnivore count jumped from 4 to 32 in one run and
+   crashed the herbivore population. Fix (three parts): satiation threshold
+   split in two (carnivore 0.6/herbivore 0.75), digestion cooldown extended
+   (10-20s→20-35s), prey refuge threshold made density-dependent,
+   carnivore-on-carnivore hunting REMOVED.
+
+### Tester verification (independent, 2026-09-02, fully SYNCHRONOUS):
+### PASSED (and 1 bug found)
+
+**1) Flee-lock bug — GENUINELY fixed, proven**: in 3 independent isolated
+runs, the herbivore genuinely moved away from the threat in all three
+(8.9px/27.7px/48.5px — would have been 0 under the old bug).
+
+**2) Continuous energy decrease — CONFIRMED**: 36.2→26.8 over 8s.
+
+**3) Death from old age — CONFIRMED**: a forcibly aged individual died,
+leaving a corpse.
+
+**4) Prey-predator balance — SOLID IN 3/3 INDEPENDENT RUNS**: in 3 runs,
+herbivores never dropped to a critical level (they kept increasing instead),
+carnivores stayed in a balanced band. The removal of carnivore-on-carnivore
+hunting was separately confirmed.
+
+**5) Diet visual distinction — CONFIRMED**: herbivore/carnivore are clearly
+distinguishable up close.
+
+**6) Selecting a creature from the lineage tree — WORKS**.
+
+**7) Gemini lineage analysis — WORKS, error-tolerant**.
+
+**8-10) Regressions (water→land, organ diversity, corpse visibility)**: all
+sound.
+
+**11) A REAL BUG FOUND AND FIXED — Save/Load was COMPLETELY BROKEN**:
+`SAVE_VERSION` had been bumped to 6, but the TWO save-writing points in
+`main.ts` still wrote `version: 5` — every page reload silently rejected the
+save, losing the entire simulation state. **Fixed**: both `writeSaveData`
+calls updated to `version: 6`. Re-verified directly with a save→reload→load
+cycle (27 creatures preserved).
+
+**Overall conclusion**: all 4 additional Phase IX fixes + the original 7
+items work. The ONE real issue found (save/load version mismatch) was
+caught and fixed during this tester round.
+
+---
+
+## Phase X — Details and Tester Verification (archive)
+
+### Details (coder, 2026-09-02, run fully SYNCHRONOUS)
+
+**1. Shallow/deep water distinction** (`src/world.ts`): a thin, read-only
+layer on top of the existing grid — `World.isShallowWater(x,y)`/
+`isDeepWater(x,y)`. `approxDistanceToLandPx` finds an approximate distance
+to the nearest land cell using an expanding-ring search. Threshold
+`SHALLOW_WATER_BAND_PX=70`. Movement into deep water is blocked for a
+leg-but-no-fin/gill individual (`canEnterDeepWater()`).
+
+*Verification*: 0 unauthorized deep-water entries across 1855+ movement
+attempts. A test-measurement precision issue (rounding) was found and
+fixed, after which the leak went to ZERO.
+
+**2. Hunting event log noise**: individual hunting events were REMOVED
+ENTIRELY from the event log (the mechanic still works, it just doesn't get
+logged). Rationale: (a) full removal is cleaner than a periodic summary,
+(b) diet counts are already always visible in the HUD, (c) individual
+hunting events aren't one-time milestones. `checkFirstCarnivore` (the FIRST
+carnivore's emergence) was DELIBERATELY kept.
+
+**3. Respiration organs + internal organs + atmosphere**: `gill`/`lung`
+added (respiration), `heart`/`stomach` (internal organs, mechanically
+effective but not requiring a visual drawing). `src/atmosphere.ts` (new): a
+global oxygen level (0..1) as a slow sine wave
+(`OXYGEN_CYCLE_SECONDS=240`) with an additional offset from climate events.
+Save format UNCHANGED (organ list was already generic).
+
+*Verification*: metabolism multiplier varied by up to 25% at extreme
+values. In an organic run, `lung` spread from 0 to 9 individuals, oxygen
+level genuinely fluctuated 0.58→0.43.
+
+**Regression (Phase I-IX)**: all clean — water→land SOLID, save/load
+preserves organs too, diet/ethology/corpse/decomposer dynamics intact.
+
+### Tester verification (independent, 2026-09-02/03): PASSED
+- `npx tsc --noEmit`/`npm run build`: 0 errors. API key leakage: NONE.
+- **Shallow/deep water distinction — DEFINITIVE PROOF**: a leg-but-no-fin
+  individual was placed at a point entirely surrounded by deep water —
+  across 50 samples, TOTAL DISPLACEMENT WAS ZERO, it stayed completely
+  frozen. The control group (leg+fin) moved 145px over 10s.
+- **Hunting event log noise — DEFINITIVE PROOF**: in an organic run,
+  population went 24→79, carnivores 0→2, corpses grew 0→2, but the event
+  log had ONLY 1 line ("The first carnivore has appeared"). In a forced
+  hunt, the prey died but there was NO prey-related log text; meteor/
+  extinction events KEPT appearing in the log.
+- **Respiration organs + atmosphere — DEFINITIVE PROOF**: gill (in water)
+  at low O2 gave a multiplier of 0.896 (advantage); lung (on land) at high
+  O2 gave 0.980 (advantage), at low O2 gave 1.104 (disadvantage — not a
+  free bonus). Atmosphere genuinely fluctuated 0.515→0.620 over 60s.
+  Save/load round-trip (gill/lung/heart/stomach) fully preserved.
+- **Critical regressions**: water→land SOLID, population balance normal
+  (24→79, no collapse), diet/ethology dynamic, lineage-tree toggle works.
+  Console/page errors: ZERO.
+- **Side note (out of scope)**: a suspicious line ("auth for agents" + a
+  third-party domain) was observed in `npm run dev` console output, not
+  originating from the project's code — its source couldn't be found in
+  the project files, likely from an environment/shell outside the project.
+- **Conclusion**: all 3 items of Phase X were independently, empirically
+  verified. Risk found: none.
+
+---
+
+## Phase XI — Details (Continuous Improvement, archive)
+
+### Performance/integration audit (PASSED, 2026-09-03)
+Pure reading/testing (no source files changed) — a 9+ minute run at 4x
+speed (~545 sim-seconds):
+- FPS stayed flat at 16-17 after the initial load, memory stayed exactly at
+  15.4MB for the full 9 minutes (no leak), DOM node count plateaued around
+  95 near the 300s mark. Population climbed from 24 to 140 and settled
+  there. All 4 world events fired organically. `lung`/`stomach` appeared
+  organically. Zero console/page errors.
+- **Finding requiring a decision**: the corpse counter resets on page
+  reload (10→0). PM's decision: this is DELIBERATE/acceptable — the
+  project already doesn't persist transient/visual-environmental state.
+- **Conclusion: the project is sound long-term.**
+
+### Phase XI — Responsive Details (coder, 2026-09-03)
+- **Honest assessment (before)**: headless measurements taken across 5
+  viewports. Wide/medium screens had no issue. On narrow screens: the
+  `#dash-body` grid was a fixed `1fr 280px` — at 800x600 the right panel
+  took 35% of the screen, squeezing the scene area to 520×548px. At
+  640x480 the scene dropped to 360×428px AND the header text wrapped to 2
+  lines.
+- **Changes made (only `src/dashboard.css`)**:
   1. `#dash-header`: `height`→`min-height` + `flex-wrap`.
-  2. `#dash-body` grid-template-columns kademeli daraltıldı: ≤1100px→`1fr 230px`,
-     ≤860px→`1fr 190px`. ≤680px genişlik VEYA ≤560px yükseklik: tek sütuna döner.
-  3. Header buton kompaktlaştırma: ≤680px'de başlık metni gizlenip "EG" rozeti kalıyor.
-  4. `MAP_WIDTH`/`MAP_HEIGHT`/`fitCamera` DEĞİŞMEDİ.
-- **Doğrulama (5 viewport)**: sahne canvas boyutu ölçüldü (800×600'de 520×548→
-  610×548, +17%; 640×480'de tek-sütuna geçiş). Yatay taşma: 5/5 viewport'ta `false`.
-  Tüm kontroller (hız/Soy Ağacı/Detaylar/Yeniden Başlat/Dışa Aktar/canlı tıklama)
-  5 viewport'ta da PASS. Uzun regresyon koşusu (60s, 1024×768): popülasyon 24→140,
-  konsol/sayfa hatası SIFIR.
-- **Tester doğrulaması: GEÇTİ, 2026-09-03.** 4 viewport'ta (1920x1080, 1024x768,
-  800x600, 640x480) bağımsız olarak sıfırdan doğrulandı — yatay/dikey taşma yok,
-  panel daralması/stack davranışı görsel olarak teyit edildi, tüm kontroller
-  erişilebilir/tıklanabilir, 800x600 ve 640x480'de canlı tıklama ile inceleme paneli
-  gerçek koordinatla açıldı (kesilen içerik kaydırmayla erişilebilir). Kritik
-  regresyon (1920x1080): UI/UX sadeleştirmesi bozulmamış, popülasyon 24→38 normal
-  büyüme, localStorage kaydı sağlam. Sonuç: GEÇTİ, bug/regresyon yok.
+  2. `#dash-body` grid-template-columns narrowed progressively:
+     ≤1100px→`1fr 230px`, ≤860px→`1fr 190px`. At ≤680px width OR ≤560px
+     height: switches to a single column.
+  3. Header button compaction: at ≤680px the title text is hidden, leaving
+     only the "EG" badge.
+  4. `MAP_WIDTH`/`MAP_HEIGHT`/`fitCamera` UNCHANGED.
+- **Verification (5 viewports)**: scene canvas size measured (at 800×600:
+  520×548→610×548, +17%; at 640×480: switch to a single column). Horizontal
+  overflow: `false` in 5/5 viewports. All controls (speed/Lineage Tree/
+  Details/Restart/Export/creature click) PASSED across all 5 viewports. A
+  long regression run (60s, 1024×768): population 24→140, console/page
+  errors ZERO.
+- **Tester verification: PASSED, 2026-09-03.** Independently re-verified
+  from scratch at 4 viewports (1920x1080, 1024x768, 800x600, 640x480) —
+  no horizontal/vertical overflow, panel narrowing/stacking behavior
+  visually confirmed, all controls accessible/clickable, at 800x600 and
+  640x480 clicking a creature opened the inspection panel with real
+  coordinates (clipped content reachable via scrolling). Critical
+  regression (1920x1080): the UI/UX simplification isn't broken,
+  population growth 24→38 normal, localStorage save intact. Conclusion:
+  PASSED, no bug/regression.
 
-### Faz XI — UI/UX Sadeleştirme Detayları (coder, 2026-09-03)
-- **Dürüst değerlendirme**: olgun bir oturumda (inceleme paneli açık + Diyet/
-  Atmosfer/Dünya dolu + event log dolu) yan panel 4 ayrı bloğa bölünüyordu, inceleme
-  paneli event log'u neredeyse tamamen ekrandan itiyordu. Kalabalıklaşma gerçekti.
-- **Yapılan değişiklikler**:
-  1. **İstatistik ızgarası ikiye ayrıldı**: Popülasyon/Zaman/Nesil/Toplam Bölünme
-     birincil 2x2 ızgarada kaldı; Dünya/Diyet/Atmosfer varsayılan KAPALI bir
-     `<details>` "▸ Detaylar" bölmesine taşındı.
-  2. **Header kontrolleri gruplandı**: Soy Ağacı ile hız/restart kümesi arasına
-     ince bir dikey ayraç eklendi, Soy Ağacı butonuna 🌳 emoji eklendi.
-  3. **İnceleme paneli sınırlandı**: `max-height: 46vh` + kendi içinde scroll —
-     event log her zaman en az bir miktar görünür kalıyor.
-  4. **Kaldırılan hiçbir özellik/panel yok**.
-- **Doğrulama**: 21 assertion, hepsi PASS. Detaylar toggle çalışıyor, hız kontrolü/
-  Yeniden Başlat/Soy Ağacı/canlı inceleme/Gemini butonu — hepsi sağlam. Konsol/sayfa
-  hatası: SIFIR.
-- **Tester doğrulaması: GEÇTİ, 2026-09-03.** `npx tsc -b --force`/`npm run build`:
-  0 hata. API anahtarı sızıntısı: YOK. Dürüst görsel değerlendirme (73 popülasyon,
-  olgun oturum ekran görüntüsü) — birincil 2x2 ızgara net üstte, "▾ Detaylar" tek
-  satır, event log gerçekten yer kaplıyor (2 tam olay satırı görünür). Detaylar
-  toggle gerçek tıklamayla kapalı→açık→kapalı doğrulandı. Regresyon kontrolü (hepsi
-  PASS): hız kontrolü, Yeniden Başlat, Soy Ağacı toggle, canlı tıklama/inceleme
-  paneli/seçim halkası, Gemini butonu. İnceleme paneli açıkken event log alanı ~106px
-  (2 olay satırı tam görünür). Kritik regresyon: su→kara sağlam, diyet/etoloji
-  dinamik, popülasyon dengeli (73→112). Sonuç: GEÇTİ, sadeleştirme gerçek, hiçbir
-  özellik/regresyon kaybı yok.
+### Phase XI — UI/UX Simplification Details (coder, 2026-09-03)
+- **Honest assessment**: in a mature session (inspection panel open +
+  World/Diet/Atmosphere filled + event log full), the side panel was
+  split into 4 separate blocks, and the inspection panel pushed the event
+  log almost entirely off-screen. Crowding was real.
+- **Changes made**:
+  1. **The stat grid was split in two**: Population/Time/Generation/Total
+     Divisions stayed in the primary 2x2 grid; World/Diet/Atmosphere moved
+     into a `<details>` "▸ Details" panel, collapsed by default.
+  2. **Header controls grouped**: a thin vertical divider added between
+     the Lineage Tree button and the speed/restart cluster, a 🌳 emoji
+     added to the Lineage Tree button.
+  3. **Inspection panel capped**: `max-height: 46vh` + its own internal
+     scroll — the event log always stays at least partly visible.
+  4. **No feature/panel removed**.
+- **Verification**: 21 assertions, all PASSED. Details toggle works, speed
+  control/Restart/Lineage Tree/creature inspection/Gemini button — all
+  sound. Console/page errors: ZERO.
+- **Tester verification: PASSED, 2026-09-03.** `npx tsc -b --force`/`npm
+  run build`: 0 errors. API key leakage: NONE. Honest visual assessment
+  (73 population, mature-session screenshot) — the primary 2x2 grid is
+  clearly on top, "▾ Details" is one line, event log genuinely takes up
+  space (2 full event lines visible). Details toggle verified with a real
+  click: closed→open→closed. Regression check (all PASSED): speed
+  control, Restart, Lineage Tree toggle, creature click/inspection panel/
+  selection ring, Gemini button. With the inspection panel open, event log
+  area is ~106px (2 event lines fully visible). Critical regression:
+  water→land solid, diet/ethology dynamic, population balanced (73→112).
+  Conclusion: PASSED, the simplification is real, no feature/regression
+  lost.
 
-### Faz XI — Dışa/İçe Aktarma Detayları (coder, 2026-09-03)
-- **Kapsam**: mevcut localStorage-tabanlı otomatik kayıt sistemine HİÇ DOKUNULMADI.
-  Birden fazla kayıt slotu kapsam dışı bırakıldı.
-- **Yeni dosya**: `src/exportimport.ts`.
-  - `exportSaveDataToFile(data)`: `Blob` + geçici `<a download>` ile indiriyor.
-  - `importSaveDataFromFile(file)`: `isValidSaveData` ile "ya tam kabul ya tam red"
-    doğrulaması, hata durumunda `null` döner (asla fırlatmaz).
-- **UI**: header'a "⬇️ Dışa Aktar"/"⬆️ İçe Aktar" butonları + gizli file input.
-  Geçersiz dosyada uygulama ÇÖKMEZ, görünür "⚠️ Geçersiz kayıt dosyası" mesajı
-  düşer.
-- **Bilinçli sınırlama**: içe aktarma farklı bir haritadan (`mapSeed`) geliyorsa bu
-  seed UYGULANMIYOR — aynı oturumda dışa/içe aktarma (en yaygın kullanım) sorunsuz.
-- **Doğrulama**: gerçek `download` olayı + geçerli JSON (`version:7`, 25 canlı,
-  `mapSeed` mevcut). Bozuk/yanlış-şekilli dosyalar ikisinde de çökme yok, görünür
-  hata mesajı düştü.
-- **Tester doğrulaması: GEÇTİ, 2026-09-03.** `npx tsc --noEmit`/`npm run build`:
-  0 hata. API anahtarı sızıntısı: YOK. 24 assertion, hepsi PASS: Dışa Aktar gerçek
-  `download` olayı + geçerli JSON (version:7, 24 canlı, mapSeed); İçe Aktar ile
-  popülasyon birebir eşleşti; bozuk JSON VE geçerli-JSON-yanlış-şekil ikisinde de
-  çökme yok, görünür hata mesajı düştü. **Farklı mapSeed senaryosu test edildi**:
-  çökme/sessiz bozulma YOK, mapSeed uygulanmıyor (coder'ın belgelediği sınırlama),
-  koordinatlar her zaman harita sınırları içinde kaldığından risk sadece kozmetik
-  (kara/su tutarsızlığı). Karar: kabul edilebilir sınırlama. Kritik regresyon: hız
-  kontrolü, Soy Ağacı, localStorage otomatik kaydı (bozulmamış), popülasyon dengesi
-  (24→24→24) — hepsi PASS. Sonuç: GEÇTİ.
+### Phase XI — Export/Import Details (coder, 2026-09-03)
+- **Scope**: the existing localStorage-based autosave system was NOT
+  touched at all. Multiple save slots was out of scope.
+- **New file**: `src/exportimport.ts`.
+  - `exportSaveDataToFile(data)`: downloads via a `Blob` + a temporary
+    `<a download>`.
+  - `importSaveDataFromFile(file)`: uses `isValidSaveData` for "either
+    fully accept or fully reject" validation, returns `null` on error
+    (never throws).
+- **UI**: "⬇️ Export"/"⬆️ Import" buttons in the header + a hidden file
+  input. An invalid file does NOT crash the app, a visible "⚠️ Invalid save
+  file" message is shown.
+- **Deliberate limitation**: if the imported file comes from a different
+  map (`mapSeed`), this seed is NOT applied — exporting/importing within
+  the same session (the most common use case) works fine.
+- **Verification**: a real `download` event + valid JSON (`version:7`, 25
+  creatures, `mapSeed` present). Corrupted/malformed files cause no crash
+  in either case, a visible error message appears.
+- **Tester verification: PASSED, 2026-09-03.** `npx tsc --noEmit`/`npm run
+  build`: 0 errors. API key leakage: NONE. 24 assertions, all PASSED:
+  Export produces a real `download` event + valid JSON (version:7, 24
+  creatures, mapSeed); Import matched the population exactly; both
+  corrupted JSON AND valid-JSON-wrong-shape caused no crash, a visible
+  error message appeared. **A different-mapSeed scenario was tested**: no
+  crash/silent corruption, mapSeed not applied (the coder's documented
+  limitation), coordinates always stay within map bounds so the risk is
+  purely cosmetic (land/water inconsistency). Decision: an acceptable
+  limitation. Critical regression: speed control, Lineage Tree,
+  localStorage autosave (intact), population balance (24→24→24) — all
+  PASSED. Conclusion: PASSED.
 
 ---
 
-## Faz XII — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase XII — Details and Tester Verification (archive)
 
-### Detaylar (coder, 2026-09-03)
+### Details (coder, 2026-09-03)
 
-**Madde 4 — BUG düzeltmesi (öncelikli)**: Kök neden: `lineagetree.ts` TÜM
-`LineageRecord`'ları sabit 520×380px panel içine, sabit 3px yarıçaplı düğümlerle
-sıkıştırıyordu. Bir nesil satırında birey sayısı arttıkça düğüm başına düşen aralık
-tıklama toleransının altına düşüyor, düğümler üst üste biniyor, tıklama isabet testi
-yanlış düğümü seçiyordu.
-- **Düzeltme**: sabit panel genişliği yerine **minimum düğüm aralığı**
-  (`MIN_NODE_SPACING=14px`) korunuyor — canvas'ın SANAL genişliği büyüyor, yeni
-  `#lineage-canvas-wrap` (`overflow: auto`) ile kaydırmayla erişiliyor. Düğüm
-  yarıçapı 3px→4px, tıklama toleransı büyütüldü.
-- Mevcut "son 6 nesille sınırlama" iddiası kod incelemesiyle YANLIŞ çıktı — böyle bir
-  sınırlama zaten yoktu, asıl sorun nesil SAYISI değil bir nesil SATIRINDAKİ birey
-  yoğunluğuydu.
-- *Doğrulama*: 46 bireylik bir nesil satırında 15 farklı düğüme gerçek fare
-  tıklaması yapıldı, 15/15 doğru bireyi seçti.
+**Item 4 — BUG fix (priority)**: Root cause: `lineagetree.ts` squeezed ALL
+`LineageRecord`s into a fixed 520×380px panel with fixed 3px-radius nodes.
+As individual count in a generation row grew, spacing per node dropped
+below click tolerance, nodes overlapped, and click hit-testing selected
+the wrong node.
+- **Fix**: instead of a fixed panel width, a **minimum node spacing**
+  (`MIN_NODE_SPACING=14px`) is maintained — the canvas's VIRTUAL width
+  grows, accessed via scrolling with a new `#lineage-canvas-wrap`
+  (`overflow: auto`). Node radius 3px→4px, click tolerance enlarged.
+- The existing claim of "limited to the last 6 generations" turned out to
+  be WRONG on code review — no such limit ever existed; the real problem
+  wasn't the generation COUNT but the individual DENSITY within a single
+  generation ROW.
+- *Verification*: a real mouse click was made on 15 different nodes in a
+  46-individual generation row, 15/15 selected the correct individual.
 
-**Madde 1 — Besin üretim oranı kontrolü**: `setUserNutrientMultiplier` (0.25x-3x)
-eklendi, `climateNutrientMultiplier` ile ÇARPIMSAL. Detaylar bölmesine +/- butonlu
-satır eklendi. 1x→3x arası nutrient sayısı 34→168 (su)/24→60 (kara) arttı.
+**Item 1 — Food production rate control**: added
+`setUserNutrientMultiplier` (0.25x-3x), MULTIPLICATIVE with
+`climateNutrientMultiplier`. A row with +/- buttons added to the Details
+panel. Between 1x→3x, nutrient count grew 34→168 (water)/24→60 (land).
 
-**Madde 2 — Manuel doğa olayı tetikleme**: `<select>` (Rastgele/Meteor/İklim/
-Rüzgar/Deprem) + "Tetikle" butonu, mevcut `forceTrigger` yeniden kullanıldı.
+**Item 2 — Manual natural-event triggering**: a `<select>` (Random/
+Meteor/Climate/Wind/Earthquake) + "Trigger" button, reusing the existing
+`forceTrigger`.
 
-**Madde 3 — Doğa olaylarını durdurma butonu**: `setAutoEventsEnabled(false)` —
-aktif bir olayın süresi etkilenmiyor, manuel tetikleme bu bayraktan bağımsız.
+**Item 3 — Button to stop natural events**: `setAutoEventsEnabled(false)`
+— an active event's duration is unaffected, manual triggering is
+independent of this flag.
 
-**Madde 5 — Soy ağacında renk/efekt/organ ayrımı**: `dominantOrganType` (genomdaki
-SON eklenen organ) kategorisine göre renkli ince bir dış halka (`CATEGORY_COLORS`).
+**Item 5 — Color/effect/organ distinction in the lineage tree**:
+`dominantOrganType` (the LAST organ added in the genome) gets a thin,
+colored outer ring by category (`CATEGORY_COLORS`).
 
-**Madde 6 — Soy ağacında filtreler**: diyet/organ tipi/hayatta-ölü/nesil aralığı
-filtreleri — filtrelenmeyen düğümler SOLUKLAŞTIRILIYOR (`alpha:0.15`), gizlenmiyor.
+**Item 6 — Filters in the lineage tree**: diet/organ type/alive-dead/
+generation-range filters — filtered-out nodes are FADED (`alpha:0.15`),
+not hidden.
 
-**Doğrulama**: `npx tsc -b --force`/`npm run build`: 0 hata. API anahtarı sızıntısı:
-YOK. Soy ağacı bug'ı — 40-45s'lik koşularla 145-196 kayıtlık ağaçlarda 15/15 doğru
-tıklama. Manuel kontroller, renk/organ ayrımı, filtreler — hepsi gerçek UI/canvas
-piksel testiyle doğrulandı (4/4 filtre gerçek görsel etki üretti).
+**Verification**: `npx tsc -b --force`/`npm run build`: 0 errors. API key
+leakage: NONE. Lineage-tree bug — 15/15 correct clicks in 40-45s runs on
+trees with 145-196 records. Manual controls, color/organ distinction,
+filters — all verified with real UI/canvas pixel testing (4/4 filters
+produced a real visual effect).
 
-### Tester doğrulaması (bağımsız oturum, 2026-09-03, tamamen SENKRON): GEÇTİ
-Coder'ın iddialarının tümü, ayrı bir Playwright oturumunda bağımsız olarak
-tekrarlandı. Hiçbir regresyon/bug bulunmadı.
-- `npx tsc --noEmit`/`npm run build`: 0 hata. API anahtarı sızıntısı: YOK (mimari de
-  incelendi — yapısal olarak sızıntıya kapalı).
-- **Madde 4 (BUG) — KESİN, BAĞIMSIZ KANIT**: 407 kayıtlık bir soy ağacı üretildi; en
-  kalabalık nesil satırı **100 birey** içeriyordu (coder'ın test ettiğinden fazla).
-  Düğüm aralığının `MIN_NODE_SPACING` (14px) hedefini koruduğu ölçüldü (14.14px).
-  100 düğümlük satırın 15 farklı noktasından gerçek fare tıklaması yapıldı: **15/15
-  doğru birey seçildi**. Kaydırma mekanizması da doğrulandı.
-- **Madde 1**: 1.00x→3.00x ve 3.00x→0.25x arası doğru clamp'lendi. 3x çarpanda
-  nutrient +231, 0.25x çarpanda -117 (net düşüş) — gerçek ve yön olarak beklenen.
-- **Madde 2**: Meteor/Rüzgar tetiklendi, sayaçlar ve event log satırları eşleşti.
-- **Madde 3**: Toggle ile devre dışıyken 120 sim-saniyesi boyunca olay sayısı SIFIR
-  arttı; tekrar açılınca 15s içinde organik olay tetiklendi.
-- **Madde 5**: iki farklı baskın-organ kategorisi (movement/feeding) piksel
-  örneklemesiyle karşılaştırıldı — renkler belirgin şekilde farklı (renk mesafesi
-  226.5).
-- **Madde 6**: 4 farklı filtre tek tek uygulanıp canvas piksel imzası her birinde
-  ölçülebilir şekilde değişti (4/4 gerçek etki, no-op değil).
-- **Kritik regresyon kontrolü (hepsi PASS)**: popülasyon dengesi, su→kara mekaniği,
-  Dışa Aktar, hız kontrolü, Yeniden Başlat, 800×600 dar viewport'ta soy ağacı —
-  tüm testler boyunca konsol/sayfa hatası SIFIR.
-- **Küçük not (bug değil)**: `dominantOrganType` yorum satırı "en yüksek `power`
-  değerine sahip organ" diyor ama kod aslında SON eklenen organı kullanıyor —
-  davranış hâlâ gerçek veriye dayalı, sadece bir yorum küçük şekilde yanlış/çelişkili.
+### Tester verification (independent session, 2026-09-03, fully
+### SYNCHRONOUS): PASSED
+All of the coder's claims were independently reproduced in a separate
+Playwright session. No regression/bug found.
+- `npx tsc --noEmit`/`npm run build`: 0 errors. API key leakage: NONE
+  (the architecture was also reviewed — structurally closed to leakage).
+- **Item 4 (BUG) — DEFINITIVE, INDEPENDENT PROOF**: a 407-record lineage
+  tree was generated; the busiest generation row contained **100
+  individuals** (more than the coder tested). The node spacing was
+  measured to maintain the `MIN_NODE_SPACING` (14px) goal (14.14px). A
+  real mouse click was made at 15 different points in the 100-node row:
+  **15/15 correct individuals were selected**. The scroll mechanism was
+  also verified.
+- **Item 1**: correctly clamped between 1.00x→3.00x and 3.00x→0.25x. At
+  the 3x multiplier, nutrient count +231; at 0.25x, -117 (net decrease) —
+  real and directionally as expected.
+- **Item 2**: Meteor/Wind were triggered, counters and event log lines
+  matched.
+- **Item 3**: with the toggle disabled, event count increased by ZERO
+  over 120 sim-seconds; when re-enabled, an organic event fired within
+  15s.
+- **Item 5**: two different dominant-organ categories (movement/feeding)
+  were compared via pixel sampling — colors clearly differ (color
+  distance 226.5).
+- **Item 6**: 4 different filters were applied one at a time, and the
+  canvas pixel signature measurably changed with each one (4/4 real
+  effect, not a no-op).
+- **Critical regression check (all PASSED)**: population balance,
+  water→land mechanic, Export, speed control, Restart, lineage tree in an
+  800×600 narrow viewport — console/page errors ZERO throughout all
+  tests.
+- **Small note (not a bug)**: the `dominantOrganType` comment says "the
+  organ with the highest `power` value" but the code actually uses the
+  LAST organ added — behavior is still data-driven, just a comment that's
+  slightly incorrect/contradictory.
 
-## Faz XIII — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase XIII — Details and Tester Verification (archive)
 
-Kullanıcı geri bildirimi: mevcut davranış "başarısız canlılar" gibi görünüyordu —
-karaya çarpıp rastgele hareket ediyorlar, gerçek bir hayvan gibi korkup kaçmıyor/
-yemek için mücadele etmiyor/bol yiyecek olan yere gitmeye çalışmıyor gibi
-hissettiriyordu. Ayrıca bir noktadan sonra denizlerde besin tükenip TÜM
-popülasyon ölüyordu.
+User feedback: the current behavior looked like "failed creatures" —
+bumping into land and moving randomly, not feeling like a real animal that
+gets scared and flees/struggles to eat/tries to go where there's plenty of
+food. Also, past a certain point food would run out in the seas and the
+ENTIRE population would die.
 
-### Madde 1 — BUG — kök neden analizi (ilk tur)
-**YANLIŞ ilk hipotez (elenmiş)**: flee/besin-arama çakışması şüpheliydi, ölçüm
-elediği: bir düzeltme (kritik açlıkta kaçarken de yakın besin varsa yeme + sınır
-farkındalığı) uygulanıp 3 bağımsız koşu yapıldığında YİNE toplu çöküş gözlemlendi
-(`fixed_run2`: t=291-322s pop 140→0, `water_nutr` çöküş boyunca sabit/bol kaldı).
-Bu, sorunun "canlılar besine ulaşamıyor" değil "yeni besin canlıların bulunduğu
-yere hiç gelmiyor" olduğunu gösterdi.
+### Item 1 — BUG — root cause analysis (first round)
+**WRONG initial hypothesis (ruled out)**: a flee/food-seeking conflict was
+suspected; measurement ruled it out: a fix was applied (eating nearby food
+even while fleeing under critical hunger + boundary awareness) and 3
+independent runs STILL showed a mass collapse
+(`fixed_run2`: t=291-322s pop 140→0, `water_nutr` stayed constant/ample
+throughout the collapse). This showed the problem wasn't "creatures can't
+reach food" but "new food never arrives where the creatures are."
 
-**GERÇEK KÖK NEDEN (ölçümle doğrulandı)**: `nutrientCapacity(population, base) =
-base + population*1.4` ANLIK popülasyona göre hesaplanıyordu. Popülasyon küçük
-bir düşüş yaşadığında cap AYNI KAREDE küçülüyor, stok yeni (küçülmüş) cap'in
-üstünde kaldığından `if (nutrients.length >= cap) return;` kapısı TAMAMEN
-kapanıyor — yeni nutrient üretimi anında duruyor. Var olan stok sayıca bol
-görünse de ÖNCEKİ (daha büyük) popülasyonun konumlarına göre coğrafi olarak
-dağılmıştı; `medianDistToFood` bir ölçümde 644px'e fırladı, 140 canlının 121'i
-algı menzilinde HİÇ besin bulamıyordu — kendi kendini besleyen bir geri
-beslemeli çöküş sarmalı (140→0, bazı koşularda 27 saniyede).
+**REAL ROOT CAUSE (confirmed by measurement)**:
+`nutrientCapacity(population, base) = base + population*1.4` was computed
+based on the INSTANTANEOUS population. When the population dipped even
+slightly, the cap shrank in the SAME frame; since the stock stayed above
+the new (shrunken) cap, the gate `if (nutrients.length >= cap) return;`
+CLOSED COMPLETELY — new nutrient production stopped instantly. Although
+the existing stock looked numerically ample, it was geographically
+distributed according to the PREVIOUS (larger) population's locations;
+`medianDistToFood` spiked to 644px in one measurement, and 121 of 140
+creatures could find NO food at all within sense range — a
+self-reinforcing feedback collapse spiral (140→0, in 27 seconds in some
+runs).
 
-**Düzeltme (ilk tur, 3 parça)**:
-1. `effectiveWaterPopulation`/`effectiveLandPopulation` — ANLIK popülasyon
-   yerine 20s yarı ömürlü üstel sönüm (`decayTowards`) ile hesaplanan bir
-   tahmine göre kapasite/spawn hızı belirleniyor.
-2. **Asıl belirleyici düzeltme**: `spawnPointNear`'ın anchor seçimi artık düz
-   rastgele değil, enerji oranı düşük (AÇ) bireylere doğru ağırlıklı
-   (`pickHungryWeightedAnchor`, ağırlık tabanı asla 0'a inmiyor).
-3. Kritik açlıkta (`energy/maxEnergy <= 0.12`) kaçarken de `EAT_RADIUS`
-   içindeki besin yeniyor (korunuyor).
+**Fix (first round, 3 parts)**:
+1. `effectiveWaterPopulation`/`effectiveLandPopulation` — capacity/spawn
+   rate are now determined based on an estimate computed via a 20s
+   half-life exponential decay (`decayTowards`) instead of the
+   instantaneous population.
+2. **The actually decisive fix**: `spawnPointNear`'s anchor selection is
+   no longer plain random, it's weighted toward individuals with a low
+   energy ratio (HUNGRY) (`pickHungryWeightedAnchor`, weight base never
+   drops to 0).
+3. Under critical hunger (`energy/maxEnergy <= 0.12`), food within
+   `EAT_RADIUS` is still eaten even while fleeing (preserved).
 
-**Doğrulama (ilk tur)**: 3 bağımsız 400s'lik koşu — hiçbirinde toplu/ani çöküş
-yok, popülasyon 140'ta sabit, ortalama enerji 0.82-0.87 aralığında sağlıklı.
+**Verification (first round)**: 3 independent 400s runs — none had a mass/
+sudden collapse, population stable at 140, average energy healthy in the
+0.82-0.87 range.
 
-### Madde 2 — Davranış AI kalitesi: TAMAMLANDI
-- **Sınır farkındalığı**: `applyBoundaryAwareness` — heading'de 26px ileri
-  bakılıyor, geçersizse birkaç aday açı arasından ilk geçerliye HAFİFÇE
-  (blendAngles, %55 ağırlık) yönelme uygulanıyor. Reaktif bounce güvenlik ağı
-  olarak kalıyor ama normal şartlarda tetiklenmiyor. wander/seek/flee/hunt
-  hepsi `steerDeltaAwayFromBoundary`'den geçiyor.
-- **Gerçek besin arayışı**: `findBestNutrientCluster` — en yakın değil, yerel
-  yoğunluk (55px komşuluk) + mesafe cezası birleşen bir skora göre en iyi
-  kümeyi seçiyor.
-- **Rekabet**: `claimedNutrientsThisFrame` — "ilk talep eden kazanır", ama
-  algı menzilindeki HER ŞEY claim edilmişse claim yok sayılıp en yakın
-  nutrient'a yönelme yapılıyor (hiç yememekten iyi).
-- **Kaçış**: sınır farkındalığıyla birleşti, kaçarken karaya/sınıra sıkışma
-  riski azaldı.
-- Doğrulama: flee sayısı 10-25 arası dalgalanırken bile popülasyon/enerji
-  sağlıklı kaldı (önceden toplu ölüme giden bir senaryo).
+### Item 2 — Behavior AI quality: COMPLETE
+- **Boundary awareness**: `applyBoundaryAwareness` — looks 26px ahead
+  along the heading; if invalid, LIGHTLY steers (blendAngles, 55% weight)
+  toward the first valid one among several candidate angles. Reactive
+  bounce stays as a safety net but doesn't trigger under normal
+  conditions. wander/seek/flee/hunt all pass through
+  `steerDeltaAwayFromBoundary`.
+- **Real food seeking**: `findBestNutrientCluster` — picks the best
+  cluster not the nearest, based on a score combining local density (55px
+  neighborhood) + a distance penalty.
+- **Competition**: `claimedNutrientsThisFrame` — "first claimant wins,"
+  but if EVERYTHING in sense range is already claimed, the claim is
+  ignored and steering falls back to the nearest nutrient (better than not
+  eating at all).
+- **Fleeing**: combined with boundary awareness, reducing the risk of
+  getting stuck against land/boundary while fleeing.
+- Verification: population/energy stayed healthy even while flee count
+  fluctuated 10-25 (previously a scenario leading to mass death).
 
-### Madde 3 — Gemini soy-bazlı davranış önerisi: TAMAMLANDI
-`geminiinsight.ts`'teki periyodik (120s) çağrıya eklenen ikinci JSON satırı
-(`{"trait": "wanderBoldness"|"foragingPriority", "adjustment": -0.2..0.2}`) —
-Faz VII'nin organ ağırlık önerisiyle aynı desen: `applyGeminiBehaviorSuggestion`
-±0.15 toplam clamp'li bir ofset biriktiriyor. Ana hareket kararı her zaman
-senkron/lokal çalışıyor, Gemini başarısız olursa ofsetler 0 kalır.
+### Item 3 — Gemini lineage-based behavior suggestion: COMPLETE
+A second JSON line added to `geminiinsight.ts`'s periodic (120s) call
+(`{"trait": "wanderBoldness"|"foragingPriority", "adjustment":
+-0.2..0.2}`) — the same pattern as Phase VII's organ-weight suggestion:
+`applyGeminiBehaviorSuggestion` accumulates an offset clamped to ±0.15
+total. The main movement decision always runs synchronously/locally; if
+Gemini fails, offsets stay 0.
 
-### Tester doğrulaması (ilk tur, bağımsız): GEÇTİ
-`tsc`/`build` temiz, API anahtarı sızıntısı yok. 3 bağımsız 4 dakikalık koşuda
-(run1: pop 39→140 stabil enerji 0.75-0.85; run2: pop 46→140 enerji 0.70-0.84;
-run3: pop 37→140 enerji 0.72-0.85) **3/3 koşuda toplu/ani çöküş SIFIR**.
-Gemini clamp aşırı değerle (999/-999) test edilip ±0.15'e kesin clamp edildiği
-doğrulandı. Kritik regresyon (organ çeşitliliği 8 tip, diyet 137/3, etoloji 4
-durum, yaşlılık ölümü 5, ceset/ayrıştırıcı aktif, atmosfer geçerli) sağlam.
+### Tester verification (first round, independent): PASSED
+`tsc`/`build` clean, no API key leakage. In 3 independent 4-minute runs
+(run1: pop 39→140 stable energy 0.75-0.85; run2: pop 46→140 energy
+0.70-0.84; run3: pop 37→140 energy 0.72-0.85), **3/3 runs had ZERO mass/
+sudden collapse**. The Gemini clamp was tested with an extreme value
+(999/-999) and confirmed clamped precisely to ±0.15. Critical regression
+(organ diversity 8 types, diet 137/3, ethology 4 states, old-age death 5,
+corpse/decomposer active, atmosphere valid) sound.
 
-### Faz XIII — YENİDEN AÇILDI (ikinci tur, besin çöküşü tam düzelmemiş)
-Faz XIV testeri, regresyon kontrolü sırasında düzeltmenin **5 bağımsız uzun
-koşudan 2'sinde** hâlâ aynı çöküş imzasıyla (su besin stoku sabit/bol kalırken
-`medianDistToFood` 123px→591px'e fırlıyor) tekrarlandığını buldu — birinde tam
-140→0/~25s, diğerinde 140→13'e inip kendiliğinden toparlandı. Çöküş anlarında
-Faz XIV'ün yeni organları YOKTU (ilgisiz bir regresyon).
+### Phase XIII — REOPENED (second round, food collapse not fully fixed)
+The Phase XIV tester found, during a regression check, that the fix still
+recurred with the same collapse signature (water food stock stays
+constant/ample while `medianDistToFood` spikes from 123px to 591px) in
+**2 of 5 independent long runs** — in one, a full 140→0/~25s collapse; in
+the other, a drop to 13 that recovered on its own. At the moments of
+collapse, Phase XIV's new organs were ABSENT (an unrelated regression).
 
-**SONUÇ (coder): TAMAMLANDI — 10/10 bağımsız koşuda çöküş SIFIR.**
-**Kesin kök neden**: `updateNutrientSpawning`'deki kapasite kapısı
-(`if (nutrients.length >= cap) return;`) SADECE TOPLAM SAYIYA bakıyordu,
-COĞRAFİ dağılıma değil. Tanılama koşusunda yakalandı: `waterNutr:316`
-(kapasiteye yapışık) iken `medianDistToFood` 3 saniyede 179'dan 318'e fırladı —
-stok SAYICA doluydu ama popülasyonun bulunduğu bölgeden UZAKTA donmuş kalmıştı,
-kapı kapalı olduğu için yeni (aç bireye yakın) besin hiç eklenemiyordu.
+**CONCLUSION (coder): COMPLETE — ZERO collapses across 10/10 independent
+runs.**
+**Definitive root cause**: the capacity gate in `updateNutrientSpawning`
+(`if (nutrients.length >= cap) return;`) was looking ONLY at TOTAL COUNT,
+not GEOGRAPHIC distribution. Caught during a diagnostic run:
+`waterNutr:316` (stuck at capacity) while `medianDistToFood` spiked from
+179 to 318 in 3 seconds — the stock was numerically FULL but frozen far
+away from where the population actually was, and because the gate was
+closed, new food (near a hungry individual) could never be added.
 
-**Elenen hipotez**: `spawnPointNear`'ın 8-denemelik yerel arama başarısız olup
-tamamen rastgele bir noktaya düşme oranı ölçüldü (`%0.37`, 12823 denemeden 48
-fallback) — ana kök neden değildi, elendi.
+**Ruled-out hypothesis**: the rate at which `spawnPointNear`'s 8-attempt
+local search fails and falls back to a fully random point was measured
+(`0.37%`, 48 fallbacks out of 12823 attempts) — not the main root cause,
+ruled out.
 
-**Düzeltme (iki parça)**:
-1. `computeHungerSeverity()` — ortalama enerji oranı %55 eşiğinin altına
-   düşünce (popülasyon ≥10) 0-1 arası bir "ciddiyet" skoru üretir.
-2. Bu skor hem kapasiteye (`computeHungerCapacityBoost`, +0-100) HEM spawn
-   hızına (`computeHungerSpawnRateBoost`, +0-3x, toplamsal) ek yapıyor.
-   **İLK deneme (sadece kapasite genişletmesi) 6 koşudan 5'inde geçti ama
-   6.'da YİNE ÇÖKTÜ** — kapasiteyi büyütmek tek başına yetersizdi, kapı açılsa
-   bile spawn hızı kıtlıkta toparlanmayı yeterince hızlandırmıyordu. İKİNCİ
-   düzeltme (spawn hızına da ek) eklenince davranış düzeldi.
+**Fix (two parts)**:
+1. `computeHungerSeverity()` — once average energy ratio drops below a 55%
+   threshold (population ≥10), produces a 0-1 "severity" score.
+2. This score adds a boost to both capacity (`computeHungerCapacityBoost`,
+   +0-100) AND spawn rate (`computeHungerSpawnRateBoost`, +0-3x,
+   additive). **The FIRST attempt (capacity expansion only) passed 5 of 6
+   runs but STILL COLLAPSED in the 6th** — expanding capacity alone wasn't
+   enough; even with the gate open, spawn rate wasn't accelerating
+   recovery fast enough during scarcity. Once the SECOND fix (also
+   boosting spawn rate) was added, behavior corrected.
 
-**Doğrulama — kesin sayılar**: İlk düzeltme 5/6 (yetersiz, ikinci düzeltme
-eklendi). İkinci düzeltme: **10/10 bağımsız 5 dakikalık koşu — TAMAMI TEMİZ,
-SIFIR çöküş** (w1-w10). `tsc`/`build` temiz, API anahtarı sızıntısı yok,
-geçici tanılama sayaçları tamamen geri alındı.
+**Verification — definitive numbers**: first fix 5/6 (insufficient, second
+fix added). Second fix: **10/10 independent 5-minute runs — ALL CLEAN,
+ZERO collapses** (w1-w10). `tsc`/`build` clean, no API key leakage,
+temporary diagnostic counters fully reverted.
 
-### Son bağımsız tester doğrulaması: GEÇTİ — 5/5 bağımsız koşu, SIFIR çöküş
-Coder'ın 10/10 sonucundan TAMAMEN BAĞIMSIZ, ayrı bir dev server ve script'le
-5 bağımsız 5 dakikalık koşu — **5/5 TAMAMEN TEMİZ, SIFIR çöküş**, tüm 5 koşu
-popülasyon tavanı 140'a ulaşıp orada stabil kaldı. `medianDistToFood` zaman
-zaman yükseldi (maks 226px) ama hiçbir zaman popülasyon çöküşüyle sürdürülemedi
-— güvenlik supabının beklenen davranışı. Regresyon (diyet 135/5, su→kara,
-Faz XIV'ün 5 yeni organı mevcut ve 2'si organik ortaya çıktı) sağlam.
+### Final independent tester verification: PASSED — 5/5 independent runs,
+### ZERO collapses
+COMPLETELY INDEPENDENT of the coder's 10/10 result, with a separate dev
+server and script, 5 independent 5-minute runs — **5/5 COMPLETELY CLEAN,
+ZERO collapses**, all 5 runs reached the population cap of 140 and stayed
+stable there. `medianDistToFood` occasionally rose (max 226px) but never
+sustained into a population collapse — the expected behavior of the safety
+valve. Regression (diet 135/5, water→land, Phase XIV's 5 new organs
+present with 2 appearing organically) sound.
 
-**NİHAİ SONUÇ**: Toplam 15 bağımsız uzun koşu (coder'ın 10 + tester'ın 5)
-arasında SIFIR çöküş.
+**FINAL RESULT**: a total of 15 independent long runs (coder's 10 +
+tester's 5) with ZERO collapses.
 
-### Faz XIII — Ek doğrulama (kullanıcının gerçek tarayıcı raporu üzerine)
-Kullanıcı 15/15 test onayına rağmen GERÇEK tarayıcısında hâlâ besin çöküşü
-yaşadığını bildirdi. PM iki olası neden belirledi: (1) kullanıcının sekmesi
-TÜM düzeltmelerden önce başlamış çok eski bir dev server'a bağlıydı (HMR-drift
-riski) — durduruldu, temiz bir dev server başlatılıp kullanıcıya sert yenileme
-(Ctrl+Shift+R) söylendi; (2) test koşularımız kısaydı (5-9dk), gerçek oturum
-daha uzun/manuel kontrol kullanımı içeriyor olabilir.
+### Phase XIII — Additional verification (following the user's real
+### browser report)
+Despite the 15/15 test confirmation, the user reported still experiencing
+a food collapse in their ACTUAL browser. The PM identified two possible
+causes: (1) the user's tab was connected to a very old dev server that
+started BEFORE all the fixes (HMR-drift risk) — it was stopped, a fresh
+dev server started, and the user was told to hard-refresh
+(Ctrl+Shift+R); (2) our test runs were short (5-9min), a real session
+might involve longer/manual control usage.
 
-**Ek doğrulama**: 5 bağımsız ~5dk'lık koşu, HEPSİ TEMİZ — `crashDetected:false`
-ve `finalPop:140` hepsinde, `medianDistToFood` zaman zaman yükseldi (maks
-268px) ama hep kendiliğinden düzeldi.
+**Additional verification**: 5 independent ~5min runs, ALL CLEAN —
+`crashDetected:false` and `finalPop:140` in all of them, `medianDistToFood`
+occasionally rose (max 268px) but always self-corrected.
 
-**Kümülatif durum**: Faz XIII'ün 10 + ilk tester'ın 5 + bu ek 5 = **toplam 20
-bağımsız uzun/orta koşuda sıfır çöküş**. Bu koşular hep 5-9 dakikaydı; TAM
-20-30+ dakikalık gerçek-zaman testi (manuel besin oranı/doğa olayı kontrolü
-kullanımıyla) TASKS.md'nin güncel/açık konular bölümünde not edildi — henüz
-tamamlanmadı. En olası açıklama hâlâ eski/HMR-drift dev server'dır.
+**Cumulative status**: Phase XIII's 10 + the first tester's 5 + this
+additional 5 = **a total of 20 independent long/medium runs with zero
+collapses**. These runs were always 5-9 minutes; a FULL 20-30+ minute
+real-time test (using manual food-rate/natural-event controls) is noted
+in TASKS.md's current/open issues section — not yet completed. The most
+likely explanation remains a stale/HMR-drifted dev server.
 
-## Faz XIV — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase XIV — Details and Tester Verification (archive)
 
-Kullanıcı isteği: mevcut organ havuzu genişletilsin, "sıra dışı" organlar
-istendi — gerçek dünya adaptasyon/direnç mekanizmalarından ilham almalı, saf
-fantastik olmamalı (kışlama/torpor, kuraklık direnci, izolasyon tabakası,
-mimikri, sembiyoz, sürü davranışı gibi örnekler verildi). **Tasarım kararı
-(PM, güvenlik/kararlılık için)**: organlar HALA elle kodlanmış, sabit mekanik
-etkili olacak — Gemini yeni mekanik icat etmiyor, sadece hangi organların bir
-soy için öne çıkarılacağına dair bir ağırlık nudge'ı önerebiliyor (Faz XIII
-madde 3'ün mekanizması genişletilmiş organ havuzuna da uygulanıyor).
+User request: expand the existing organ pool, "unusual" organs were
+requested — inspired by real-world adaptation/resistance mechanisms, not
+purely fantastical (examples given: hibernation/torpor, drought
+resistance, insulation layer, mimicry, symbiosis, pack behavior).
+**Design decision (PM, for safety/stability)**: organs will STILL be
+hand-coded with a fixed mechanical effect — Gemini doesn't invent new
+mechanics, it can only suggest a weight nudge toward which organs get
+favored for a lineage (Phase XIII item 3's mechanism extended to the
+expanded organ pool too).
 
-### Madde 1 — Yeni/sıra dışı organlar: TAMAMLANDI
-5 yeni organ tipi eklendi (`src/organs.ts`):
-- **Kışlama Bezi (`torpor`)**: enerji oranı ≤%20 kritik eşiğine düşünce
-  metabolizmayı %35-70 yavaşlatır — kamp balığı/ayı kışlama davranışı ilhamlı.
-- **İzolasyon Tabakası (`blubber`)**: global iklim çarpanının etkisini
-  %40-80 yumuşatır — fok/penguen yağ tabakası ilhamlı.
-- **Biyolüminesans (`bioluminescence`)**: algı menzilini +20-50px artırır.
-- **Zehir Bezi (`venom`)**: kaçış şansına +0.15-0.4 ekler.
-- **Rejenerasyon (`regeneration`)**: beslenme verimliliğini +%10-25 artırır.
-Her organın kendi şematik (karikatür olmayan) çizimi var. `ALL_ORGAN_TYPES`/
-`pickRandomOrganType` otomatik kapsıyor, save format ekstra değişiklik
-gerektirmeden yeni tipleri kabul ediyor.
+### Item 1 — New/unusual organs: COMPLETE
+5 new organ types added (`src/organs.ts`):
+- **Hibernation Gland (`torpor`)**: once energy ratio drops to the ≤20%
+  critical threshold, slows metabolism by 35-70% — inspired by
+  hibernating fish/bear behavior.
+- **Insulation Layer (`blubber`)**: softens the global climate multiplier's
+  effect by 40-80% — inspired by seal/penguin fat layers.
+- **Bioluminescence (`bioluminescence`)**: increases sense range by
+  20-50px.
+- **Venom Gland (`venom`)**: adds +0.15-0.4 to escape chance.
+- **Regeneration (`regeneration`)**: increases feeding efficiency by
+  10-25%.
+Each organ has its own schematic (non-cartoonish) drawing.
+`ALL_ORGAN_TYPES`/`pickRandomOrganType` cover them automatically, the save
+format accepts new types without requiring extra changes.
 
-**Doğrulama (coder)**: `__forceOrgans` ile 5 organ tek tek ve birlikte atanıp
-teyit edildi; torpor mekaniği ÖLÇÜLEREK doğrulandı (aynı düşük enerjide 1s'de:
-organsız 1.5 kayıp, torporlu 0.5 kayıp — %67 azalma). 3dk'lık koşuda
-`bioluminescence` organik mutasyonla ortaya çıktı.
+**Verification (coder)**: all 5 organs were assigned individually and
+together via `__forceOrgans` and confirmed; the torpor mechanic was
+verified by MEASUREMENT (at the same low energy over 1s: no organ 1.5
+loss, with torpor 0.5 loss — 67% reduction). In a 3-minute run,
+`bioluminescence` appeared via organic mutation.
 
-**Doğrulama (bağımsız tester)**: kod incelemesi coder'ın iddialarıyla birebir
-örtüştü. 3 bağımsız 4dk'lık koşuda 5 yeni organdan EN AZ 2-4'ü HER koşuda
-organik mutasyonla ortaya çıktı (run1: blubber+venom; run2: venom+regeneration+
-blubber+torpor; run3: regeneration+venom+bioluminescence+torpor). Torpor
-mekaniği ayrıca doğrulandı: kontrol grubu 1.2s'de 1.30 kaybederken torpor'lu
-(power=1.0) birey 0.40 kaybetti (%69.2 azalma, kod formülüyle tutarlı).
+**Verification (independent tester)**: code review matched the coder's
+claims exactly. In 3 independent 4-minute runs, AT LEAST 2-4 of the 5 new
+organs appeared via organic mutation in EVERY run (run1: blubber+venom;
+run2: venom+regeneration+blubber+torpor; run3: regeneration+venom+
+bioluminescence+torpor). The torpor mechanic was separately verified: the
+control group lost 1.30 over 1.2s while the torpor-bearing individual
+(power=1.0) lost 0.40 (69.2% reduction, consistent with the code formula).
 
-### Madde 3 — Organ açıklamaları: TAMAMLANDI
-`OrganDefinition`'a `description` alanı eklendi, TÜM organ tiplerine (19 tip)
-koddaki GERÇEK mekanik etkiyle tutarlı kısa açıklama yazıldı. Inceleme
-panelinde her organ chip'inin altında gösteriliyor, gerçek tıklamayla
-doğrulandı (ekran görüntüsüyle de teyit).
+### Item 3 — Organ descriptions: COMPLETE
+A `description` field added to `OrganDefinition`, a short description
+consistent with the ACTUAL mechanical effect in the code was written for
+ALL organ types (19 types). Shown under each organ chip in the inspection
+panel, verified with a real click (confirmed with a screenshot too).
 
-### Madde 2 — BUG (soy ağacı seçim halkası): YENİDEN ÜRETİLEMEDİ (hem coder hem tester)
-Kullanıcı raporu: soy ağacından bir düğüme tıklayınca seçim halkası sahnedeki
-gerçek canlının etrafında değil, soy ağacı panelinin/canvas'ının üzerinde
-"takılı" görünüyordu. Kapsamlı, çok senaryolu bir araştırma yapıldı ama bug
-DOĞRULANAMADI:
-- Kod incelemesi: `selectionRing` `world` container'ının çocuğu (dünya
-  transform'una tabi), `setSelection()` her zaman `creature.x2`/`y2`
-  (world-koordinatı) kullanıyor. `lineageTree.onNodeClick` aynı
-  `setSelection()`'ı çağırıyor — soy ağacına özel farklı bir kod yolu yok.
-- Coder: 4 farklı senaryo (duraklatılmış/aktif sim, zoom'lu, ölü→canlı geçiş)
-  test edildi, HEPSİNDE halka pozisyonu canlının gerçek world-koordinatıyla
-  (±birkaç px) birebir eşleşti. Ekran görüntüsüyle de doğrulandı: halka panelin
-  dışında, sahnedeki gerçek konumda görünüyor.
-- Tester (bağımsız tekrar): kod incelemesi coder raporunu doğruladı. 4 farklı
-  senaryo (piksel-altı hassasiyette: 0.003px, 1.35px, 0.041px, 0.048px) hepsi
-  eşleşti.
-- **Olası açıklamalar**: (a) bug Faz XII'nin "soy ağacı tıklama bug'ı
-  düzeltildi" turunda zaten giderilmiş olabilir, kullanıcının Faz XIV geri
-  bildirimi o düzeltmeden ÖNCEKİ bir deneyimi yansıtıyor olabilir; (b) çok
-  spesifik bir edge case (tarayıcı/DPI/pencere boyutu, hızlı ardışık tıklama)
-  test kapsamı dışında kalmış olabilir; (c) kullanıcı farklı bir görsel
-  karışıklığı kastetmiş olabilir. Varsayımla bir "düzeltme" YAPILMADI (zaten
-  doğru çalışan koda dokunup regresyon riski almamak için) — kullanıcıdan
-  somut bir tekrar senaryosu istenmesi önerildi.
+### Item 2 — BUG (lineage-tree selection ring): COULD NOT BE REPRODUCED
+### (by either the coder or the tester)
+User report: after clicking a node in the lineage tree, the selection ring
+appeared "stuck" over the lineage tree panel/canvas rather than around the
+actual creature in the scene. A thorough, multi-scenario investigation was
+done but the bug could NOT BE CONFIRMED:
+- Code review: `selectionRing` is a child of the `world` container
+  (subject to the world transform), `setSelection()` always uses
+  `creature.x2`/`y2` (world coordinates). `lineageTree.onNodeClick` calls
+  the SAME `setSelection()` — no separate code path specific to the
+  lineage tree.
+- Coder: 4 different scenarios (paused/active sim, zoomed, dead→alive
+  transition) were tested, and in ALL OF THEM the ring position matched
+  the creature's real world coordinates exactly (±a few px). Also
+  confirmed with a screenshot: the ring appears outside the panel, at the
+  real position in the scene.
+- Tester (independent re-run): code review confirmed the coder's report. 4
+  different scenarios (with sub-pixel precision: 0.003px, 1.35px, 0.041px,
+  0.048px) all matched.
+- **Possible explanations**: (a) the bug may have already been fixed in
+  Phase XII's "lineage-tree click bug fixed" round, and the user's Phase
+  XIV feedback might reflect an experience from BEFORE that fix; (b) a
+  very specific edge case (browser/DPI/window size, rapid successive
+  clicks) may have fallen outside test coverage; (c) the user may have
+  meant a different visual confusion. A "fix" was NOT made based on
+  assumption (to avoid taking a regression risk by touching already-
+  correctly-working code) — it was recommended that a concrete
+  reproduction scenario be requested from the user.
 
-**KRİTİK yan bulgu (tester turunda)**: regresyon kontrolü sırasında Faz XIII'ün
-besin çöküşü bug'ının KISMEN geri döndüğü bağımsız olarak tespit edildi (5 uzun
-koşudan 2'sinde) — Faz XIV'ün organlarıyla ilgisizdi (organ envanterinde yeni
-organ yokken de oluyordu), Faz XIII'e ek bir madde olarak yeniden açıldı (bkz.
-yukarıdaki Faz XIII bölümü).
+**CRITICAL side finding (during the tester round)**: during regression
+checking, it was independently discovered that Phase XIII's food-collapse
+bug had PARTIALLY RETURNED (in 2 of 5 long runs) — unrelated to Phase
+XIV's organs (it also occurred with no new organs in the organ
+inventory), reopened as an additional item under Phase XIII (see the
+Phase XIII section above).
 
-**Metodoloji**: her iki turda da `tsc`/`build` temiz, API anahtarı sızıntısı
-yok, Playwright geçici eklenip test bitince kaldırıldı, dev server sadece
-kendi PID'iyle durduruldu.
+**Methodology**: in both rounds `tsc`/`build` clean, no API key leakage,
+Playwright added temporarily and removed once testing was done, the dev
+server always stopped only by its own PID.
 
-## Faz XV — Detaylar ve Tester Doğrulaması (arşiv)
+## Phase XV — Details and Tester Verification (archive)
 
-6a'nın performans/entegrasyon denetiminde bulundu: 9 dakikalık 4x-hız koşuda,
-popülasyon tavana (140) ulaştıktan ~3 dakika sonra **FPS 25'ten 7-11'e çöküyor
-ve 9 dakika boyunca hiç toparlanmıyordu**. `usedJSHeapMB` sabit (bellek
-sızıntısı yok), DOM node sayısı neredeyse sabit — sorun render/çizim tarafında
-değil, kaynağı henüz araştırılmamıştı.
+Found during 6a's performance/integration audit: in a 9-minute 4x-speed
+run, ~3 minutes after population reached the cap (140), **FPS collapsed
+from 25 to 7-11 and never recovered for the remaining 9 minutes**.
+`usedJSHeapMB` was constant (no memory leak), DOM node count nearly
+constant — the problem wasn't on the render/draw side, its source hadn't
+yet been investigated.
 
-### SONUÇ (6a): Kök neden bulundu ve düzeltildi
-**Kesin kök neden (redraw/HUD DEĞİL)**: İki birleşen etken:
-1. `main.ts`'teki `MAX_SIM_STEP_PER_FRAME=0.5` — bir render karesi
-   yavaşladığında o karede 1/30'luk alt-adımlarla `ecosystem.update()`'i 15
-   defaya kadar çağırıyordu. Popülasyon tavanına yakınken `update()` başına
-   maliyet belirgin hale gelince bir "ölüm sarmalı" yaratıyordu: yavaş kare →
-   daha fazla alt-adım → daha yavaş kare → ... (asla toparlanmıyordu).
-2. `ecosystem.ts`'te `findNearestThreat`/`findNearestPrey` (O(n²), 140'ta
-   ~19.600 çift), `updateSexualReproduction`'ın eşleşme araması, ve
-   `findNearestNutrient`/`bestClusterAmong` — hepsi eşik/en-yakın
-   karşılaştırması için gereksiz yere `Math.hypot` (sqrt) kullanıyordu.
+### RESULT (6a): root cause found and fixed
+**Definitive root cause (NOT redraw/HUD)**: two combining factors:
+1. `MAX_SIM_STEP_PER_FRAME=0.5` in `main.ts` — when a render frame slowed
+   down, it would call `ecosystem.update()` up to 15 times in that frame
+   using 1/30 sub-steps. Near the population cap, once the per-`update()`
+   cost became significant, this created a "death spiral": slow frame →
+   more sub-steps → even slower frame → ... (never recovered).
+2. In `ecosystem.ts`, `findNearestThreat`/`findNearestPrey` (O(n²), ~19,600
+   pairs at 140), `updateSexualReproduction`'s pairing search, and
+   `findNearestNutrient`/`bestClusterAmong` — all unnecessarily used
+   `Math.hypot` (sqrt) for threshold/nearest comparisons.
 
-**Düzeltme (davranış DEĞİŞMEDİ, sadece performans)**:
-- `main.ts`: `MAX_SIM_STEP_PER_FRAME` 0.5 → 0.12 (bir karede en fazla ~4
-  alt-adım, sarmalın kendini besleme kapasitesi büyük ölçüde kırıldı).
+**Fix (behavior UNCHANGED, performance-only)**:
+- `main.ts`: `MAX_SIM_STEP_PER_FRAME` 0.5 → 0.12 (at most ~4 sub-steps per
+  frame, largely breaking the spiral's ability to feed on itself).
 - `ecosystem.ts`: `findNearestThreat`, `findNearestPrey`,
   `updateSexualReproduction`, `findNearestNutrient`, `bestClusterAmong` —
-  hepsinde `Math.hypot` yerine kare-mesafe (`dx*dx+dy*dy`) karşılaştırmasına
-  geçildi (eşik karşılaştırmaları için matematiksel olarak tamamen eşdeğer).
-  `bestClusterAmong`'da puanlama gerçek mesafeye ihtiyaç duyduğundan tam
-  sqrt'ten kaçınılamadı, ama artık sadece menzil içine giren adaylar için
-  hesaplanıyor.
+  all switched from `Math.hypot` to squared-distance (`dx*dx+dy*dy`)
+  comparison (mathematically fully equivalent for threshold comparisons).
+  In `bestClusterAmong`, the scoring needs a real distance so full sqrt
+  couldn't be avoided, but it's now only computed for candidates already
+  within range.
 
-**Doğrulama (6a) — SINIRLI/KESİN DEĞİL**: Düzeltme sonrası aynı 9 dakikalık
-koşu tekrarlandı. FPS artık minute 2'den itibaren ~9'da YATAY kaldı (önceki
-SÜREKLİ KÖTÜLEŞEN 25→20→11→7 deseni bir daha görülmedi) — "ölüm sarmalı"
-davranışı ortadan kalkmış görünüyor. AMA mutlak FPS sayısı beklenenden düşük
-kaldı — test sırasında makinede EŞ ZAMANLI ağır bir yük olduğu BAĞIMSIZ OLARAK
-doğrulandı (19+ node.exe süreci, basit bir curl isteği 15+ saniye sürdü) —
-bu koşunun mutlak FPS rakamları kirli/güvenilmez, sadece "artık monoton çöküş
-yok" gözlemi güvenle raporlanabilir. Bağımsız/sistem-sakin bir tekrar önerildi.
+**Verification (6a) — LIMITED/NOT DEFINITIVE**: the same 9-minute run was
+repeated after the fix. FPS now stayed FLAT around ~9 starting from minute
+2 (the previous CONTINUOUSLY WORSENING 25→20→11→7 pattern was never seen
+again) — the "death spiral" behavior appears eliminated. BUT the absolute
+FPS number stayed lower than expected — it was INDEPENDENTLY confirmed
+that there was a concurrent heavy load on the machine during testing (19+
+node.exe processes, a simple curl request took 15+ seconds) — this run's
+absolute FPS numbers are dirty/unreliable, only the observation "no more
+monotonic collapse" can be reported with confidence. An independent/
+system-idle repeat was recommended.
 
-## Faz XI — Çoklu Kayıt Slotu (eklenip sonra kaldırılması, arşiv)
+## Phase XI — Multiple Save Slots (added, then removed, archive)
 
-Faz XI aday havuzundan seçilen bir özellik turu: kullanıcının 3 ayrı kayıt
-slotu arasında geçiş yapıp manuel kaydedip/yükleyebilmesi (dışa/içe aktarma
-zaten TAMAMLANDI'ydı, bu ayrı/ek bir özellikti).
+A feature round picked from the Phase XI candidate pool: letting the user
+switch between 3 separate save slots and manually save/load (export/
+import was already COMPLETE, this was a separate/additional feature).
 
-### Uygulama (coder)
-`savegame.ts`'te `loadSaveData`/`writeSaveData`/`clearSaveData` isteğe bağlı
-bir `slot` parametresi aldı (slot 0 = eski/varsayılan anahtar, geriye dönük
-uyumlu); doğrulama şekli ("ya tam kabul ya tam red") tüm slotlarda aynıydı.
-Mevcut OTOMATİK kayıt sadece slot 0'a yazıyordu (kullanıcının seçtiği slotu
-takip etmiyordu — istemsiz üzerine yazmayı önlemek için bilinçli karar). UI:
-`#save-slot-group` (3 küçük buton) Dışa/İçe Aktar'ın yanına eklendi.
+### Implementation (coder)
+In `savegame.ts`, `loadSaveData`/`writeSaveData`/`clearSaveData` took an
+optional `slot` parameter (slot 0 = old/default key, backward compatible);
+the validation approach ("either fully accept or fully reject") was the
+same across all slots. The existing AUTOMATIC save only wrote to slot 0
+(didn't track the user's chosen slot — a deliberate decision to prevent
+unintentional overwriting). UI: `#save-slot-group` (3 small buttons) added
+next to Export/Import.
 
-**Doğrulama (coder)**: `tsc`/`build` temiz; Playwright ile senkron test —
-localStorage temizlenip slot 2'ye kaydedildi, `localStorage` anahtarları ile
-slot izolasyonu doğrulandı (slot 0 otomatik kaydı ezilmedi), sim ilerleyip
-slot 2 tekrar yüklenince popülasyon kayıt anındaki değere döndü.
+**Verification (coder)**: `tsc`/`build` clean; synchronous test with
+Playwright — localStorage cleared and saved to slot 2, slot isolation
+verified via `localStorage` keys (slot 0's autosave wasn't overwritten),
+sim progressed and reloading slot 2 returned population to the value at
+save time.
 
-**Doğrulama (bağımsız tester)**: coder'ın implementasyonunun kod incelemesine
-değil DAVRANIŞINA odaklanarak yeni bir dev server üzerinden tekrar doğrulandı.
-**ID-bazlı deterministik izolasyon testi** (popülasyon SAYISI değil gerçek
-`genome.id` kümesi karşılaştırıldı, simülasyon duraklatılıp kararlı anlık
-görüntüler alındı): duraklatılmış haldeki canlı ID kümesi kaydedilen slot
-verisiyle BİREBİR eşleşti, farklı bir anda Slot 3'e kaydedilen veri Slot
-2'ninkinden GERÇEKTEN FARKLIYDI, Slot 2 GERÇEK bir buton tıklamasıyla
-yüklenince ID kümesi kaydedilen slot 2 verisiyle TAM eşleşti (Slot 3'ünkiyle
-DEĞİL). Slot 0 (otomatik kayıt) manuel slot işlemlerinden etkilenmeden kaldı.
-Dışa/içe aktarma regresyonu (gerçek dosya indirme + seçimi ile) uçtan uca
-doğrulandı, geçersiz/bozuk bir dosya sessizce/çökmeden reddedildi. Konsol/
-sayfa hatası: tüm testlerde sıfır.
+**Verification (independent tester)**: re-verified over a new dev server,
+focusing on the coder's implementation's BEHAVIOR rather than code review.
+**ID-based deterministic isolation test** (comparing the actual set of
+`genome.id`s, not population COUNT, with the simulation paused for stable
+snapshots): the paused creature ID set matched the saved slot data
+EXACTLY, data saved to Slot 3 at a different moment was GENUINELY
+DIFFERENT from Slot 2's, and loading Slot 2 via a REAL button click made
+the ID set match Slot 2's saved data EXACTLY (NOT Slot 3's). Slot 0
+(autosave) remained unaffected by manual slot operations. Export/import
+regression (using a real file download + selection) verified end-to-end,
+an invalid/corrupted file was rejected silently/without crashing. Console/
+page errors: zero across all tests.
 
-### KULLANICI İSTEĞİYLE TAMAMEN KALDIRILDI
-Kullanıcı geri bildirimi: özellik istenmiyordu, tek-slot (otomatik kayıt,
-localStorage) davranışına dönülmesi istendi. Kaldırılanlar: `index.html`'deki
-slot UI elemanları; `src/dashboard.css`'teki slot buton kuralları;
-`src/main.ts`'teki `activeSlot`/`renderSlotButtons`/slot buton handler'ları;
-`src/savegame.ts`'teki `slot` parametresi, `slotKey`, `SAVE_SLOT_COUNT`,
-`DEFAULT_SLOT`, `SlotSummary`, `listSlotSummaries` — `loadSaveData`/
-`writeSaveData`/`clearSaveData` artık parametresiz, tek `SAVE_KEY`
-(`evrimsel-gezegen-save-v7`) üzerinden çalışıyor (format/`SAVE_VERSION`
-değişmedi). Dışa/İçe Aktarma bu özellikten bağımsızdı, HİÇ DOKUNULMADI.
+### REMOVED ENTIRELY AT THE USER'S REQUEST
+User feedback: the feature wasn't wanted, a return to single-slot
+(autosave, localStorage) behavior was requested. Removed: slot UI elements
+in `index.html`; slot button rules in `src/dashboard.css`;
+`activeSlot`/`renderSlotButtons`/slot button handlers in `src/main.ts`;
+the `slot` parameter, `slotKey`, `SAVE_SLOT_COUNT`, `DEFAULT_SLOT`,
+`SlotSummary`, `listSlotSummaries` in `src/savegame.ts` — `loadSaveData`/
+`writeSaveData`/`clearSaveData` now take no parameters, operating on a
+single `SAVE_KEY` (`evrimsel-gezegen-save-v7`) (format/`SAVE_VERSION`
+unchanged). Export/Import was independent of this feature and was NOT
+TOUCHED AT ALL.
 
-**Doğrulama (kaldırma sonrası)**: `tsc`/`build` temiz; Playwright ile test —
-slot UI elemanları artık DOM'da yok, header'da sadece Soy Ağacı/Dışa Aktar/
-İçe Aktar butonları kalıyor, `localStorage` içinde TEK anahtar var (eski slot
-anahtarları yok), otomatik kayıt sonrası sayfa yenilemesinde popülasyon
-korundu, dışa/içe aktarma gerçek dosya indirme/seçimiyle doğrulandı, konsol/
-sayfa hatası sıfır.
-
----
-
-## Faz XVI — Profesyonel soy ağacı + gezegen oluşum ekranı + gezegene özgü organlar (arşiv)
-
-Kullanıcı isteği (2026-09-05). Üç madde: (1) soy ağacı geçmiş kaybı + profesyonel
-görsel yeniden tasarım, (2) simülasyon başlamadan önce gezegenin nasıl oluştuğunu
-anlatan bir "oluşum ekranı", (3) gezegen profiline bağlı, HER GEZEGENDE FARKLI
-mümkün olan organ alt kümesi ("gezegene özgü organlar"). Kapsam: Faz I-XV
-mekanikleri (su→kara, popülasyon dengesi, event log, Gemini) BOZULMADAN üstüne
-inşa edilecek.
-
-### Madde 1 — Soy ağacı: özet düğüm + görsel yeniden tasarım
-
-**Geçmiş kaybı kararı (gerekçeli)**: Cap'i büyük ölçüde artırmak TEK BAŞINA
-seçilmedi (sınırsız büyüyen bir dizi er ya da geç aynı soruna varır). Bunun
-yerine: `MAX_LINEAGE_RECORDS` 500→4000'e çıkarıldı VE cap aşılınca en eski
-`LINEAGE_SUMMARY_BLOCK_SIZE=1000` kayıt SİLİNMİYOR, bir `LineageSummaryNode`'a
-sıkıştırılıyor (`ecosystem.ts` `summarizeOldestBlock`) — birey sayısı, nesil
-aralığı, gözlemlenmiş organ tipleri (birleşim) ve gerçek çocuk id'leri (ağaca
-bağlanabilsin diye) tutuluyor; ardışık özetleme turları TEK bir kümülatif
-özete birleşiyor. `getAncestryChain`/`getAncestorSummary` bir özete "çarpınca"
-sessizce kesmek yerine özeti döndürüyor.
-
-**Görsel yeniden tasarım**: ebeveyn→çocuk bağlantıları artık yumuşak kübik
-bezier eğrileri (`drawParentChildCurve`), bir ebeveynin TÜM çocukları önce
-ortak bir "çatal noktasına" inip oradan ayrı ayrı dallanıyor. Özet düğümler
-ağacın en üst satırında büyük elmas şeklinde, "N birey (nesil X-Y)" etiketiyle.
-Mevcut zoom (0.5x-3x)/pan/filtre (diyet/organ/durum/nesil)/organ-rengi
-halkası/tıklama-seçim mantığı DEĞİŞTİRİLMEDİ — sadece layout (ata-öncelikli
-x sıralaması) ve çizim fonksiyonları güncellendi.
-
-**Coder doğrulaması**: 9000 sentetik kayıt zorlanıp (`__debugForceSyntheticLineageChain`,
-TEST-ONLY) `lineage.length` cap'te (≤4000) kaldığı, sıfır veri kaybı
-(summarized+live=9024) doğrudan ölçüldü. 90s gerçek 4x-hız koşusunda (sentetik
-veri olmadan) popülasyon/diyet/su→kara sağlıklı, panel açma/filtre/tıklama
-sıfır hatayla çalıştı. `tsc`/`build` temiz.
-
-### Madde 2 — Gezegen oluşum ekranı
-
-Yeni modül `src/planetformation.ts` — `generatePlanetProfile(seed, waterFraction)`
-saf/deterministik bir fonksiyon (kendi `mulberry32` RNG akışı, harita üretimini
-etkilemiyor). Üretir: 4 bileşenli atmosfer (azot/oksijen/karbondioksit/metan,
-%100'e normalize), azot seviyesi kategorisi (low/moderate/high — Madde 3'ün
-organ filtrelemesi kullanıyor), 3-5 kurgusal "bio madde", kısa bir anlatı.
-Gerçek/dinamik oksijen seviyesiyle (Faz X `atmosphere.ts`) KARIŞTIRILMIYOR.
-
-**Ekran**: `index.html` `#planet-formation-overlay` (mevcut `.overlay-panel`
-temelli, ortalanmış) — anlatı + atmosfer çubuğu/lejant + bio madde listesi +
-"Simülasyonu Başlat" butonu, TEK ekran. SADECE yeni bir simülasyonda
-gösteriliyor (`!savedGame`); "Başlat"a basana kadar hız 0'da kilitli, başlangıç
-popülasyonu spawn edilmiyor.
-
-**Bulunan/düzeltilen bug**: spawn'ı ertelemek, formasyon ekranı açıkken
-`beforeunload`/periyodik otomatik kayıt tetiklenirse `creatures:[]` gibi "boş
-ama GEÇERLİ" bir save yazılmasına yol açıyordu — sonraki yüklemede bu sahte
-kayıt gerçek bir kayıt sanılıp ekranı kalıcı atlıyordu. Düzeltme: `simulationStarted`
-bayrağı, gerçek başlangıçtan ÖNCE hiçbir kayıt yazılmasını engelliyor.
-
-**Coder doğrulaması**: taze/temiz yüklemede overlay+pop 0+hız 0; aynı seed'le
-iki `generatePlanetProfile` çağrısı BİREBİR aynı JSON (determinizm); "Başlat"
-sonrası overlay kapanıp pop 24/hız 1; bir kayıt varken overlay hiç görünmedi;
-75s gerçek koşu + restart sağlıklı. `tsc`/`build` temiz.
-
-### Madde 3 — Gezegene özgü organlar
-
-**Filtreleme katmanı**: `organs.ts` `setPlanetForbiddenOrgans(forbidden)`/
-`getPlanetForbiddenOrgans()`/`resetPlanetForbiddenOrgans()` — modül seviyesinde
-bir `Set<OrganType>`, `pickRandomOrganType` her çağrıda buna göre havuzu
-daraltıyor. Tasarım kararı: fonksiyon MÜMKÜN değil YASAK olanları alıyor —
-hiç çağrılmazsa TÜM organlar mümkün kalır (Faz II-XV davranışı DEĞİŞMEDİ,
-tek nokta arıza yok). Organ HAVUZUNUN kendisi (mekanik etkiler) DEĞİŞMEDİ —
-Faz XIV güvenlik kararı (Gemini/rastgelelik yeni mekanik icat etmiyor) korunuyor.
-
-**2 yeni gezegene-özgü organ**: **Azot Deposu** (`nitrogen_sac`, defense) —
-metabolizma tasarrufu (%8-20), sadece azot seviyesi moderate/high ise mümkün.
-**Kükürt Kemosentez Organı** (`sulfur_vent_organ`, feeding) — beslenme
-verimliliği çarpanı (%15-40), sadece gezegende `hasSulfurRichSubstance` varsa
-mümkün (explicit boolean, narrative metnine string-matching YOK).
-
-**Coder doğrulaması**: yasak listesi profil alanlarıyla birebir tutarlı;
-her ikisi yasaklanınca 5000 çağrıda hiç seçilmedi, serbestken 20000 çağrıda
-21 organ tipinin hepsi en az bir kez seçildi; `__forceOrgans` ile zorlanan
-organ inceleme panelinde doğru göründü; iki 100s koşuda yasaklı organ hiç
-popülasyona sızmadı, su→kara/diyet dengesi bozulmadı. `tsc`/`build` temiz.
-
-### Tester doğrulaması (bağımsız, 2026-09-06): 3/3 madde GEÇTİ, 1 blocking-olmayan not
-
-`npx tsc --noEmit`/`npm run build` (dist silinip sıfırdan) temiz, `dist/`'te
-API anahtarı sızıntısı yok. Port 6301, senkron Playwright, dev server sadece
-kendi PID'iyle (29500) durduruldu.
-
-- **Madde 1**: `__debugForceSyntheticLineageChain(9000)` — 24+9000=9024 toplam,
-  `lineage.length=3024` + `summarizedTotal=6000` = 9024, MATEMATİKSEL TAM,
-  sıfır veri kaybı bağımsız doğrulandı. Filtreler DOM'da mevcut. **Görsel
-  kalite — dürüst değerlendirme**: 90s organik koşuda (140 pop, 194 kayıt,
-  6 nesil) bezier çatallanması gerçekten görünüyor, düz-satırdan belirgin
-  iyileşme — ama "profesyonel bir aile ağacı" tabiri biraz iddialı: 140
-  birey/6 nesilde düğümler sık/küçük, tek soyu takip zoom gerektiriyor; bu
-  bir zevk meselesi, kod hatası değil. ⚠️ **Görsel dayanıklılık notu (blocking
-  değil)**: sentetik stres testinde (dallanmayan tek-çizgi zincir → ~3024 AYRI
-  nesil) canvas 306.066px'e çıkıp panel TAMAMEN boş/beyaz göründü — kök neden
-  canvas yüksekliğinin nesil SAYISIYLA orantılı büyümesi. Gerçek oyunda üreme
-  dallandığından aynı kayıt sayısı çok daha az nesile yayılır, pratikte
-  muhtemelen tetiklenmez, ama teorik risk var — coder'a Faz XVII madde 4
-  olarak iletildi (aşağıda düzeltildi).
-- **Madde 2**: temiz `localStorage`+taze yükleme→overlay/pop 0/hız 0;
-  Start'tan önce reload → YENİ seed (bug düzeltmesi doğrulandı); Start→overlay
-  kapandı/pop 24/hız 1; 8s oynayıp reload→overlay AÇILMADI, `mapSeed` ve
-  yeniden hesaplanan profil BİREBİR eşleşti (determinizm kanıtlandı).
-- **Madde 3**: mevcut profil (`nitrogenLevel:"moderate"`, `hasSulfurRichSubstance:false`)
-  için yasak liste (`["sulfur_vent_organ"]`) doğru; 20000 çağrıda
-  `sulfur_vent_organ` hiç seçilmedi, `nitrogen_sac` 706 kez seçildi; ikisi
-  yasaklanınca 5000 çağrıda sıfır; serbestken 20000 çağrıda 21 tipin hepsi
-  seçildi; gerçek fare tıklamasıyla inceleme panelinde "Azot Deposu 0.15"
-  + doğru açıklama göründü.
-- **Regresyon**: 120s koşuda pop 24→140 sağlıklı, diyet 138-140/0-2,
-  `onLandNotCapable:0` her örnekte, soy kaydı 45→263, event log gerçek/çeşitli
-  olaylar (organ tükenmesi, deprem, soğuk dalga, ilk etçil, meteor). Konsol/
-  sayfa hatası: TÜM testlerde sıfır.
-
-## Faz XVI-sonrası performans/entegrasyon denetimi (arşiv, tester, 2026-09-06): GEÇTİ
-
-Saf okuma/test (kaynak dosyalara dokunulmadı), port 6377. 10 dakikalık senkron
-4x-hız koşusu, 60s'de bir örnekleme:
-- Gezegen oluşum ekranı: taze yüklemede overlay/pop 0/hız 0; Start sonrası
-  overlay kapandı/pop 24/hız 1.
-- FPS: 21→18→6→13→8→7→8→7→12→12→12 (dalgalı ama son 3 dakika 12'de PLATOYA
-  OTURDU — Faz XV'in "ölüm sarmalı" (monoton, hiç toparlanmayan düşüş) GERİ
-  GELMEDİ). `usedJSHeapMB` 10.7'de SABİT (sızıntı yok), DOM node 155→175.
-- Organ çeşitliliği: 12 farklı tip organik ortaya çıktı (Faz XIV'ün tümü
-  dahil); bu gezegende yasaklı `sulfur_vent_organ` hiç çıkmadı (filtre
-  doğrulandı), izinli `nitrogen_sac` bu tekil koşuda şans eseri çıkmadı
-  (nadir bir organ, endişe verici değil).
-- Soy ağacı (uzun koşu sonrası): panel açıldı, filtre çalıştı; zoom testinde
-  İLK denemede yanlış-pozitif "değişmedi" sonucu çıktı (528 kayıtlık ağaçta
-  canvas'ın tam yüksekliği viewport dışına taştığı için tıklama koordinatı
-  yanlış hesaplanmıştı) — GÖRÜNÜR bir koordinatla tekrarlanınca zoom doğru
-  çalıştı (1→1.1), gerçek bir regresyon DEĞİLDİ, test metodolojisi hatasıydı.
-- Konsol/sayfa hatası: sıfır. `tsc` temiz, dev server sadece kendi PID'iyle
-  (21240) durduruldu.
+**Verification (after removal)**: `tsc`/`build` clean; tested with
+Playwright — slot UI elements no longer exist in the DOM, only Lineage
+Tree/Export/Import buttons remain in the header, `localStorage` has only
+ONE key (no old slot keys), population preserved across a page reload
+after autosave, export/import verified with a real file download/
+selection, console/page errors zero.
 
 ---
 
-## Faz XVII — Donma bug'ı + sürü davranışı + arazi çeşitleri (arşiv)
+## Phase XVI — Professional lineage tree + planet formation screen +
+## planet-specific organs (archive)
 
-Kullanıcı isteği (2026-09-05, Faz XVI'dan sonra ele alınmalı). 4 madde, madde 1
-(bug) öncelikli, madde 4 en düşük öncelik. Faz I-XVI mekanikleri BOZULMADAN.
+User request (2026-09-05). Three items: (1) lineage tree history loss +
+professional visual redesign, (2) a "formation screen" describing how the
+planet came to be, shown before the simulation starts, (3) a
+planet-profile-dependent organ subset that's DIFFERENT ON EVERY PLANET
+("planet-specific organs"). Scope: to be built on top of Phase I-XV
+mechanics (water→land, population balance, event log, Gemini) WITHOUT
+breaking them.
 
-### Madde 1 — Donma/sınır bug'ı: kesin kök neden bulundu (iki parça), düzeltildi
+### Item 1 — Lineage tree: summary node + visual redesign
 
-**İlk hipotez (test metodolojisi hatası, dürüstçe elendi)**: ilk repro
-denemesinde canlı donmuş göründü, ama neden Playwright'ta `Space` tuşunun bir
-TOGGLE olduğuydu (ikinci basış farkında olmadan tekrar duraklatıyordu) —
-uygulama bug'ı DEĞİLDİ. `__setSpeed()` debug hook'una geçilince ortadan kalktı.
+**History-loss decision (with rationale)**: greatly increasing the cap
+alone was NOT chosen (an unboundedly growing array eventually hits the
+same problem sooner or later). Instead: `MAX_LINEAGE_RECORDS` was raised
+from 500→4000 AND once the cap is exceeded, the oldest
+`LINEAGE_SUMMARY_BLOCK_SIZE=1000` records are NOT DELETED, they're
+compressed into a `LineageSummaryNode` (`ecosystem.ts`
+`summarizeOldestBlock`) — keeping individual count, generation range,
+observed organ types (union), and real child ids (so it can still connect
+into the tree); consecutive summarization rounds merge into a SINGLE
+cumulative summary. `getAncestryChain`/`getAncestorSummary` return the
+summary instead of silently cutting off when they "hit" one.
 
-**GERÇEK kök neden** (doğal 90s'lik 4x-hız koşusunda YAKALANDI): 330 canlı
-arasından bir birey "seek" durumunda, 7 nutrient 100px içindeyken sabit kalıp
-öldü. Konumu `y2=1012.8` (`MAP_HEIGHT=1000`) — harita sınırının DIŞINDA
-sıkışmıştı. İki birleşen bug:
-1. `moveCreature`'daki `outOfBounds` kontrolü hedef nokta clamp edilmeden ÖNCE
-   hesaplanan bir bayrağa göre hareketi TAMAMEN reddediyordu — clamp sonrası
-   konum geçerli olsa bile. Canlı sınırın az ötesindeyse HİÇBİR hareket kabul
-   edilmiyordu — kalıcı kilitlenme.
-2. `spawnOffspring` doğum konumunda HİÇ sınır kontrolü yapmıyordu (sadece
-   su/kara vardı) — bir ebeveyn harita kenarına yakınken yavru DOĞRUDAN sınır
-   dışında doğabiliyordu. Bu, ASIL tetikleyiciydi.
+**Visual redesign**: parent→child connections are now smooth cubic bezier
+curves (`drawParentChildCurve`), all of a parent's children first converge
+to a shared "fork point" and branch out separately from there. Summary
+nodes appear as large diamonds at the top row of the tree, labeled "N
+individuals (generation X-Y)." The existing zoom (0.5x-3x)/pan/filter
+(diet/organ/state/generation)/organ-color ring/click-select logic was NOT
+CHANGED — only the layout (ancestor-first x-ordering) and drawing
+functions were updated.
 
-**Düzeltme (`ecosystem.ts`)**: `moveCreature`'daki `outOfBounds` reddi
-kaldırıldı — hedef HER ZAMAN `[0,w]×[0,h]`'e clamp edilir, su/kara kısıtı
-clamp SONRASI normal uygulanır. `spawnOffspring` doğum konumu artık sınırlara
-clamp ediliyor (su/kara kontrolü clamp SONRASI tekrar yapılıyor).
+**Coder verification**: 9000 synthetic records were forced
+(`__debugForceSyntheticLineageChain`, TEST-ONLY) and it was directly
+measured that `lineage.length` stayed at the cap (≤4000), zero data loss
+(summarized+live=9024). In a 90s real 4x-speed run (without synthetic
+data), population/diet/water→land were healthy, panel open/filter/click
+all worked with zero errors. `tsc`/`build` clean.
 
-**Coder doğrulaması**: izole repro (sınırın 12px ötesine yerleştirme) —
-düzeltme ÖNCESİ 3s boyunca TAM SIFIR hareket, SONRASI 140.95px net hareket.
-4 dakikalık doğal koşuda (185 canlı) `suspectCount:0`, `anyOutOfBounds:false`.
-`tsc`/`build` temiz, konsol/sayfa hatası sıfır. Geçici tanılama hook'ları
-bug kesinleşince tamamen geri alındı.
+### Item 2 — Planet formation screen
 
-### Madde 2 — Sürü davranışı (tester tarafından sıfırdan yazıldı, 91'in kodu YOKTU)
+New module `src/planetformation.ts` — `generatePlanetProfile(seed,
+waterFraction)` is a pure/deterministic function (its own `mulberry32` RNG
+stream, doesn't affect map generation). Produces: a 4-component atmosphere
+(nitrogen/oxygen/carbon dioxide/methane, normalized to 100%), a nitrogen
+level category (low/moderate/high — used by Item 3's organ filtering), 3-5
+fictional "biomatter" entries, and a short narrative. NOT to be CONFUSED
+with the real/dynamic oxygen level (Phase X's `atmosphere.ts`).
 
-**Yeni gen** (`genome.ts`): `packHunter: boolean` — diğer davranış genleriyle
-aynı desen (başlangıç `false`, %3.5 bölünme/çiftleşme başına iki yönlü flip).
-`crossoverGenomes`/`divideGenome`/`mutateGenome`'a bağlandı.
+**Screen**: `index.html`'s `#planet-formation-overlay` (based on the
+existing `.overlay-panel`, centered) — narrative + atmosphere bar/legend +
+biomatter list + "Start Simulation" button, ONE screen. Shown ONLY for a
+new simulation (`!savedGame`); speed is locked at 0 until "Start" is
+pressed, and the starting population isn't spawned yet.
 
-**Mekanik** (`ecosystem.ts`): `packHunter=true` bir avcının `PACK_HUNT_RADIUS=80px`
-içindeki aynı-diyet müttefik sayısı × `PACK_HUNT_BONUS_PER_ALLY=0.08`, toplamda
-`PACK_HUNT_MAX_BONUS=0.35` ile sınırlı, avın `escapeChance`'inden düşülüyor
-(asla sıfırın altına inmez). Karmaşık bir sürü-AI/flocking algoritması YOK.
+**Bug found/fixed**: delaying the spawn meant that if `beforeunload`/the
+periodic autosave fired while the formation screen was open, it could
+write an "empty but VALID" save like `creatures:[]` — on the next load,
+this fake save would be mistaken for a real one and permanently skip the
+screen. Fix: a `simulationStarted` flag prevents any save from being
+written BEFORE the real start.
 
-**Kaydet/yükle**: `savegame.ts` v7→v8, `isValidGenome`'a `packHunter` kontrolü.
+**Coder verification**: on a fresh/clean load, overlay+pop 0+speed 0; two
+`generatePlanetProfile` calls with the same seed produce IDENTICAL JSON
+(determinism); after "Start" the overlay closes and pop 24/speed 1; the
+overlay never appeared when a save existed; a healthy 75s real run +
+restart. `tsc`/`build` clean.
 
-**UI**: inceleme paneli diyet satırı, `packHunter=true` etçilde "Etçil 🍽️
-(Sürü Avcısı 🐺)" gösteriyor.
+### Item 3 — Planet-specific organs
 
-**Doğrulama** (debug hook'larla doğrudan ölçüm): izole avcı → `reduction=0`;
-3 müttefik → `reduction=0.24` (3×0.08, TAM); aynı müttefiklerle `packHunter=false`
-→ `reduction=0`; 15 müttefik → `reduction=0.35` (üst sınır tam isabetli).
-30s organik koşu: pop sağlıklı, su→kara ihlali yok, konsol/sayfa hatası sıfır.
+**Filtering layer**: `organs.ts`'s `setPlanetForbiddenOrgans(forbidden)`/
+`getPlanetForbiddenOrgans()`/`resetPlanetForbiddenOrgans()` — a
+module-level `Set<OrganType>`, `pickRandomOrganType` narrows the pool
+based on it on every call. Design decision: the function takes what's
+FORBIDDEN, not what's possible — if never called, ALL organs remain
+possible (Phase II-XV behavior UNCHANGED, no single point of failure).
+The organ POOL itself (mechanical effects) was UNCHANGED — Phase XIV's
+safety decision (Gemini/randomness doesn't invent new mechanics) is
+preserved.
 
-### Madde 3 — Arazi çeşitleri (tester tarafından sıfırdan yazıldı)
+**2 new planet-specific organs**: **Nitrogen Sac** (`nitrogen_sac`,
+defense) — metabolism savings (8-20%), possible only if nitrogen level is
+moderate/high. **Sulfur Chemosynthesis Organ** (`sulfur_vent_organ`,
+feeding) — a feeding efficiency multiplier (15-40%), possible only if the
+planet has `hasSulfurRichSubstance` (an explicit boolean, NO
+string-matching against narrative text).
 
-**"İz düşüm yöntemi"**: `world.ts`'in zaten su/kara için kullandığı ham noise
-değeri (`grid`) DOĞRUDAN "yükseklik" olarak yeniden kullanıldı — yeni bir
-katman YOK. Su tarafı Faz X'in MEVCUT `isShallowWater`/`isDeepWater`'ını AYNEN
-kullanıyor; kara tarafı yeni eşiklerle (kumsal: `BEACH_BAND=0.05`; dağ:
-`MOUNTAIN_THRESHOLD=2.5`, 3 seed'de arazi dağılımı örneklenerek kalibre edildi
-— ilk `0.55` değeri karanın %70'ini "dağ" yapıyordu, çok agresifti) 5 tipe
-(`ElevationBand`: deep_water/shallow_water/beach/plain/mountain) ayrılıyor.
-`TerrainKind`/`terrainAt`/`isWater` HİÇ değişmedi — tamamen görsel/kategorik
-bir üst katman.
+**Coder verification**: the forbidden list is exactly consistent with
+profile fields; when both were forbidden, neither was ever selected in
+5000 calls; when unrestricted, all 21 organ types were each selected at
+least once in 20000 calls; an organ forced with `__forceOrgans` displayed
+correctly in the inspection panel; over two 100s runs a forbidden organ
+never leaked into the population, water→land/diet balance unbroken.
+`tsc`/`build` clean.
 
-**Performans**: `isDeepWater`'ın ring-search'ünü 1.6M piksel için çağırmak
-sayfa yüklenişini yavaşlatırdı — `elevationGrid` adlı 320×200 önbellek
-(`grid` ile aynı çözünürlük) constructor'da BİR KEZ dolduruluyor; kara tarafı
-tam piksel çözünürlüğünde (ring-search gerekmiyor). Ölçüldü: 165ms, regresyon
-yok.
+### Tester verification (independent, 2026-09-06): 3/3 items PASSED, 1
+### non-blocking note
 
-**Deprem uyumluluğu**: `repaintRegion` artık `colorForRepaint` kullanıyor —
-aktif override varken önbelleği değil `terrainAt`'ın anlık durumunu yansıtıyor.
+`npx tsc --noEmit`/`npm run build` (dist deleted and rebuilt from
+scratch) clean, no API key leakage in `dist/`. Port 6301, synchronous
+Playwright, dev server stopped only by its own PID (29500).
 
-**Mekanik etki kasıtlı atlandı**: TASKS.md "opsiyonel" dedi; `effectiveMoveSpeed`'e
-dokunmak Faz XIII/XV'in kırılgan dengesine gereksiz risk katardı.
+- **Item 1**: `__debugForceSyntheticLineageChain(9000)` — 24+9000=9024
+  total, `lineage.length=3024` + `summarizedTotal=6000` = 9024,
+  MATHEMATICALLY EXACT, zero data loss independently verified. Filters
+  present in the DOM. **Visual quality — honest assessment**: in a 90s
+  organic run (140 pop, 194 records, 6 generations) the bezier branching
+  is genuinely visible, a marked improvement over straight lines — but the
+  phrase "professional family tree" is a bit of a stretch: with 140
+  individuals/6 generations, nodes are dense/small, following a single
+  lineage requires zoom; this is a matter of taste, not a code bug. ⚠️
+  **Visual-durability note (not blocking)**: in a synthetic stress test
+  (a non-branching single-line chain → ~3024 SEPARATE generations) the
+  canvas grew to 306,066px and the panel appeared COMPLETELY empty/white —
+  root cause is the canvas height growing proportionally to generation
+  COUNT. In a real game, since reproduction branches, the same record
+  count spreads across far fewer generations, so this likely never
+  triggers in practice, but the theoretical risk exists — relayed to the
+  coder as Phase XVII item 4 (fixed below).
+- **Item 2**: clean `localStorage`+fresh load→overlay/pop 0/speed 0;
+  reload before Start → NEW seed (bug fix confirmed); Start→overlay
+  closed/pop 24/speed 1; played 8s and reloaded→overlay DID NOT open,
+  `mapSeed` and the recomputed profile matched EXACTLY (determinism
+  proven).
+- **Item 3**: for the current profile (`nitrogenLevel:"moderate"`,
+  `hasSulfurRichSubstance:false`) the forbidden list
+  (`["sulfur_vent_organ"]`) was correct; `sulfur_vent_organ` was never
+  selected in 20000 calls, `nitrogen_sac` was selected 706 times; when
+  both forbidden, zero in 5000 calls; when unrestricted, all 21 types were
+  selected in 20000 calls; via a real mouse click, the inspection panel
+  correctly showed "Nitrogen Sac 0.15" + the correct description.
+- **Regression**: in a 120s run pop 24→140 healthy, diet 138-140/0-2,
+  `onLandNotCapable:0` in every sample, lineage record count 45→263, event
+  log had real/varied events (organ extinction, earthquake, cold wave,
+  first carnivore, meteor). Console/page errors: zero across all tests.
 
-**Doğrulama**: `__getElevationBandSample` ile 3 seed'de dağılım (dağ ~%9,
-kumsal ~%3, ova ~%88 — makul). 2 dakikalık koşuda pop 30→140 sağlıklı,
-`onLandNotCapable:0` her örnekte, manuel deprem sonrası repaint doğru,
-konsol/sayfa hatası sıfır.
+## Post-Phase-XVI performance/integration audit (archive, tester,
+## 2026-09-06): PASSED
 
-### Madde 4 — Soy ağacı yükseklik bug'ı (tester tarafından sıfırdan yazıldı)
+Pure reading/testing (source files untouched), port 6377. A 10-minute
+synchronous 4x-speed run, sampled every 60s:
+- Planet formation screen: overlay/pop 0/speed 0 on a fresh load; overlay
+  closed/pop 24/speed 1 after Start.
+- FPS: 21→18→6→13→8→7→8→7→12→12→12 (fluctuating but PLATEAUED at 12 for
+  the last 3 minutes — Phase XV's "death spiral" (monotonic, never
+  recovering decline) DID NOT RETURN). `usedJSHeapMB` CONSTANT at 10.7 (no
+  leak), DOM nodes 155→175.
+- Organ diversity: 12 different types appeared organically (including all
+  of Phase XIV's); `sulfur_vent_organ`, forbidden on this planet, never
+  appeared (filter confirmed), permitted `nitrogen_sac` didn't happen to
+  appear in this single run (a rare organ, not concerning).
+- Lineage tree (after the long run): panel opened, filter worked; the
+  zoom test's FIRST attempt gave a false-positive "unchanged" result
+  (because in the 528-record tree the canvas's full height exceeded the
+  viewport, so click coordinates were computed incorrectly) — when
+  repeated with a VISIBLE coordinate, zoom worked correctly (1→1.1), NOT a
+  real regression, a test-methodology error.
+- Console/page errors: zero. `tsc` clean, dev server stopped only by its
+  own PID (21240).
 
-**Kök neden**: `lineagetree.ts` dikey içerik yüksekliği `totalRows*ROW_HEIGHT`
-ile SINIRSIZ büyüyordu (Faz XVI'da teşhis edilmişti).
+---
 
-**Düzeltme**: `MAX_CONTENT_HEIGHT=6000` — `neededHeight=Math.min(MAX_CONTENT_HEIGHT,
-PADDING*2+totalRows*ROW_HEIGHT)`. Mevcut `rowHeight` formülü değişmedi, sadece
-girdisi sınırlandı — nesil arttıkça satır otomatik küçülür, toplam yükseklik
-6000px'i aşmaz.
+## Phase XVII — Freeze bug + pack behavior + terrain variety (archive)
 
-**Doğrulama**: aynı stres senaryosu (9000 sentetik, dallanmayan zincir) tekrarlandı
-— canvas 306.066px → 6000px'e sabitlendi, piksel analizi içeriğin GÖRÜNÜR
-olduğunu kanıtladı (önceden tamamen boştu). Veri bütünlüğü hâlâ TAM (9024).
-Normal ölçekte (156 kayıt) canvas 338px — sınırın altında, davranış aynı.
+User request (2026-09-05, to be handled after Phase XVI). 4 items, item 1
+(bug) priority, item 4 lowest priority. Phase I-XVI mechanics NOT broken.
 
-### Faz XVII — ÖZET
+### Item 1 — Freeze/boundary bug: definitive root cause found (two parts), fixed
 
-Madde 1 coder, Madde 2-4 tester (91'in yarım kalmış kodu YOKTU) tarafından
-sıfırdan yazılıp doğrulandı. 3 dakikalık birleşik entegrasyon testinde:
-popülasyon 45→140 sağlıklı, `onLandNotCapable` her örnekte 0, `packHunter`
-geni ORGANİK olarak 2'den 39'a yayıldı (gerçekten mutasyonla ortaya çıkıp
-yayılıyor), kaydet/yükle round-trip'i (yeni `packHunter` alanıyla) sorunsuz,
-sıfır konsol/sayfa hatası.
+**Initial hypothesis (a test-methodology error, honestly ruled out)**: in
+the first reproduction attempt a creature appeared frozen, but the reason
+was that the `Space` key in Playwright is a TOGGLE (a second press
+unknowingly paused it again) — NOT an application bug. It disappeared once
+switched to the `__setSpeed()` debug hook.
 
-### Tester doğrulaması (bağımsız, ikinci tur — PM'in ayrı bir subagent'ı, 2026-09-06): 4/4 madde GEÇTİ
+**REAL root cause** (CAUGHT during a natural 90s 4x-speed run): among 330
+creatures, one individual in "seek" state, with 7 nutrients within 100px,
+stayed put and died. Its position was `y2=1012.8` (`MAP_HEIGHT=1000`) —
+stuck OUTSIDE the map boundary. Two combining bugs:
+1. The `outOfBounds` check in `moveCreature` REJECTED movement ENTIRELY
+   based on a flag computed BEFORE the target point was clamped — even if
+   the position was valid after clamping. If a creature was just past the
+   boundary, NO movement was ever accepted — a permanent lock.
+2. `spawnOffspring` did NO boundary check at all on the birth position
+   (only water/land) — when a parent was near the map edge, an offspring
+   could be born DIRECTLY outside the boundary. This was the ACTUAL
+   trigger.
 
-Tamamen senkron, port 7301 (PID 35112, sadece bu PID durduruldu). `tsc`/`build`
-(dist silinip sıfırdan) temiz. `dist/`'te `GEMINI_API_KEY`/`gemini-flash-lite`
-SIFIR eşleşme.
+**Fix (`ecosystem.ts`)**: the `outOfBounds` rejection in `moveCreature` was
+removed — the target is ALWAYS clamped to `[0,w]×[0,h]`, and the water/
+land restriction is applied normally AFTER the clamp. `spawnOffspring`'s
+birth position is now clamped to the boundaries too (the water/land check
+is redone AFTER the clamp).
 
-- **Madde 1**: `__forcePosition` ile sınırın 12px ötesine yerleştirme → clamp
-  anında `y2=1000`'e çekti (ışınlanma yok). 3s örneklemede `totalMoveOverTrace=90.3px`
-  (donma yok). 80s'lik koşuda (20 örnek) `longRunAnyOutOfBounds:false`,
-  `stuckCount:0`. Coder'ın iddiası bağımsız doğrulandı.
-- **Madde 2**: izole avcı → `reduction=0`; 3 müttefik → `reduction=0.24`
-  (matematiksel BİREBİR); gen kapatılınca → `reduction=0`; 15 müttefik →
-  `reduction=0.35` (tavan tam isabetli). "%8/müttefik, %35 tavan" iddiası
-  farklı bir test scriptiyle TAM DOĞRULANDI — gerçek/mekanik bir etki.
-- **Madde 3**: `__getElevationBandSample(20)` ile 5 tipin GERÇEKTEN üretildiği
-  doğrulandı (plain 2163, deep_water 1083, shallow_water 585, mountain 119,
-  beach 50). **Objektif renk-mesafesi ölçümü** (RGB Öklid mesafesi): en yakın
-  çift `deep_water↔shallow_water=44.0`, `shallow_water↔plain=45.0`,
-  `plain↔mountain=49.8` — hepsi "zor ayırt edilir" ~25-30 eşiğinin üzerinde;
-  en uzak çift `deep_water↔beach=162.1`. 5 tip GERÇEKTEN ayırt edilebilir,
-  yakın renk çiftleri kasıtlı tasarım tercihi (v3'ün nötr diliyle tutarlı).
-  Performans: `domLoadTime=190ms`, `reloadTime=385ms` — coder'ın "165ms"
-  iddiasıyla tutarlı, gözle görülür yavaşlama yok.
-- **Madde 4**: aynı stres senaryosu — canvas tam **6000px**'te (`style.height`)
-  sabitlendi. Veri bütünlüğü: `lineageLen=3024` + özet `individualCount=6000`
-  = 9024, kayıp yok.
-- **Kritik regresyon** (30s+5s+reload birleşik): su→kara — `onLandNotCapable:0`;
-  popülasyon dengesi — `{herbivore:92, carnivore:3}` sağlıklı; kaydet/yükle —
-  `version:8` doğrulandı, kayıtlı genomda `packHunter` gerçekten `boolean`;
-  reload sonrası gezegen oluşum ekranı tekrar AÇILMADI; event log gerçek/
-  çeşitli olaylar gösterdi. Ayrı bir turda gezegen oluşum ekranı da uçtan uca
-  doğrulandı (taze yükleme→overlay/pop 0/hız 0, Start sonrası pop 24/hız 1).
-- **Tüm testlerde konsol/sayfa hatası: SIFIR.**
+**Coder verification**: an isolated reproduction (placed 12px past the
+boundary) — BEFORE the fix, ZERO movement for 3s straight; AFTER, 140.95px
+of net movement. In a 4-minute natural run (185 creatures),
+`suspectCount:0`, `anyOutOfBounds:false`. `tsc`/`build` clean, console/page
+errors zero. Temporary diagnostic hooks fully reverted once the bug was
+confirmed fixed.
 
-**Sonuç**: Faz XVII'nin 4 maddesi de bağımsız olarak, farklı bir test
-metodolojisiyle (önceki tester turundan ayrı bir session) yeniden doğrulandı —
-hepsi GEÇTİ, blocking hiçbir bulgu yok.
+### Item 2 — Pack behavior (written from scratch by the tester, 91's code
+### DID NOT EXIST)
 
-## Faz XI — Ayrıştırıcı-Besin Katkısı (arşiv)
+**New gene** (`genome.ts`): `packHunter: boolean` — same pattern as other
+behavior genes (starts `false`, 3.5% two-way flip chance per division/
+mating). Wired into `crossoverGenomes`/`divideGenome`/`mutateGenome`.
 
-Faz VI'da kasıtlı olarak kapsam dışı bırakılmıştı, Faz XI aday havuzundan
-alınıp tamamlandı (tester, 2026-09-05). `ecosystem.ts` `spawnDecomposerNutrientContribution`:
-bir ayrıştırıcı tüketimini bitirince %40 ihtimalle, konumuna göre doğru havuza
-(su/kara) SABİT taban kapasitenin (`BASE_MAX_NUTRIENTS`/`BASE_MAX_LAND_NUTRIENTS`,
-dinamik/açlık-genişletilmiş cap DEĞİL — Faz XIII'in zorlukla kurduğu dengeye
-karışmasın diye bilinçli bir tercih) altındaysa tek bir nutrient ekliyor;
-mevcut zamanlayıcı tabanlı spawn hızına dokunmuyor.
+**Mechanic** (`ecosystem.ts`): for a `packHunter=true` predator, the count
+of same-diet allies within `PACK_HUNT_RADIUS=80px` × `PACK_HUNT_BONUS_PER_ALLY=0.08`,
+capped in total at `PACK_HUNT_MAX_BONUS=0.35`, is subtracted from the
+prey's `escapeChance` (never drops below zero). No complex swarm-AI/
+flocking algorithm.
 
-**Doğrulama**: `tsc`/`build` temiz; 3 dakikalık senkron 4x-hız koşusunda
-(`__getDecomposerContributionStats()` debug hook'uyla) 11 gerçek katkı eklendi,
-49 kez %40 zar tutmadı, 8 kez havuz dolu olduğu için doğru şekilde atlandı —
-cap saygısı doğrudan ölçümle kanıtlandı. Konsol/sayfa hatası sıfır, popülasyon
-sağlıklı (140 tavanında) kaldı. Geliştirme sırasında paralel çalışan bir başka
-tester session'ı bu fonksiyonun henüz yazılmadığı bir ara anı yakalayıp geçici
-bir sayfa hatası gördü — kalıcı bir hata değildi, iletişimle netleştirildi.
+**Save/load**: `savegame.ts` v7→v8, a `packHunter` check added to
+`isValidGenome`.
 
-## Faz XI — Performans Denetimi 2. Tur (arşiv)
+**UI**: the inspection panel's diet line shows "Carnivore 🍽️ (Pack Hunter
+🐺)" for a `packHunter=true` carnivore.
 
-`ecosystem.ts`'deki O(n²) sıcak yollar (`findNearestPrey`, `findNearestThreat`,
-`packHuntEscapeReduction`, `updateSexualReproduction` eşleşmesi, nutrient küme
-puanlaması) kod incelemesinden geçirildi — hepsi Faz XV/XVII'de zaten
-kare-mesafe (sqrt'siz) optimizasyonuyla ve sınırlı aday havuzlarıyla (algı
-menzili/`MATING_RADIUS`) yazılmış, ek bir kolay kazanım bulunamadı.
+**Verification** (direct measurement via debug hooks): isolated predator →
+`reduction=0`; 3 allies → `reduction=0.24` (3×0.08, EXACT); same allies
+with `packHunter=false` → `reduction=0`; 15 allies → `reduction=0.35`
+(upper bound hit exactly). 30s organic run: pop healthy, no water→land
+violation, console/page errors zero.
 
-Canlı ölçüm (Playwright, geçici dev server port 5188, PID doğrulanıp sadece o
-PID durduruldu): popülasyon `MAX_CREATURES` tavanına (140) ulaşana kadar 4x
-hızda çalıştırıldı, ardından 240 frame boyunca `requestAnimationFrame`
-delta'ları örneklendi — ortalama ~19.6ms/frame, p95 ~21.7ms, maks 25ms,
-konsol/sayfa hatası sıfır. İdeal 60fps (16.6ms) bütçesinin biraz üzerinde ama
-stabil, sıçrama/donma yok.
+### Item 3 — Terrain variety (written from scratch by the tester)
 
-**Sonuç**: mevcut brute-force komşu taraması popülasyon tavanında pratik
-tavana yakın; bir sonraki adım (uzamsal bölümleme/grid) gerçek bir mimari
-değişiklik olur ve o sırada belirgin bir kullanıcı şikayeti/semptomu
-olmadığından önerilmedi — aday havuzunda bekletildi (bkz. aşağıdaki "Uzamsal
-Bölümleme" turu, PM sonradan onayladı).
+**"Projection method"**: the raw noise value (`grid`) that `world.ts`
+already uses for water/land is DIRECTLY reused as "elevation" — no new
+layer. The water side uses Phase X's EXISTING `isShallowWater`/
+`isDeepWater` AS-IS; the land side is split into 5 types
+(`ElevationBand`: deep_water/shallow_water/beach/plain/mountain) using new
+thresholds (beach: `BEACH_BAND=0.05`; mountain:
+`MOUNTAIN_THRESHOLD=2.5`, calibrated by sampling terrain distribution
+across 3 seeds — an initial value of `0.55` made 70% of the land
+"mountain," far too aggressive). `TerrainKind`/`terrainAt`/`isWater` were
+NOT changed at all — purely a visual/categorical extra layer.
 
-## Faz XI — Uzamsal Bölümleme (arşiv)
+**Performance**: calling `isDeepWater`'s ring-search for 1.6M pixels would
+have slowed page load — a 320×200 cache called `elevationGrid` (same
+resolution as `grid`) is filled ONCE in the constructor; the land side is
+at full pixel resolution (no ring-search needed). Measured: 165ms, no
+regression.
 
-TAMAMLANDI, **Tester (6f) GEÇTİ (bağımsız, 2026-09-10 — bkz. aşağıdaki
-"Tester doğrulaması" alt bölümü)**. PM onaylı, mimari değişiklik DEĞİL
-(harici servis yok, tamamen yerel/geri alınabilir algoritma optimizasyonu).
+**Earthquake compatibility**: `repaintRegion` now uses `colorForRepaint`
+— while an active override is present, it reflects `terrainAt`'s live
+state instead of the cache.
 
-**Kapsam bilinçli olarak daraltıldı**: SADECE `updateSexualReproduction`
-(cinsel üreme eşleşmesi) grid'e taşındı. `findNearestPrey`/
-`findNearestThreat`/`packHuntEscapeReduction`'a DOKUNULMADI — bunlar
-`updateCreatures`'ın hareket döngüsü İÇİNDE, mid-frame çalışıyor (bir canlı
-taranırken komşularının pozisyonu aynı karede zaten değişmiş olabiliyor);
-grid'in anlık-görüntü doğası bu canlı mutasyonu yakalayamayacağından
-sonuç-eşdeğerliğini bozardı. `updateSexualReproduction` ise ayrı, izole bir
-pass — bu pass boyunca hiçbir canlı hareket etmiyor, bu yüzden grid'i baştan
-bir kez inşa etmek TAMAMEN güvenli.
+**Mechanical effect deliberately skipped**: TASKS.md said "optional";
+touching `effectiveMoveSpeed` would have added unnecessary risk to Phase
+XIII/XV's hard-won balance.
 
-**Uygulama**: `Ecosystem` sınıfına sabit hücre boyutlu
-(`CREATURE_GRID_CELL_SIZE=64`) bir uniform grid (`rebuildCreatureGrid`/
-`candidatesNear`) eklendi. `candidatesNear` sorgu yarıçapına göre DİNAMİK
-hücre-blok taraması yapar (sabit bir maksimum algı yarıçapı varsayımı YOK —
-organ bonusları teorik olarak büyük radius üretebildiğinden bu önemli),
-adayları `this.creatures`'daki ORİJİNAL sırayla döndürür (O(1)
-`creatureOrderIndex` ile, `indexOf` DEĞİL — aksi halde O(n²)'yi geri
-getirirdi) ki `<=` tie-break karşılaştırması eskisiyle birebir aynı
-davransın.
+**Verification**: distribution sampled across 3 seeds with
+`__getElevationBandSample` (mountain ~9%, beach ~3%, plain ~88% —
+reasonable). In a 2-minute run, pop 30→140 healthy, `onLandNotCapable:0`
+in every sample, repaint correct after a manual earthquake, console/page
+errors zero.
 
-**Doğrulama**: `npx tsc --noEmit`/`npm run build` temiz. Geçici bir
-test-only debug hook (`__debugCompareMatingPairing`, DOĞRULAMA SONRASI
-TAMAMEN GERİ ALINDI) ile aynı anlık durumda grid-tabanlı VE saf brute-force
-eşleşme paralel hesaplatılıp karşılaştırıldı:
-1. Doğal koşuda 6 örnek (30s ara ile) — hepsi eşleşti ama örneklem anında
-   hiç uygun (sexual+enerji-hazır+cooldown-bitmiş) birey yoktu (0=0,
-   trivial).
-2. **Asıl kanıt**: `__forceReproductionGenes` ile 22 bireyi bilerek iki sıkı
-   kümeye (biri 64px grid hücre sınırını KASTEN aşacak şekilde
-   konumlandırıldı) + birkaç uzak tekil bireye zorlanıp karşılaştırıldı —
-   grid 8 çift, brute-force 8 çift, BİREBİR AYNI id çiftleri.
-3. 5 dakikalık eşzamanlı popülasyon-stabilite koşusu (Playwright, geçici
-   port 6123, PID doğrulanıp sadece o PID durduruldu, 4x hız, 15s aralıklı
-   örnekleme): popülasyon boyunca sabit 140 (MAX_CREATURES tavanı), hiç
-   çöküş/düşüş yok, konsol/sayfa hatası sıfır.
+### Item 4 — Lineage-tree height bug (written from scratch by the tester)
 
-Debug hook'lar (`main.ts` + `ecosystem.ts`) test sonrası tamamen kaldırıldı,
-tsc/build tekrar temiz doğrulandı.
+**Root cause**: `lineagetree.ts`'s vertical content height grew
+UNBOUNDED as `totalRows*ROW_HEIGHT` (diagnosed in Phase XVI).
 
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
+**Fix**: `MAX_CONTENT_HEIGHT=6000` — `neededHeight=Math.min(MAX_CONTENT_HEIGHT,
+PADDING*2+totalRows*ROW_HEIGHT)`. The existing `rowHeight` formula was
+unchanged, only its input is bounded — as generations grow, row height
+automatically shrinks, and total height never exceeds 6000px.
 
-Kod incelemesi (`rebuildCreatureGrid`/`candidatesNear`/`updateSexualReproduction`)
-+ `npx tsc --noEmit`/`npm run build` (dist silinip sıfırdan) temiz. Port 6688,
-senkron Playwright. **Kendi bağımsız eşdeğerlik metodolojim** (coder'ın
-kaldırılmış hook'una güvenmeden, kendi el yazımı brute-force replikasıyla):
-10 bireyi (`__forceReproductionGenes`) iki kümeye zorladım — biri (505,500)/
-(520,500)/(500,530)/(560,560) 64px grid hücre sınırını (512=8×64) bilerek
-aşacak şekilde, artı 2 uzak tekil (partner'sız kalmalı). Test scriptimde
-TASKS.md'nin belgelediği algoritmayı (orijinal sıra, `<=` kare-mesafe
-tie-break, MATING_RADIUS=60) sıfırdan yeniden yazıp kendi beklenen eşleşmemi
-hesapladım: `["1-3","2-4","5-6"]`. Gerçek uygulamanın ürettiği soy kaydı
-(`getLineage()`'daki yeni çift-ebeveynli kayıtlar) BİREBİR aynı çıktı —
-`MATCH:true`. Hücre sınırını aşan aday (id 8, (560,560)) doğru şekilde
-eşleşmedi (en yakın adayı 60px sınırının dışındaydı) — grid'in blok
-taramasının sınır-ötesi adayları kaybetmediğinin kanıtı. 2 dakikalık gerçek
-4x-hız koşusunda popülasyon sağlıklı büyüdü, `onLandNotCapable:0` her
-örnekte, `packHunter` (dokunulmayan bir kod yolu) 0'dan 22'ye organik olarak
-yayıldı — regresyon yok. Konsol/sayfa hatası sıfır. Dev server sadece kendi
-PID'iyle (45864) durduruldu, geçici test dosyası silindi.
+**Verification**: the same stress scenario (9000 synthetic, non-branching
+chain) was repeated — canvas 306,066px → fixed at 6000px, pixel analysis
+proved the content was VISIBLE (previously entirely empty). Data integrity
+still FULL (9024). At normal scale (156 records), canvas 338px — under the
+cap, behavior unchanged.
 
-## Faz XI — Telemetri Zaman Serisi (arşiv)
+### Phase XVII — SUMMARY
 
-PM görevlendirmesiyle (onaylı, mimari değişiklik DEĞİL — hâlâ dev-server
-middleware deseni, hâlâ in-memory, hâlâ yeni framework/server yok): mevcut
-`/api/population-snapshot` (tekil "son anlık görüntü") YANINA, geriye dönük
-UYUMLULUĞU KIRMADAN bir zaman serisi eklendi:
-- **`GET /api/population-snapshot/history`**: son `SNAPSHOT_HISTORY_LIMIT`
-  (50) anlık görüntüyü kronolojik sırayla (`{count, snapshots}`) döndürür —
-  basit bir ring-buffer (dizi + `push`/`shift`, kalıcı disk yazımı YOK,
-  önceki turla aynı bellek-içi felsefe).
-- **`GET /api/population-snapshot`** ve **`POST /api/population-snapshot`**
-  davranışı HİÇ DEĞİŞMEDİ (aynı response şekli/durum kodları) — her başarılı
-  `POST` artık aynı zamanda geçmiş dizisine de ekleniyor, ek bir işlem
-  gerektirmiyor (client tarafında `main.ts`'e HİÇ dokunulmadı).
-- **Uygulama notu**: Connect middleware `/api/population-snapshot` ÖNEKİYLE
-  eşleştiği için (`/history` alt-yolu dahil), ayrım `req.url` üzerinden elle
-  yapıldı — `/history` → yeni handler, bilinmeyen başka bir alt-yol → `404`,
-  kök yol → eski davranış (aynen korunan `GET`/`POST` switch'i).
+Item 1 written by the coder, Items 2-4 written from scratch by the tester
+(91's incomplete code DID NOT EXIST) and verified. In a 3-minute combined
+integration test: population 45→140 healthy, `onLandNotCapable` 0 in every
+sample, the `packHunter` gene spread ORGANICALLY from 2 to 39 (genuinely
+appearing via mutation and spreading), save/load round-trip (with the new
+`packHunter` field) smooth, zero console/page errors.
 
-**Doğrulama**: `npx tsc --noEmit`/`npm run build` (temiz), `dist/` içinde
-`GEMINI_API_KEY`/`AIza` taraması sıfır eşleşme. Geçici dev server (port
-6211, PID 13200, sadece o PID durduruldu) üzerinde `curl` ile senkron test:
-boş `GET /history` (`{"count":0,"snapshots":[]}`), 3 sıralı `POST` sonrası
-`GET /` en sonuncuyu (pop 30) döndürdü, `GET /history` üçünü de kronolojik
-sırayla (10,20,30) döndürdü, `POST /history` doğru şekilde `405`, bilinmeyen
-bir alt-yol (`/bogus`) doğru şekilde `404`. **Ring-buffer sınır testi**: 52
-ek `POST` (toplam 55) sonrası `GET /history` tam olarak 50 kayıt döndürdü,
-en eski 5 kayıt (pop 1-5) atılmış, ilk kayıt pop 6 / son kayıt pop 55 — FIFO
-tavan davranışı doğrulandı.
+### Tester verification (independent, second round — a separate PM
+### subagent, 2026-09-06): 4/4 items PASSED
 
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
+Fully synchronous, port 7301 (PID 35112, only this PID stopped).
+`tsc`/`build` (dist deleted and rebuilt from scratch) clean. ZERO matches
+for `GEMINI_API_KEY`/`gemini-flash-lite` in `dist/`.
 
-Kod incelemesi (`vite.config.ts` `/history` alt-yol ayrımı) + `tsc`/`build`
-(dist silinip sıfırdan) temiz, `dist/` sızıntı taraması sıfır. Port 6688,
-`curl` ile bağımsız test (coder'ın kullandığından farklı bir port/oturum):
-`GET /history` mevcut organik veriyle (10 kayıt, gerçek popülasyon/nesil/
-organ ilerlemesi görünür şekilde) doğru döndü; `POST /history` doğru şekilde
-`405`; kök `GET`/`POST` davranışı DEĞİŞMEDİ (aynı response); bilinmeyen bir
-alt-yol (`/unknown-path`) doğru şekilde `404`. **Ring-buffer FIFO sınır
-testi** (kendi sayılarımla, coder'ınkinden bağımsız): 10 organik kayıt
-üzerine 45 ek `POST` (toplam 55) gönderildi — `count` tam **50**'de kaldı,
-buffer'daki İLK kayıt organik 6. kaydın (population:140) beklenen değeriyle,
-SON kayıt son fake POST'un (population:45) değeriyle BİREBİR eşleşti —
-55-50=5 en eski kaydın doğru şekilde atıldığı aritmetik olarak doğrulandı.
-Konsol/sayfa hatası sıfır. Dev server sadece kendi PID'iyle (45864)
-durduruldu.
+- **Item 1**: placing 12px past the boundary via `__forcePosition` → the
+  clamp pulled it to `y2=1000` instantly (no teleportation). In a 3s
+  sample, `totalMoveOverTrace=90.3px` (no freeze). In an 80s run (20
+  samples), `longRunAnyOutOfBounds:false`, `stuckCount:0`. The coder's
+  claim independently verified.
+- **Item 2**: isolated predator → `reduction=0`; 3 allies →
+  `reduction=0.24` (mathematically EXACT); gene disabled → `reduction=0`;
+  15 allies → `reduction=0.35` (cap hit exactly). The "8%/ally, 35% cap"
+  claim was FULLY VERIFIED with a different test script — a real/
+  mechanical effect.
+- **Item 3**: `__getElevationBandSample(20)` confirmed all 5 types were
+  GENUINELY produced (plain 2163, deep_water 1083, shallow_water 585,
+  mountain 119, beach 50). **Objective color-distance measurement** (RGB
+  Euclidean distance): the closest pair `deep_water↔shallow_water=44.0`,
+  `shallow_water↔plain=45.0`, `plain↔mountain=49.8` — all above the
+  "hard to distinguish" ~25-30 threshold; the farthest pair
+  `deep_water↔beach=162.1`. The 5 types are GENUINELY distinguishable,
+  close color pairs are a deliberate design choice (consistent with v3's
+  neutral visual language). Performance: `domLoadTime=190ms`,
+  `reloadTime=385ms` — consistent with the coder's "165ms" claim, no
+  noticeable slowdown.
+- **Item 4**: same stress scenario — canvas pinned exactly at **6000px**
+  (`style.height`). Data integrity: `lineageLen=3024` + summary
+  `individualCount=6000` = 9024, no loss.
+- **Critical regression** (30s+5s+reload combined): water→land —
+  `onLandNotCapable:0`; population balance — `{herbivore:92, carnivore:3}`
+  healthy; save/load — `version:8` verified, `packHunter` in the saved
+  genome is genuinely `boolean`; the planet formation screen did NOT
+  reopen after reload; event log showed real/varied events. In a separate
+  round, the planet formation screen was also verified end-to-end (fresh
+  load→overlay/pop 0/speed 0, pop 24/speed 1 after Start).
+- **Console/page errors across all tests: ZERO.**
 
-## Faz XI — Organ Trend Oku (arşiv)
+**Conclusion**: all 4 Phase XVII items were independently re-verified
+with a different test methodology (a separate session from the previous
+tester round) — all PASSED, no blocking findings.
 
-TAMAMLANDI (coder, 2026-09-10), **Tester (6f) GEÇTİ (bağımsız, 2026-09-10 —
-bkz. aşağıdaki "Tester doğrulaması" alt bölümü)**. PM görevlendirmesi:
-inceleme panelinde her organ satırının yanına, o organın
-popülasyon genelinde "yayılıyor/azalıyor/stabil" olduğunu gösteren küçük
-bir trend oku (↑/↓/—) eklemek — "bu organ neden var, gelecekte ne olacak"
-sorusuna panel içinde, ekstra tıklama olmadan cevap.
+## Phase XI — Decomposer Food Contribution (archive)
 
-**Uygulanabilirlik notu (kod yazmadan önce PM'e soruldu, onaylandı)**:
-mevcut altyapı (`checkPrevalenceMilestones`) SADECE tek yönlü eşik-geçiş
-olayları tutuyordu (%20/40/60/80'i bir kez geçince tetiklenen olaylar,
-hiç sıfırlanmıyor/azalışı yakalamıyor) — gerçek bir zaman içi prevalence
-geçmişi hiç saklanmıyordu. Sahte bir yön göstermek TASKS.md'nin "Neden/
-gerekçe şeffaflığı... uydurma yok" ilkesine doğrudan aykırı olurdu. İki
-seçenek sunuldu: (A) hafif bir kayan-pencere (ring-buffer) eklemek — düşük
-risk, panel yapısına dokunmuyor; (B) event log'daki geçmiş milestone
-olaylarını geriye dönük analiz etmek — bu veri tek-yönlü olduğundan
-azalışı hiç yakalayamaz, önerilmedi. PM (A)'yı onayladı, ek notlarla:
-örnekleme periyodunu mevcut event-check döngüsüne bağla (performans
-maliyeti olmasın), yeterli örnek yokken "—" değil hiçbir şey göster.
+Deliberately left out of scope in Phase VI, picked from the Phase XI
+candidate pool and completed (tester, 2026-09-05). `ecosystem.ts`'s
+`spawnDecomposerNutrientContribution`: when a decomposer finishes
+consuming, with 40% probability, if the appropriate pool (water/land)
+based on its location is below the FIXED base capacity
+(`BASE_MAX_NUTRIENTS`/`BASE_MAX_LAND_NUTRIENTS`, NOT the dynamic/
+hunger-expanded cap — a deliberate choice to avoid interfering with Phase
+XIII's hard-won balance), it adds a single nutrient; doesn't touch the
+existing timer-based spawn rate.
 
-**Uygulama**:
+**Verification**: `tsc`/`build` clean; in a 3-minute synchronous 4x-speed
+run (using the `__getDecomposerContributionStats()` debug hook), 11 real
+contributions were added, the 40% roll failed 49 times, and 8 times it was
+correctly skipped because the pool was full — cap respect proven by direct
+measurement. Console/page errors zero, population stayed healthy (at the
+140 cap). During development, a concurrently running separate tester
+session caught this function at a moment before it was written and saw a
+temporary page error — not a persistent error, clarified via
+communication.
+
+## Phase XI — Performance Audit, Round 2 (archive)
+
+The O(n²) hot paths in `ecosystem.ts` (`findNearestPrey`,
+`findNearestThreat`, `packHuntEscapeReduction`, `updateSexualReproduction`
+pairing, nutrient cluster scoring) were code-reviewed — all were already
+written in Phase XV/XVII with squared-distance (sqrt-free) optimization
+and bounded candidate pools (sense range/`MATING_RADIUS`), no further easy
+win was found.
+
+Live measurement (Playwright, temporary dev server port 5188, PID
+confirmed and only that PID stopped): run at 4x speed until population
+reached the `MAX_CREATURES` cap (140), then `requestAnimationFrame` deltas
+were sampled over 240 frames — average ~19.6ms/frame, p95 ~21.7ms, max
+25ms, console/page errors zero. Slightly above the ideal 60fps (16.6ms)
+budget but stable, no spikes/freezes.
+
+**Conclusion**: the existing brute-force neighbor scan is near its
+practical ceiling at the population cap; the next step (spatial
+partitioning/grid) would be a real architectural change and, absent a
+clear user complaint/symptom at the time, wasn't recommended — left
+waiting in the candidate pool (see the "Spatial Partitioning" round below,
+later approved by the PM).
+
+## Phase XI — Spatial Partitioning (archive)
+
+COMPLETE, **Tester (6f) PASSED (independent, 2026-09-10 — see the "Tester
+verification" subsection below)**. PM-approved, NOT an architectural
+change (no external service, purely a local/reversible algorithm
+optimization).
+
+**Scope deliberately narrowed**: ONLY `updateSexualReproduction` (sexual
+reproduction pairing) was moved to the grid. `findNearestPrey`/
+`findNearestThreat`/`packHuntEscapeReduction` were NOT TOUCHED — these run
+INSIDE `updateCreatures`'s movement loop, mid-frame (while scanning one
+creature, a neighbor's position may already have changed in the same
+frame); the grid's snapshot nature can't capture this live mutation and
+would break result-equivalence. `updateSexualReproduction`, however, is a
+separate, isolated pass — no creature moves during this pass, so building
+the grid once at the start is COMPLETELY safe.
+
+**Implementation**: a fixed-cell-size (`CREATURE_GRID_CELL_SIZE=64`)
+uniform grid (`rebuildCreatureGrid`/`candidatesNear`) was added to the
+`Ecosystem` class. `candidatesNear` does a DYNAMIC cell-block scan based
+on the query radius (NO assumption of a fixed maximum sense radius — this
+matters since organ bonuses can theoretically produce a large radius),
+returning candidates in the ORIGINAL order from `this.creatures` (via an
+O(1) `creatureOrderIndex`, NOT `indexOf` — otherwise it would reintroduce
+O(n²)) so the `<=` tie-break comparison behaves identically to before.
+
+**Verification**: `npx tsc --noEmit`/`npm run build` clean. Using a
+temporary test-only debug hook (`__debugCompareMatingPairing`, FULLY
+REVERTED AFTER VERIFICATION), grid-based AND pure brute-force pairing were
+computed in parallel at the same instant and compared:
+1. 6 samples in a natural run (30s apart) — all matched, but at the moment
+   of sampling there were no eligible (sexual+energy-ready+cooldown-
+   finished) individuals at all (0=0, trivial).
+2. **The actual proof**: 22 individuals were deliberately forced into two
+   tight clusters (one positioned to DELIBERATELY cross the 64px grid
+   cell boundary) via `__forceReproductionGenes`, plus a few distant
+   singletons, and compared — grid found 8 pairs, brute-force found 8
+   pairs, EXACTLY the same id pairs.
+3. A 5-minute concurrent population-stability run (Playwright, temporary
+   port 6123, PID confirmed and only that PID stopped, 4x speed, sampled
+   every 15s): population stayed constant at 140 (the `MAX_CREATURES`
+   cap) throughout, no collapse/drop, console/page errors zero.
+
+The debug hooks (`main.ts` + `ecosystem.ts`) were fully removed after
+testing, tsc/build re-confirmed clean.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+Code review (`rebuildCreatureGrid`/`candidatesNear`/
+`updateSexualReproduction`) + `npx tsc --noEmit`/`npm run build` (dist
+deleted and rebuilt from scratch) clean. Port 6688, synchronous
+Playwright. **My own independent equivalence methodology** (without
+relying on the coder's removed hook, using my own hand-written
+brute-force replica): I forced 10 individuals (`__forceReproductionGenes`)
+into two clusters — one deliberately positioned at (505,500)/(520,500)/
+(500,530)/(560,560) to cross the 64px grid cell boundary (512=8×64), plus
+2 distant singletons (should remain partnerless). In my test script I
+rewrote the algorithm TASKS.md documents (original order, `<=`
+squared-distance tie-break, MATING_RADIUS=60) from scratch and computed my
+own expected pairing: `["1-3","2-4","5-6"]`. The actual implementation's
+output (new dual-parent records in `getLineage()`) matched EXACTLY —
+`MATCH:true`. The candidate crossing the cell boundary (id 8, (560,560))
+correctly failed to pair (its nearest candidate was outside the 60px
+radius) — proof that the grid's block scan doesn't lose across-boundary
+candidates. In a 2-minute real 4x-speed run, population grew healthily,
+`onLandNotCapable:0` in every sample, `packHunter` (an untouched code
+path) spread organically from 0 to 22 — no regression. Console/page
+errors zero. Dev server stopped only by its own PID (45864), temporary
+test file deleted.
+
+## Phase XI — Telemetry Time Series (archive)
+
+Via PM assignment (approved, NOT an architectural change — still a
+dev-server middleware pattern, still in-memory, still no new framework/
+server): a time series was added ALONGSIDE the existing
+`/api/population-snapshot` (a single "latest snapshot"), WITHOUT BREAKING
+backward compatibility:
+- **`GET /api/population-snapshot/history`**: returns the last
+  `SNAPSHOT_HISTORY_LIMIT` (50) snapshots in chronological order
+  (`{count, snapshots}`) — a simple ring buffer (array + `push`/`shift`,
+  NO persistent disk write, same in-memory philosophy as before).
+- **`GET /api/population-snapshot`** and **`POST /api/population-snapshot`**
+  behavior is UNCHANGED (same response shape/status codes) — every
+  successful `POST` now also appends to the history array, requiring no
+  extra step (the client side, `main.ts`, was NOT touched at all).
+- **Implementation note**: since Connect middleware matches by PREFIX on
+  `/api/population-snapshot` (including the `/history` sub-path), the
+  distinction was made manually via `req.url` — `/history` → new handler,
+  an unknown other sub-path → `404`, the root path → old behavior (the
+  `GET`/`POST` switch preserved exactly as before).
+
+**Verification**: `npx tsc --noEmit`/`npm run build` (clean), zero matches
+scanning `dist/` for `GEMINI_API_KEY`/`AIza`. Synchronous `curl` test on a
+temporary dev server (port 6211, PID 13200, only that PID stopped): empty
+`GET /history` (`{"count":0,"snapshots":[]}`), after 3 sequential `POST`s
+`GET /` returned the latest one (pop 30), `GET /history` returned all
+three in chronological order (10,20,30), `POST /history` correctly `405`,
+an unknown sub-path (`/bogus`) correctly `404`. **Ring-buffer boundary
+test**: after 52 additional `POST`s (55 total), `GET /history` returned
+exactly 50 records, the oldest 5 (pop 1-5) were dropped, first record pop
+6 / last record pop 55 — FIFO cap behavior confirmed.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+Code review (`vite.config.ts`'s `/history` sub-path handling) +
+`tsc`/`build` (dist deleted and rebuilt from scratch) clean, zero leaks in
+`dist/`. Port 6688, independent `curl` test (a different port/session from
+the coder's): `GET /history` correctly returned existing organic data (10
+records, real population/generation/organ progression visible); `POST
+/history` correctly `405`; root `GET`/`POST` behavior UNCHANGED (same
+response); an unknown sub-path (`/unknown-path`) correctly `404`.
+**Ring-buffer FIFO boundary test** (with my own numbers, independent of
+the coder's): 45 additional `POST`s (55 total) sent on top of 10 organic
+records — `count` stayed exactly at **50**, the buffer's FIRST record
+matched the expected value of the organic 6th record (population:140),
+the LAST record matched the last fake POST's value (population:45) —
+arithmetically confirming the oldest 5 (55-50=5) records were correctly
+dropped. Console/page errors zero. Dev server stopped only by its own PID
+(45864).
+
+## Phase XI — Organ Trend Arrow (archive)
+
+COMPLETE (coder, 2026-09-10), **Tester (6f) PASSED (independent,
+2026-09-10 — see the "Tester verification" subsection below)**. PM
+assignment: add a small trend arrow (↑/↓/—) next to each organ row in the
+inspection panel showing whether that organ is "spreading/declining/
+stable" across the population — answering "why does this organ exist,
+what happens to it next" right in the panel, with no extra click.
+
+**Feasibility note (asked of the PM before writing code, approved)**: the
+existing infrastructure (`checkPrevalenceMilestones`) ONLY tracked
+one-directional threshold-crossing events (fires once when 20/40/60/80% is
+crossed, never resets/never catches a decline) — a real prevalence history
+over time was never stored. Faking a direction would directly violate
+TASKS.md's "Cause/rationale transparency... no fabrication" principle. Two
+options were presented: (A) add a light rolling window (ring buffer) —
+low risk, doesn't touch the panel structure; (B) retroactively analyze
+past milestone events in the event log — this data is one-directional so
+it could never catch a decline, not recommended. The PM approved (A), with
+additional notes: tie the sampling period to the existing event-check
+loop (no extra performance cost), and show nothing (not "—") when there
+aren't enough samples yet.
+
+**Implementation**:
 - `ecosystem.ts`: `PREVALENCE_TREND_SAMPLE_COUNT=10`,
-  `PREVALENCE_TREND_STABLE_THRESHOLD=0.03`, `OrganPrevalenceTrend` tipi
+  `PREVALENCE_TREND_STABLE_THRESHOLD=0.03`, an `OrganPrevalenceTrend` type
   (`"up"|"down"|"stable"|"insufficient-data"`). `prevalenceHistory: Map<OrganType, number[]>`
-  — her organ tipi için son 10 prevalence oranını tutan bir kayan pencere,
-  `checkPrevalenceMilestones` ile AYNI 2 saniyelik döngüde (`recordPrevalenceSample`)
-  dolduruluyor (zaten hesaplanan `fraction` yeniden kullanılıyor, ekstra
-  tarama YOK). `getOrganPrevalenceTrend()`: pencere dolmadıysa
-  `insufficient-data` döner; doluysa ilk yarı/ikinci yarı ortalaması
-  karşılaştırılıp (`PREVALENCE_TREND_STABLE_THRESHOLD` toleransıyla)
-  `up`/`down`/`stable` döner. `restart()`'ta `prevalenceHistory.clear()`
-  eklendi (diğer olay-durumu Map'leriyle tutarlı reset).
-- `main.ts`: `showInspectorWithTrend()` yardımcı fonksiyonu — `Creature.
-  getInspectionSummary()`'nin döndürdüğü organ listesine `ecosystem.
-  getOrganPrevalenceTrend()`'i birleştirip `hud.showInspector()`'a geçiyor.
-  `Creature` kendisi ekosistem-genelindeki veriyi BİLMİYOR (ayrım bilerek
-  korundu) — birleşim sadece main.ts'te, panel açılmadan hemen önce.
-  İki çağrı noktası (canlı tıklama + soy ağacından seçim) güncellendi.
-- `hud.ts`: `InspectionData.organs`'a opsiyonel `trend?: OrganPrevalenceTrend`
-  alanı eklendi. `TREND_SYMBOLS` haritası — `insufficient-data` BİLEREK boş
-  string döner (hiçbir ok render edilmez, sahte "stabil" iddiası yok).
-  `showDeceasedInspector`'a (ölüm anındaki organlar, geçmişe dönük bir
-  görünüm) DOKUNULMADI — trend kavramı sadece canlı inceleme paneli için
-  anlamlı.
-- `dashboard.css`: `.inspector-organ-trend-{up,down,stable}` — yeşil/kırmızı/
-  gri renkler, mevcut chip/organ satırı stiline uyumlu, minimal ek.
-
-**Doğrulama**: `npx tsc --noEmit`/`npm run build` temiz. Geçici test-only
-debug hook'lar (main.ts — `__debugOpenInspector`, `__getSimTime`,
-`__getOrganPrevalenceTrendDebug`, DOĞRULAMA SONRASI TAMAMEN GERİ ALINDI,
-tsc/build tekrar temiz doğrulandı) ile iki Playwright senaryosu:
-1. Geçici dev server (port 6318/6319, PID doğrulanıp sadece o PID
-   durduruldu) üzerinde ~60s (4x hız) çalıştırılıp pencere dolduktan sonra
-   organ taşıyan bir birey zorla inceleme paneline açıldı — panel HTML'i
-   gerçek render edilmiş organ satırında `inspector-organ-trend-stable`
-   sınıflı "—" oku + doğru `title` tooltip'i ("Popülasyonda stabil")
-   içerdiği doğrulandı, sıfır konsol/sayfa hatası.
-2. Sim başlangıcında (pencere garantili boş) `getOrganPrevalenceTrend()`
-   doğrudan çağrılıp 21 organ tipinin HEPSİNİN `insufficient-data`
-   döndürdüğü doğrulandı — panel render kodunda bu değer boş string'e
-   eşleniyor, yani hiçbir sahte ok gösterilmiyor.
-
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
-
-Dört dosya (`ecosystem.ts`/`main.ts`/`hud.ts`/`savegame.ts` dokunulmadığı
-teyit edildi) satır satır incelendi, `getOrganPrevalenceTrend()`'in ilk
-yarı/ikinci yarı ortalama karşılaştırmasının koddaki iddiayla birebir
-eşleştiği, `showDeceasedInspector`'ın trend mantığını doğru şekilde bypass
-ettiği doğrulandı. Kendi izole Playwright testim (coder'ın kaldırılmış
-hook'larına güvenmeden, kendi debug hook'umla): bacaklı organ zorlanan bir
-canlıda (1) sim başlangıcında (pencere garantili boş) inceleme panelinde
-HİÇBİR trend oku YOK — `insufficient-data` doğru; (2) 4x hızda ~20s (pencere
-dolduktan sonra) aynı canlı yeniden seçildiğinde organ satırı
-`Bacak 0.30 —` olarak render edildi — `hud.ts`'teki `TREND_SYMBOLS.stable`
-("—") birebir eşleşti. **Test metodolojisi notu**: ilk deneme turlarında
-tıklama-taraması dünya-koordinatı/ekran-koordinatı karışıklığı yüzünden
-canlıyı bulamıyordu (`__forcePosition` DÜNYA koordinatı alıyor, kamera
-`fitCamera()` ile sabit ölçek/offset uyguluyor) — teşhis için `main.ts`'e
-kalıcı bir TEST-ONLY `__worldToScreen(x,y)` debug hook'u eklendi (dünya→ekran
-çevrimi, `world.position`/`world.scale` dışarıdan erişilebilir değildi),
-bundan sonraki tıklama-tabanlı testler için de kullanılabilir. tsc/build
-temiz.
-
-## Faz XI — Geniş Sağlık Taraması (arşiv)
-
-PM görevlendirmesiyle (kod dosyalarına dokunulmadı, salt-okunur test):
-save/load (v8), export/import, Gemini proxy hata-toleransı, telemetri
-`/history` ring-buffer'ının uzun (11dk gerçek) koşuda davranışı tarandı.
-
-- **✅ Gemini proxy hata-toleransı**: GET→405, prompt eksik→400, geçersiz
-  JSON→502 (çökme yok, `try/catch` doğru yakalıyor), geçerli prompt→gerçek
-  API çağrısı başarılı.
-- **✅ Save/Load (v8)**: round-trip temiz, `packHunter` alanı doğru
-  kaydediliyor/okunuyor, autosave+reload sorunsuz.
-- **✅ Telemetri `/history`**: 11 dakikalık gerçek 4x-hız koşusunda
-  `historyCount` düzenli 5→49 arttı, popülasyon 140'ta stabil kaldı, sıfır
-  hata — ring-buffer uzun vadede sağlam.
-- **🔴 KRİTİK BUG (blocking) — Dışa/İçe Aktarma**: Kesin/deterministik tekrar
-  üretimi: (1) taze bir sayfada (gezegen oluşum ekranı açık, "Başlat"a
-  BASILMADAN) daha önce dışa aktarılmış bir kayıt dosyası içe aktarılır,
-  (2) sonra "Simülasyonu Başlat"a basılır. **Kök neden**: `main.ts`'teki
-  import handler (`importInput.addEventListener`) `ecosystem.loadFromSave(data)`
-  çağırıyor ama `simulationStarted` bayrağını set ETMİYOR — `startNewSimulation()`
-  (satır ~461) bu bayrağı kontrol etmeden `spawnInitialCreatures(INITIAL_CREATURE_COUNT)`
-  çalıştırıyor, içe aktarılan popülasyonun ÜSTÜNE 24 yeni rastgele canlı
-  ekleniyor (ölçüldü: 38→62). **İkinci, bağlantılı sorun**: import, `worldMap`'i
-  kaydedilen `mapSeed`'e göre YENİDEN OLUŞTURMUYOR (sadece sayfa-yüklemesinde-
-  kayıt-varsa yolu bunu yapıyor) — içe aktarılan canlıların konumları
-  o anki (farklı/rastgele) haritaya karşı anlamsız kalıyor. **Ölçülen etki**:
-  38 canlının **17'si (%45) su→kara kısıtını ihlal ediyor** (`onLand===true`
-  VE `canWalkOnLand===false`) — Faz II'den beri her fazda ayrıca doğrulanan,
-  hiç bozulmamış bir kuralın gerçek bir ihlali.
-  **Düzeltilmedi** (bu görev salt-okunur/test-only idi) — coder'a devredildi
-  (çözüm: bkz. "Faz XI — İçe Aktarma Kritik Bug Düzeltmesi").
-
-## Faz XI — İçe Aktarma Bug Düzeltmesi (arşiv)
-
-TAMAMLANDI (coder c5), **Tester (6f) GEÇTİ (bağımsız, 2026-09-10)**. Yukarıdaki
-"Geniş Sağlık/Regresyon Taraması"nda 6f'nin bulduğu kritik bug'ın düzeltmesi.
-
-**Kök neden (coder tarafından bağımsız yeniden doğrulandı)**: `main.ts`'teki
-import handler doğrudan `ecosystem.loadFromSave(data)` çağırıyordu —
-`simulationStarted` bayrağını hiç set etmiyordu VE `worldMap` (sayfa
-açılışında zaten rastgele bir seed'le kurulmuş) kaydın `mapSeed`'iyle
-yeniden kurulmuyordu.
-
-**Düzeltme yaklaşımı**: `worldMap`, `Ecosystem` içinde `private readonly`
-bir referans olarak tutulduğundan (`constructor(private readonly world: World, ...)`)
-ve `World`'ün kendisi de `readonly grid`/`elevationGrid`/`seed` alanlarıyla
-büyük ölçüde immutable inşa edildiğinden, canlı bir `World` örneğini yerinde
-yeniden kurmak (veya `main.ts`'te yeni bir örnekle değiştirip her closure'ı
-güncellemek) riskli/invazif bir refactor olurdu. Bunun yerine, sayfa
-AÇILIŞINDA ZATEN doğru çalışan aynı yol (`loadSaveData()` +
-`new World(savedGame.mapSeed)`, satır ~89-90) yeniden kullanıldı: import
-handler artık `ecosystem.loadFromSave(data)` çağırmak yerine
-`writeSaveData(data)` yazıp `location.reload()` yapıyor — `worldMap`
-SIFIRDAN doğru seed'le kurulur, `simulationStarted` doğru başlangıç
-değeriyle (`savedGame !== null`) hesaplanır, `spawnInitialCreatures` hiç
-çağrılmaz. Mevcut, kanıtlanmış koddan YENİ bir harita-yeniden-kurma yolu
-icat edilmedi.
-
-**İkinci bug (canlı testte, ilk düzeltme denemesi sırasında bulundu)**:
-İlk deneme (`app.ticker.stop()` çağırmak) YETERSİZ kaldı — canlı test
-popülasyonun hâlâ eski/kendi durumuyla aynı kaldığını, içe aktarılan
-verinin hiç uygulanmamış gibi göründüğünü gösterdi. Kök neden araştırması:
-`location.reload()` `beforeunload` olayını da tetikliyor, ve o handler
-(satır ~806) KENDİ `writeSaveData` çağrısıyla mevcut (henüz içe
-aktarılmamış) canlı durumu YENİDEN yazıp benim az önce yazdığım içe
-aktarılan veriyi SESSİZCE EZİYORDU — ama SADECE simülasyon zaten
-çalışıyorsa (`simulationStarted===true`, `beforeunload`'ın kendi `if
-(!simulationStarted) return` koruması yüzünden formasyon ekranı açıkken bu
-sorun oluşmuyordu, bu da ilk testin — 6f'nin repro'suyla birebir aynı
-senaryo — neden geçtiğini ama "import zaten çalışan bir sim üstüne"
-senaryosunun neden başarısız olduğunu açıklıyor). Düzeltme: yeni bir
-`skipBeforeUnloadAutosave` bayrağı eklendi, import handler `writeSaveData`
-çağırmadan HEMEN önce bu bayrağı `true` yapıyor, `beforeunload` handler'ı
-bu bayrak set'liyse kendi yazımını atlıyor.
-
-**Doğrulama** (Playwright, 3 ayrı senaryo, her biri için geçici dev server
-farklı bir portta, PID doğrulanıp sadece o PID durduruldu, hiçbir zaman
-`taskkill /IM node.exe` kullanılmadı):
-1. **6f'nin repro'su** (taze sayfa → import ÖNCESİ "Başlat" → "Başlat"a
-   bas): gerçek bir simülasyon çalıştırılıp `export-save-btn` ile GERÇEK
-   bir kayıt dosyası üretildi (Playwright `download` event'i ile
-   yakalandı), sonra taze bir sayfada bu dosya "Başlat"a basmadan önce içe
-   aktarıldı. Sonuç: reload sonrası popülasyon içe aktarılan dosyanın
-   `creatures.length` alanıyla BİREBİR eşleşti (51=51), `__getMapSeed()`
-   dosyanın `mapSeed` alanıyla BİREBİR eşleşti, gezegen oluşum ekranı
-   DOĞRU şekilde gösterilmedi (yüklenen-oyun yolu), su/kara ihlali SIFIR
-   (`onLand && !canWalkOnLand` kontrolü — 6f'nin metodolojisiyle aynı).
-2. **İkinci bug'ın kanıtı** (import ZATEN ÇALIŞAN bir simülasyon üstüne):
-   session B kendi simülasyonunu çalıştırırken session A'dan dışa
-   aktarılan farklı bir kayıt içe aktarıldı. İlk düzeltme denemesiyle
-   (sadece `ticker.stop()`) bu test BAŞARISIZ oldu (popülasyon/seed B'nin
-   KENDİ eski durumunda kaldı, import hiç uygulanmamış gibiydi) — bu,
-   `beforeunload` yarış durumunu kanıtlayan doğrudan kanıttı. `skipBeforeUnloadAutosave`
-   bayrağı eklendikten SONRA aynı test: popülasyon içe aktarılan dosyanın
-   `creatures.length`'iyle BİREBİR eşleşti (42=42), map seed BİREBİR
-   eşleşti, sıfır ihlal.
-3. **Normal otomatik-kayıt/sayfa-yenileme regresyon testi** (import HİÇ
-   kullanılmadan, sadece normal tarayıcı yenilemesi): popülasyon/map-seed
-   yenileme öncesi/sonrası BİREBİR aynı kaldı, sıfır ihlal — düzeltmenin bu
-   ZATEN ÇALIŞAN yolu bozmadığı doğrulandı (aynı `loadSaveData`/`World`
-   kod yolunu paylaşıyorlar, ama import HİÇBİR YENİ dal EKLEMEDİ, sadece
-   mevcut yolu YENİDEN KULLANDI).
-
-`npx tsc --noEmit`/`npm run build` temiz, `dist/` içinde API anahtarı
-sızıntı taraması sıfır. Geçici test-only `console.log` (ilk teşhis
-aşamasında eklenmişti) doğrulama tamamlanmadan ÖNCE geri alındı.
-
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
-
-Kendi Playwright script'im (c5'in testlerine güvenmeden, izole dev
-server) coder'ın taze bir sim'den dışa aktarma yaptığı (seed 1344155058,
-popA=25) senaryoları kendi ölçümlerimle tekrar ürettim: (1) taze sayfa,
-"Başlat"a basmadan önce içe aktar: seed birebir eşleşti, popülasyon
-birebir eşleşti (25=25), 0 su/kara ihlali; (2) sim ZATEN ÇALIŞIRKEN (24
-canlı) içe aktar (`beforeunload` yarışı): seed birebir eşleşti,
-popülasyon içe aktarılanla birebir eşleşti (25=25, ESKİ 24 ÜSTÜNE
-EKLENMEDİ), 0 ihlal. Her iki senaryoda da sıfır sayfa hatası. tsc temiz.
-
-## Faz XI — Organ Açıklama Metinleri Taraması (arşiv)
-
-PM görevlendirmesi: `organs.ts`'teki 21 organ açıklaması + tip yorumlarını
-(sadece METİN, mantık DEĞİŞMEDEN) okunabilirlik/tutarlılık için gözden
-geçir — kullanıcı geçmişte "detaylı ama uzatmadan/saçmalamadan" demişti.
-
-Her organ tanımı kod-gerçeğiyle (`creature.ts`'teki gerçek mekanik etki
-hesaplamaları) tek tek karşılaştırıldı. 3 gerçek tutarsızlık bulunup
-düzeltildi:
-
-1. **`bioluminescence` — gerçek hata**: hem tip yorumu (`organs.ts` satır
-   59) hem panel açıklaması "derin su/düşük oksijende algı artışı"
-   iddia ediyordu. Kod incelemesi (`creature.ts` `effectiveSenseRadius`):
-   organ etkiyi KOŞULSUZ uyguluyor — hiçbir su derinliği/oksijen kontrolü
-   yok, her zaman aynı +20 ile +50 arası bonus veriyor. Dosyanın kendi
-   ilkesine ("koddaki GERÇEK etkiyle birebir tutarlı olmalı, uydurma
-   metin DEĞİL") doğrudan aykırıydı. Düzeltme: hem tip yorumu hem panel
-   açıklaması, koşulu iddia etmeden ama flavor/ilham bağlamını (derin
-   deniz canlıları) koruyan bir ifadeyle güncellendi.
-2. **`tentacle` tip yorumu**: "ilkel hareket, hafif hız + algı" diyordu.
-   Kod incelemesi (`creature.ts` `effectiveMoveSpeed`): tentacle SADECE
-   su hızı faktörüne katkıda bulunuyor, `effectiveSenseRadius`'ta hiç
-   görünmüyor — algıya hiç katkısı yok. Tip yorumu düzeltildi (panel
-   açıklaması zaten doğruydu, dokunulmadı).
-3. **`wing`**: panel açıklaması `tentacle` ile BİREBİR aynıydı ("Suda
-   hafif ek hız sağlar") — mekanik olarak DOĞRU (ikisi de aynı küçük
-   su-hızı bonusuna katkıda bulunuyor, `creature.ts`'te doğrulandı), ama
-   tip yorumundaki "ileride uçuş" bağlamı panelde hiç yansımıyordu.
-   Kullanıcının kafası karışabilir diye açıklama netleştirildi ("şu an
-   için... uçuş henüz uygulanmadı").
-
-Ayrıca `sulfur_vent_organ`'ın açıklaması `stomach`'ın deseniyle (mouth/
-mide ile birlikte aynı besleyici-verimlilik zincirine katkı) tutarlı hale
-getirildi, küçük bir netlik iyileştirmesi (kod incelemesi `creature.ts`
-`feedingEfficiency` — sulfurVent gerçekten aynı çarpan zincirine
-çarpımsal katkıda bulunuyor, doğrulandı).
-
-Diğer 18 organ açıklaması tek tek incelendi, gerçek mekanikle tutarlı
-bulundu — ek bir düzeltme yapılmadı. `npx tsc --noEmit`/`npm run build`
-temiz.
-
-## Faz XI — `loadFromSave` Olay-Durumu Temizliği (arşiv)
-
-PM görevlendirdiği bug-avı/basitleştirme taramasında (main.ts/ecosystem.ts/
-creature.ts, son eklenen özelliklerin — import bug fix, organ trend oku,
-packHunter — etkileşiminde gözden kaçmış bir edge-case aranması) bulundu.
-
-**Bulgu**: `Ecosystem.reset(count)` popülasyonu sıfırlarken soy/olay/organ-
-trend TAKİP durumunu da (lineage, `firedPrevalenceMilestones`,
-`prevalenceHistory`, `firedEnergyAdvantage`, `everObservedOrganTypes`,
-`firedExtinction`, `firedFirstCarnivore`, `oldAgeDeathCount`,
-`recentEventTexts`, `evolutionEventCheckTimer`, `pendingEvolutionEvents`,
-`resetGenomeIdCounter()`) tam olarak temizliyordu — ama `Ecosystem.
-loadFromSave(saved)` (import/sayfa-açılışı-kayıt-yükleme yolu) `clearAll()`
-çağırıp canlı/nutrient'ları temizlemesine RAĞMEN bu takip durumunu HİÇ
-temizlemiyordu. Dosyanın hiçbir yerinde bu asimetri belgelenmemişti.
-
-**Neden şu ana kadar zararsızdı**: `loadFromSave`'in TEK çağrı noktası
-(`main.ts` satır ~137) her zaman `new Ecosystem(worldMap, world)` ile
-YENİ inşa edilmiş bir örnek üzerinde çalışıyordu — bu alanlar zaten
-boş/varsayılan durumdaydı, yani pratikte hiçbir gözlemlenebilir hata
-üretmiyordu.
-
-**Neden yine de gerçek bir risk**: bu, kodda hiç garanti edilmeyen/
-zorlanmayan bir varsayımdı ("`loadFromSave` sadece taze bir `Ecosystem`
-üzerinde çağrılır"). İleride biri (örn. "sayfa yenilemeden farklı bir
-kayıt yükle" gibi bir özellik eklerken) `loadFromSave`'i ÇALIŞAN bir
-ekosistem üzerinde çağırsaydı, eski popülasyondan kalan takip verisi
-YENİ popülasyonla SESSİZCE karışırdı — örn. yeni popülasyonda hâlâ var
-olan bir organ için yanlış bir "tükendi" olayı, ya da organ trend
-okunun eski (alakasız) veriye dayalı yanlış bir yön göstermesi gibi,
-tespit edilmesi zor ve TASKS.md'nin "Neden/gerekçe şeffaflığı... uydurma
-yok" ilkesini doğrudan ihlal eden bir sınıf hata.
-
-**Düzeltme (PM onaylı)**: ortak bir `private clearEventTrackingState()`
-yardımcı metodu eklendi (`reset()`'in eski gövdesinden aynen taşındı —
-`simulationTime`/`totalBirths`/`historicalMaxGeneration` HARİÇ, çünkü
-bunlar `reset()`'te sıfırlanıp `loadFromSave()`'de kayıttan geri
-yükleniyor, ikisi arasında paylaşılan "olay TAKİBİ" durumu değil). Hem
-`reset()` hem `loadFromSave()` artık bu yardımcıyı çağırıyor — davranış
-HİÇ değişmedi (her iki çağrı da zaten boş durumlu nesnelerde çalışıyordu),
-sadece gelecekteki bir yeniden-kullanımda sessizce hatalı davranışın
-önü kapatıldı, aynı zamanda iki fonksiyon arasındaki kod tekrarı da
-ortadan kalktı.
-
-**Doğrulama**: `npx tsc --noEmit`/`npm run build` temiz, `dist/` API
-anahtarı sızıntı taraması sıfır. 3 Playwright regresyon senaryosu (geçici
-dev server, PID doğrulanıp sadece o PID durduruldu) — önceki turdaki
-(İçe Aktarma Bug Düzeltmesi) AYNI üç senaryo (import-öncesi-başlat,
-import-çalışan-sim-üstüne, normal-sayfa-yenileme) tekrar çalıştırıldı,
-üçü de BİREBİR aynı sonuçları üretti (popülasyon/map-seed eşleşmesi,
-sıfır su/kara ihlali, sıfır sayfa hatası) — davranış değişikliği
-OLMADIĞI doğrulandı.
-
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
-
-Kod incelemesi — `nextGenomeId`'nin (`genome.ts`) MODÜL-SEVİYESİNDE bir
-değişken olduğu ve `loadFromSave`'in TEK çağrı noktasının (`main.ts:137`)
-her zaman TAZE bir modül yüklemesi (sayfa açılışı) sırasında çalıştığı
-doğrulandı — yani `resetGenomeIdCounter()` çağrısı zaten
-`nextGenomeId===1` olduğu bir anda çalışıyor, davranış değişikliği
-yaratmıyor. Kendi Playwright script'im (coder c5'in testlerine güvenmeden,
-izole dev server) 3 senaryoyu tekrar üretti, artı ekstra soy-kirlenmesi/
-ID-benzersizliği kontrolleri: (1) import-öncesi-başlat: seed/pop birebir
-eşleşti (24=24), 0 ihlal, soy kaydı TAM olarak içe aktarılanla eşleşti
-(24=24), import sonrası 4 saniye daha çalıştırılıp yeni doğan canlıların
-ID'lerinin benzersiz kaldığı doğrulandı; (2) import ÇALIŞAN bir sim üstüne
-(kendi 25 kayıtlık soyu birikmiş): import sonrası soy kaydı İÇE
-AKTARILANLA birebir eşleşti (24), eski çalışan sim'in 25 kaydıyla
-KİRLENMEDİ/TOPLANMADI — `clearEventTrackingState()`'in gerçekten
-çalıştığının doğrudan kanıtı; (3) normal sayfa yenileme (import hiç
-kullanılmadan): popülasyon/seed etkilenmedi. Sıfır sayfa hatası, tsc
-temiz.
-
-## Faz XI — Organ Açıklaması Tutarlılığı, 2. Bağımsız Tur (arşiv)
-
-TAMAMLANDI (coder, subagent, 2026-09-10), **Tester GEÇTİ (bağımsız,
-2026-09-10)**. `organs.ts`/`creature.ts`/`ecosystem.ts` Faz XI'in ilk
-"Organ Açıklama Metinleri Taraması"ndan (bkz. yukarıda) farklı bir
-açıdan, ikinci bir bağımsız gözle tekrar tarandı.
-
-**Bulunan tutarsızlık**: `creature.ts`'teki `survivalBonus()`
-fonksiyonunun doc-comment'i "bu fazda pasif bir enerji-verimliliği bonusu
-olarak da metabolizmayı hafifçe düşürür" diyordu — bu davranış kodda
-YOKTU (fonksiyon sadece bir kaçış-şansı sayısı döndürüyor, metabolizmaya
-hiç dokunmuyor) ve aynı dosyadaki `metabolismMultiplier()` yorumuyla
-(satır ~232-234: "kamuflaj/diken metabolizmayı etkilemez") zaten
-ÇELİŞİYORDU.
-
-**Düzeltme (sadece metin)**: `survivalBonus()` yorumu, organın GERÇEK
-kullanım yerine (`ecosystem.ts` `huntCreature`/
-`packHuntEscapeReduction` — avdan kaçış şansı) doğru referans verecek
-şekilde güncellendi, davranış/kod mantığı değişmedi. Diğer tüm organ
-açıklamaları (gill/lung/shell/torpor/blubber/venom/regeneration/
-nitrogen_sac/sulfur_vent_organ dahil) `creature.ts`/`ecosystem.ts`
-mekanik etkileriyle karşılaştırıldı, ek bir uyuşmazlık bulunamadı.
-`prevalenceContext()` (ecosystem.ts) sadece 10/21 organ için özel bağlam
-metni içeriyor, kalanı zararsız bir "popülasyonda yayılıyor" default'una
-düşüyor — bug değil, kapsam dışı bırakıldı (davranış değişikliği talep
-edilmedi).
-
-**Doğrulama (coder)**: `npx tsc --noEmit` (öncesi VE sonrası temiz) +
-`npm run build` temiz, `dist/` içinde `GEMINI_API_KEY` adı da değeri de
-bulunmadı (grep ile doğrulandı), `dist/` geçici çıktı olarak silindi.
-
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
-
-`survivalBonus()` kodu satır satır incelendi — sadece kabuk/kamuflaj/
-diken/zehir bezine dayalı bir sayı döndürüyor, metabolizmaya dokunmuyor;
-gerçek kullanım yeri `ecosystem.ts` `huntCreature`/
-`packHuntEscapeReduction`'da kaçış şansı olarak doğrulandı, yeni yorum bu
-davranışla tutarlı. `tsc --noEmit` ve `npm run build` bağımsız olarak
-tekrar temiz, `dist/`'te anahtar sızıntısı yok, `dist/` silindi.
-
-## Faz XI — Bug-avı Taraması (main.ts/hud.ts/lineagetree.ts/savegame.ts/exportimport.ts) (arşiv)
-
-TAMAMLANDI (coder, 2026-09-10), **Tester GEÇTİ (bağımsız, 2026-09-10)**.
-Event-listener temizliği, null/undefined kontrolleri, save/export-import
-format tutarlılığı incelendi — hepsi ✅ sağlıklı (event listener'lar
-uygulama ömrü boyunca bir kez kuruluyor, `dataset.wired` guard'ları var;
-save ve export/import AYNI `isValidSaveData`'yı paylaşıyor, tutarsızlık
-yok).
-
-**Bulunan tutarsızlık**: `lineagetree.ts` `dominantOrganType()` yorumu "en
-yüksek `power` değerine sahip organı" seçtiğini iddia ediyordu, kod
-aslında `organs[organs.length - 1]` ile EN SON KAZANILAN organı
-döndürüyor (genome.ts `maybeGainOrgan` yeni organları diziye append
-ediyor, power karşılaştırması hiç yok) — soy ağacındaki düğüm halka rengi
-de bu (yanlış belgelenmiş) mantığa dayanıyor. Düşük riskli olduğu için
-sadece yorum düzeltildi (davranış DEĞİŞTİRİLMEDİ — gerçekten "en yüksek
-power" mantığına geçmek görsel/davranışsal bir değişiklik olurdu, PM
-onayı gerektirir, TASKS.md'de ayrı bir aday olarak not düşüldü).
-
-**Doğrulama (coder)**: `npx tsc --noEmit` ve `npm run build` temiz,
-`dist/`'te anahtar sızıntısı yok, `dist/` silindi.
-
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
-
-`dominantOrganType()` (lineagetree.ts satır ~140-142) gerçek kodu
-doğrulandı — `organs.length > 0 ? organs[organs.length - 1] : null`,
-herhangi bir `power` karşılaştırması/sort YOK, iddia doğru. `genome.ts`
-`maybeGainOrgan` (satır ~275-283) da doğrulandı — yeni organı
-`[...organs, newOrgan]` ile sona ekliyor, mevcut organların power'ıyla
-karşılaştırma yapmıyor; coder'ın append-only iddiası doğru. Yeni yorum
-(satır 127-132) kodla tutarlı. `npx tsc --noEmit` ve `npm run build`
-bağımsız olarak tekrar çalıştırıldı, ikisi de temiz; `dist/` içinde
-anahtar/sızıntı taraması negatif; `dist/` tekrar silindi. Davranış kodu
-değişmemiş (sadece yorum), diff riski yok.
-
-## Faz XI — Plague Inc Tarzı Canlı Diyagramı + Soy Ağacı Tam Sayfa Görünümü (arşiv)
-
-Kullanıcı isteği (2026-09-10, coder 6f/c2, PM 6c görevlendirmesi):
-TAMAMLANDI, **Tester GEÇTİ (bağımsız, 2026-09-10)**.
-
-**Madde 1 — Şematik canlı diyagramı**: inceleme panelindeki organ
-listesinin ÜSTÜNE, gövdeyi + sahip olunan organları gösteren küçük bir
-SVG eklendi (`hud.ts` `buildCreatureDiagram`). Her `OrganCategory`
-(movement/sense/feeding/defense, bkz. `organs.ts`) gövde etrafında sabit
-bir bölgeye (üst=algı, sağ=beslenme, alt=hareket, sol=savunma) atanıyor —
-anatomik kesinlik hedeflenmiyor, sadece "nerede ne var" hissi. Aynı
-kategoride birden fazla organ varsa o bölge içinde eşit açıyla
-dağıtılıyor (`organs.ts` `slotAngle` ile aynı ruhta, ama SVG/DOM
-uzayında, Pixi `Graphics`'e bağımlı değil). Her ikon `<title>` ile
-organın gerçek `label`/`description`'ını (hover tooltip) taşıyor. En son
-kazanılan organ (`organs[organs.length-1]` — `lineagetree.ts`
-`dominantOrganType` ile AYNI, zaten belgelenmiş kural) hafif bir CSS
-`@keyframes` pulse animasyonuyla öne çıkıyor. **"Uydurma yok" garantisi**:
-gösterilen HER ikon `InspectionData.organs`'tan (gerçek genom verisi)
-türetiliyor, hiçbir sabit/dekoratif ikon yok — organsız bir mikroorganizma
-boş bir gövde dairesi gösterir. Sadece `showInspector` (canlı bireyler)
-için eklendi, `showDeceasedInspector` kapsam dışı bırakıldı (kullanıcının
-net istediği "canlı ekranı" ile sınırlı).
-
-**Madde 2 — Soy ağacı tam sayfa görünümü**: `.overlay-panel` (sağ üstte
-sabit 520x380px) yerine yeni `.overlay-panel-fullpage` sınıfı — sahne
-alanının neredeyse tamamını kaplıyor (14px kenar boşluğu). Mevcut
-zoom/pan/tekerlek/filtre mantığı (`lineagetree.ts`) HİÇ DEĞİŞMEDİ —
-üzerine açık −/yüzde/+/1:1 butonları eklendi (`setZoom`/`updateZoomLabel`,
-mevcut `ZOOM_STEP`/`MIN_ZOOM`/`MAX_ZOOM` sabitlerini paylaşıyor), tekerlek
-zoom'u hâlâ çalışıyor (butonlar ek/daha keşfedilebilir bir yol, eskiyi
-kırmadı).
-
-**Doğrulama (coder tarafı)**: `npx tsc --noEmit` ve `npm run build` temiz,
-`dist/` API anahtarı sızıntı taraması sıfır, `dist/` silindi. İzole
-Playwright testi (port 6933, PID 37876, sadece kendi PID'i durduruldu): 5
-organ zorlanan bir canlıda inceleme paneli açıldı — `.creature-diagram`
-DOM'da mevcut, 5 ikon render edildi (`ICON_COUNT 5`), en son eklenen
-(`fin`) TEK başına pulse sınıfı taşıyor (`PULSE_COUNT 1`) — doğru. Soy
-ağacı açılıp panel boyutu ölçüldü: 1500x1000 viewport'ta panel 1192x920px
-(eski sabit 520x380'den belirgin şekilde büyük, gerçek "tam sayfa"
-hissi). Zoom butonuna tıklanınca etiket 100%→110% doğru güncellendi.
-Sıfır sayfa hatası. İki ekran görüntüsü kullanıcıya gönderildi (dürüst
-görsel doğrulama).
-
-### Tester doğrulaması (bağımsız, 2026-09-10): GEÇTİ
-
-c2'nin senaryosuna güvenmeden farklı bir kombinasyon test edildi (geçici
-dev server, PID doğrulanıp sadece o PID durduruldu): (1) **Diyagram**:
-`eye/mouth/leg/shell/spike` (5 organ, İKİSİ aynı kategoride —
-`shell`+`spike` ikisi de "defense" — açısal dağıtım mantığını da
-kapsayacak şekilde) zorlandı, gerçek tıklamayla panel açıldı — 5 ikon
-render edildi, SADECE en son eklenen (`spike`) pulse sınıfı taşıyor, her
-ikonun `<title>`'ı gerçek organ `label`/`description`'ıyla BİREBİR
-eşleşti (uydurma yok). Organsız bir birey AYRICA test edildi: 0 ikon +
-sadece gövde dairesi (iddia edildiği gibi). (2) **Soy ağacı tam sayfa**:
-1280×720 viewport'ta panel 972×640 (ekranın %76×%89'u) — "tam sayfa"
-iddiası doğrulandı. Zoom butonlarıyla 3 kez yakınlaştırıldı
-(110%→120%→130%, etiket her adımda doğru), ARDINDAN fare tekerleği ile
-TEKRAR yakınlaştırıldı (1.3→1.4) — buton ve tekerlek zoom'unun AYNI
-durumu paylaştığı, birbirini bozmadığı kanıtlandı (c2'nin testinde bu
-kombinasyon test edilmemişti). 1:1 butonu zoom'u tam olarak 1.0/100%'e
-döndürdü. Filtre kontrolleri (5 adet) ve düğüm tıklama pozisyonları (25
-düğüm) bulundu/işlevsel. Sıfır sayfa hatası. `npx tsc --noEmit`/`npm run
-build` bağımsız tekrarlandı, temiz; `dist/` sızıntı taraması sıfır,
-`dist/` silindi.
-
-## Faz XI — `crossoverGenomes` Organ Birleşimi Adalet Düzeltmesi (arşiv)
-
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM onaylı — tester 62'nin bulgusu),
-**Tester GEÇTİ (bağımsız, 2026-09-10, tester 62)**.
-
-**Kök neden**: `genome.ts` `crossoverGenomes`'un organ birleşimi bir `Map`
-üzerinden yapılıyordu (`a.organs` önce eklenip, sonra `b.organs`, insertion-
-order korunarak) ve sonuç `.slice(0, MAX_ORGAN_TYPES)` (6) ile kesiliyordu.
-Yorumun iddia ettiği "adil birleşim (union, tekrarsız)" aslında ADİL
-DEĞİLDİ: birleşik organ sayısı 6'yı aşarsa (her ebeveyn bağımsız olarak
-6'ya kadar farklı organ taşıyabildiğinden gerçekçi bir senaryo), `a.organs`
-Map'e ÖNCE eklendiği için `slice` HER ZAMAN `a`'yı `b`'ye tercih ediyordu.
-Çağrı yerinde (`ecosystem.ts` `updateSexualReproduction`) `a` rastgele
-değil, her zaman eşleşme aramasında "arayan" (dizide daha erken indeksli)
-taraf — yani sistematik, rastgele olmayan bir yanlılık.
-
-**Düzeltme**: `genome.ts` `crossoverGenomes` — birleşik organ listesi
-kesmeden ÖNCE Fisher-Yates ile karıştırılıyor, sonra `MAX_ORGAN_TYPES`'a
-kesiliyor. Ortalama-power birleştirme mantığı (iki ebeveynde de aynı organ
-tipi varsa güçlerinin ortalaması alınır) DEĞİŞMEDİ — sadece kimin hayatta
-kaldığı artık rastgele (istenen davranış değişikliği).
-
-**Coder'ın kendi testi**: main.ts'e geçici bir `__debugCrossoverOrganBias(trials)`
-TEST-ONLY debug hook'u eklendi — her ebeveyne SADECE kendine özgü 4 organ
-verilip (a: fin/leg/wing/tentacle, b: eyespot/eye/mouth/shell — toplam
-8 > `MAX_ORGAN_TYPES`=6, eski bug'ı kesin tetikleyen senaryo) 2000 deneme
-çalıştırıldı: `aWins=5953, bWins=6047` → a kazanma oranı **%49.61** (eski
-koddan matematiksel olarak beklenen: a'nın 4 organı + b'nin ilk 2'si HER
-ZAMAN kazanırdı, ~%100 a-yanlılığı). `npx tsc --noEmit`/`npm run build`
-temiz, `dist/` sızıntı taraması sıfır, `dist/` silindi.
-
-### Tester doğrulaması (bağımsız, 2026-09-10, tester 62): GEÇTİ
-
-Kod incelemesi — Fisher-Yates shuffle'ın kendisi (`for i=len-1..1,
-j=random(0..i), swap`) doğru/standart algoritma, off-by-one yok, bağımsız
-olarak doğrulandı. Coder'ın hook'una körü körüne güvenmeden, aynı hook
-FARKLI deneme sayılarıyla (coder'ın kullanmadığı 7000 ve 100) tekrar
-çalıştırıldı — geçici dev server (port 6711, PID 32256, sadece kendi
-PID'i durduruldu): 7000 denemede `aWins=21053, bWins=20947` → a oranı
-**%50.13** (istatistiksel gürültü içinde, mükemmel dengeli); 100 denemede
-bile `aWins=298, bWins=302` → %49.67 — küçük örneklemde bile sapma yok.
-`npx tsc --noEmit`/`npm run build` bağımsız tekrarlandı, temiz; `dist/`
-sızıntı taraması sıfır, `dist/` silindi. Sıfır sayfa hatası. **Temizlik**:
-doğrulama tamamlandıktan sonra `__debugCrossoverOrganBias` hook'u
-(main.ts) ve artık kullanılmayan `crossoverGenomes`/`randomGenome`
-importları TAMAMEN kaldırıldı — tsc/build tekrar temiz doğrulandı, proje
-kuralına uygun (test-only hook'lar doğrulama sonrası geri alınır).
-
-## Faz XI — `geminiinsight.ts` Stale Organ Whitelist Düzeltmesi (arşiv)
-
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM onaylı — tester 62'nin bulgusu),
-**Tester GEÇTİ (bağımsız, 2026-09-10, tester 62)**.
-
-**Kök neden**: `VALID_SUGGESTION_TARGETS` SADECE Faz II'nin orijinal 10
-organ tipini SABİT listeliyordu (`fin, leg, wing, tentacle, eyespot, eye,
-mouth, shell, camouflage, spike` + `"sexual"`) — proje Faz X/XIV/XVI'da 21
-organ tipine çıkınca bu liste hiç güncellenmemişti. Prompt metni de
-sadece bu eski 10 organı Gemini'ye sıralıyordu. `applyOrganWeightSuggestion`
-(organs.ts) kendisi `ALL_ORGAN_TYPES`'a göre doğru validasyon yapıyordu,
-ama `extractSuggestion`'daki bu stale whitelist Gemini yeni bir organ
-(örn. "venom") önerse bile SESSİZCE reddediyordu — Faz VII'nin "hafif
-yönlendirme" özelliği fiilen organ havuzunun yarısından azıyla sınırlı
-kalmıştı.
-
-**Düzeltme**: `VALID_SUGGESTION_TARGETS` artık `organs.ts` `ALL_ORGAN_TYPES`'tan
-TÜRETİLİYOR (`[...ALL_ORGAN_TYPES, "sexual"]`), prompt metnindeki organ
-listesi de dinamikleştirildi.
-
-**Coder'ın kendi testi**: geçici bir TEST-ONLY debug hook (doğrulama
-sonrası TAMAMEN geri alındı) ile sahte Gemini yanıtları üzerinden
-`extractSuggestion` çağrıldı — YENİ organlar (`venom`, `nitrogen_sac`)
-artık KABUL ediliyor (eskiden reddedilirdi); ESKİ organlar (`fin`) ve
-`"sexual"` hâlâ kabul ediliyor (regresyon yok); uydurma bir hedef
-(`not_a_real_organ`) hâlâ DOĞRU şekilde reddediliyor. `npx tsc --noEmit`/
-`npm run build` temiz, `dist/` sızıntı taraması sıfır, `dist/` silindi.
-
-### Tester doğrulaması (bağımsız, 2026-09-10, tester 62): GEÇTİ
-
-Gemini API'yi gerçekten çağırmadan (günlük kota paylaşılıyor, boşa
-harcamamak için), tamamen STATİK kod doğrulaması yapıldı — `organs.ts`'teki
-`ORGAN_DEFINITIONS` nesnesinin gerçek anahtarları (grep ile çıkarıldı)
-`OrganType` union'ındaki 21 tip ile BİREBİR eşleşiyor (`bioluminescence,
+  — a rolling window holding the last 10 prevalence ratios per organ type,
+  filled in the SAME 2-second loop as `checkPrevalenceMilestones`
+  (`recordPrevalenceSample`) (reusing the already-computed `fraction`, no
+  extra scanning). `getOrganPrevalenceTrend()`: returns
+  `insufficient-data` if the window isn't full yet; if full, compares the
+  first-half/second-half averages (with `PREVALENCE_TREND_STABLE_THRESHOLD`
+  tolerance) and returns `up`/`down`/`stable`. `prevalenceHistory.clear()`
+  added to `restart()` (consistent with resetting the other event-state
+  Maps).
+- `main.ts`: a `showInspectorWithTrend()` helper — merges
+  `ecosystem.getOrganPrevalenceTrend()` into the organ list returned by
+  `Creature.getInspectionSummary()` and passes it to `hud.showInspector()`.
+  `Creature` itself DOESN'T KNOW about ecosystem-wide data (the separation
+  was deliberately kept) — merging happens only in main.ts, right before
+  the panel opens. Both call sites (creature click + lineage-tree
+  selection) updated.
+- `hud.ts`: an optional `trend?: OrganPrevalenceTrend` field added to
+  `InspectionData.organs`. A `TREND_SYMBOLS` map — `insufficient-data`
+  DELIBERATELY returns an empty string (no arrow rendered at all, no fake
+  "stable" claim). `showDeceasedInspector` (organs at time of death, a
+  retrospective view) was NOT TOUCHED — the trend concept only makes
+  sense for the live inspection panel.
+- `dashboard.css`: `.inspector-organ-trend-{up,down,stable}` — green/red/
+  gray colors, matching the existing chip/organ-row style, a minimal
+  addition.
+
+**Verification**: `npx tsc --noEmit`/`npm run build` clean. Two Playwright
+scenarios with temporary test-only debug hooks (main.ts —
+`__debugOpenInspector`, `__getSimTime`, `__getOrganPrevalenceTrendDebug`,
+FULLY REVERTED AFTER VERIFICATION, tsc/build re-confirmed clean):
+1. On a temporary dev server (port 6318/6319, PID confirmed and only that
+   PID stopped), run for ~60s (4x speed), once the window was full, an
+   organ-bearing individual was forced open in the inspection panel — the
+   panel's rendered HTML for the real organ row confirmed to contain an
+   `inspector-organ-trend-stable`-classed "—" arrow + the correct `title`
+   tooltip ("Stable in the population"), zero console/page errors.
+2. At the start of the sim (window guaranteed empty),
+   `getOrganPrevalenceTrend()` was called directly and confirmed that ALL
+   21 organ types return `insufficient-data` — in the panel-render code
+   this value maps to an empty string, i.e. no fake arrow is shown at all.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+Four files (`ecosystem.ts`/`main.ts`/`hud.ts`/`savegame.ts` confirmed
+untouched) reviewed line by line, confirmed `getOrganPrevalenceTrend()`'s
+first-half/second-half average comparison matches the code's claim
+exactly, and that `showDeceasedInspector` correctly bypasses the trend
+logic. My own isolated Playwright test (without relying on the coder's
+removed hooks, with my own debug hook): for a creature forced to have a
+leg organ, (1) at the start of the sim (window guaranteed empty) the
+inspection panel has NO trend arrow at all — `insufficient-data` correct;
+(2) after ~20s at 4x speed (once the window was full), the same creature
+was reselected and the organ row rendered as `Leg 0.30 —` — matching
+`hud.ts`'s `TREND_SYMBOLS.stable` ("—") exactly. **Test-methodology
+note**: in the first attempts, the click-scan couldn't find the creature
+due to world-coordinate/screen-coordinate confusion (`__forcePosition`
+takes WORLD coordinates, while the camera applies a fixed scale/offset via
+`fitCamera()`) — for diagnosis, a permanent TEST-ONLY `__worldToScreen(x,y)`
+debug hook was added to `main.ts` (world→screen conversion, since
+`world.position`/`world.scale` weren't externally accessible), which can
+also be used for future click-based tests. tsc/build clean.
+
+## Phase XI — Broad Health Sweep (archive)
+
+Via PM assignment (code files untouched, read-only testing): save/load
+(v8), export/import, Gemini proxy error-tolerance, and the telemetry
+`/history` ring buffer's behavior over a long (11min real) run were
+scanned.
+
+- **✅ Gemini proxy error-tolerance**: GET→405, missing prompt→400,
+  invalid JSON→502 (no crash, `try/catch` correctly catches it), valid
+  prompt→real API call succeeds.
+- **✅ Save/Load (v8)**: clean round-trip, `packHunter` field correctly
+  saved/read, autosave+reload smooth.
+- **✅ Telemetry `/history`**: in an 11-minute real 4x-speed run,
+  `historyCount` regularly climbed 5→49, population stayed stable at 140,
+  zero errors — the ring buffer is sound long-term.
+- **🔴 CRITICAL BUG (blocking) — Export/Import**: exact/deterministic
+  reproduction: (1) on a fresh page (planet formation screen open, "Start"
+  NOT PRESSED YET), a previously exported save file is imported, (2)
+  then "Start Simulation" is pressed. **Root cause**: the import handler
+  in `main.ts` (`importInput.addEventListener`) calls
+  `ecosystem.loadFromSave(data)` but does NOT set the `simulationStarted`
+  flag — `startNewSimulation()` (line ~461) runs
+  `spawnInitialCreatures(INITIAL_CREATURE_COUNT)` without checking this
+  flag, adding 24 new random creatures ON TOP OF the imported population
+  (measured: 38→62). **A second, related issue**: import does NOT
+  REBUILD `worldMap` based on the saved `mapSeed` (only the page-load-with-
+  existing-save path does this) — the imported creatures' positions become
+  meaningless against the current (different/random) map. **Measured
+  impact**: **17 of 38 creatures (45%) violate the water→land
+  restriction** (`onLand===true` AND `canWalkOnLand===false`) — a real
+  violation of a rule that had been separately verified unbroken in every
+  phase since Phase II.
+  **Not fixed** (this task was read-only/test-only) — handed off to the
+  coder (fix: see "Phase XI — Import Bug Fix" below).
+
+## Phase XI — Import Bug Fix (archive)
+
+COMPLETE (coder c5), **Tester (6f) PASSED (independent, 2026-09-10)**. The
+fix for the critical bug found by 6f in the "Broad Health/Regression
+Sweep" above.
+
+**Root cause (independently re-confirmed by the coder)**: the import
+handler in `main.ts` called `ecosystem.loadFromSave(data)` directly — it
+never set the `simulationStarted` flag AND `worldMap` (already set up with
+a random seed at page load) wasn't rebuilt with the save's `mapSeed`.
+
+**Fix approach**: since `worldMap` is held as a `private readonly`
+reference inside `Ecosystem` (`constructor(private readonly world: World,
+...)`) and `World` itself is largely built immutably with `readonly`
+`grid`/`elevationGrid`/`seed` fields, rebuilding a live `World` instance in
+place (or swapping it for a new instance in `main.ts` and updating every
+closure) would be a risky/invasive refactor. Instead, the SAME path that
+already works correctly at page OPEN (`loadSaveData()` + `new
+World(savedGame.mapSeed)`, line ~89-90) was reused: the import handler now
+writes `writeSaveData(data)` and calls `location.reload()` instead of
+calling `ecosystem.loadFromSave(data)` — `worldMap` is rebuilt FROM
+SCRATCH with the correct seed, `simulationStarted` is computed with the
+correct initial value (`savedGame !== null`), and `spawnInitialCreatures`
+is never called. No NEW map-rebuilding path was invented — the existing,
+proven code was reused.
+
+**A second bug (found during live testing, during the first fix
+attempt)**: the first attempt (calling `app.ticker.stop()`) was
+INSUFFICIENT — live testing showed the population stayed in its old/own
+state, as if the imported data had never been applied at all. Root-cause
+investigation: `location.reload()` also fires the `beforeunload` event,
+and that handler (line ~806) was calling ITS OWN `writeSaveData` and
+rewriting the current (not-yet-imported) live creature state, SILENTLY
+OVERWRITING the imported data that had just been written — but ONLY if
+the simulation was already running (`simulationStarted===true`, thanks to
+`beforeunload`'s own `if (!simulationStarted) return` guard, this issue
+didn't occur while the formation screen was open, which explains why the
+first test — the exact same scenario as 6f's reproduction — passed, but
+why the "import onto an already-running sim" scenario failed). Fix: a new
+`skipBeforeUnloadAutosave` flag was added, the import handler sets it to
+`true` right BEFORE calling `writeSaveData`, and the `beforeunload`
+handler skips its own write if this flag is set.
+
+**Verification** (Playwright, 3 separate scenarios, each on a temporary
+dev server on a different port, PID confirmed and only that PID stopped,
+`taskkill /IM node.exe` never used):
+1. **6f's reproduction** (fresh page → import BEFORE "Start" → press
+   "Start"): a real simulation was run, and a REAL save file was produced
+   via `export-save-btn` (captured with Playwright's `download` event),
+   then imported on a fresh page before pressing "Start." Result: after
+   reload, population matched the imported file's `creatures.length`
+   EXACTLY (51=51), `__getMapSeed()` matched the file's `mapSeed` EXACTLY,
+   the planet formation screen correctly did NOT show (the loaded-game
+   path), water/land violation ZERO (`onLand && !canWalkOnLand` check —
+   same methodology as 6f's).
+2. **Proof of the second bug** (import ONTO an ALREADY-RUNNING
+   simulation): while session B ran its own simulation, a different save
+   exported from session A was imported. With the first fix attempt (just
+   `ticker.stop()`) this test FAILED (population/seed stayed in B's OWN
+   old state, as if import had never been applied) — direct proof of the
+   `beforeunload` race. AFTER the `skipBeforeUnloadAutosave` flag was
+   added, the same test: population matched the imported file's
+   `creatures.length` EXACTLY (42=42), map seed matched exactly, zero
+   violations.
+3. **Normal autosave/page-refresh regression test** (import NOT used at
+   all, just a normal browser refresh): population/map-seed stayed
+   EXACTLY the same before/after refresh, zero violations — confirmed the
+   fix didn't break this ALREADY-WORKING path (they share the same
+   `loadSaveData`/`World` code path, but import didn't ADD any NEW
+   branch, it just REUSED the existing path).
+
+`npx tsc --noEmit`/`npm run build` clean, zero API key leaks in `dist/`.
+A temporary test-only `console.log` (added during initial diagnosis) was
+reverted BEFORE verification completed.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+My own Playwright script (without relying on c5's tests, an isolated dev
+server) reproduced the scenarios with my own measurements, using a save
+the coder exported from a fresh sim (seed 1344155058, popA=25): (1) fresh
+page, import before pressing "Start": seed matched exactly, population
+matched exactly (25=25), 0 water/land violations; (2) import WHILE the sim
+was ALREADY RUNNING (24 creatures) (the `beforeunload` race): seed matched
+exactly, population matched the imported data exactly (25=25, NOT ADDED
+ON TOP of the old 24), 0 violations. Zero page errors in both scenarios.
+tsc clean.
+
+## Phase XI — Organ Description Text Sweep (archive)
+
+PM assignment: review the 21 organ descriptions + type comments in
+`organs.ts` (TEXT ONLY, logic UNCHANGED) for readability/consistency —
+the user had previously said "detailed but without padding/rambling."
+
+Each organ definition was compared one by one against the code's reality
+(the actual mechanical-effect calculations in `creature.ts`). 3 real
+inconsistencies were found and fixed:
+
+1. **`bioluminescence` — a real error**: both the type comment
+   (`organs.ts` line 59) and the panel description claimed "increases
+   sensing in deep water/low oxygen." Code review (`creature.ts`
+   `effectiveSenseRadius`): the organ applies its effect UNCONDITIONALLY —
+   there's no water-depth/oxygen check at all, it always gives the same
+   +20 to +50 bonus. This directly contradicted the file's own principle
+   ("must be exactly consistent with the ACTUAL effect in the code, NOT
+   fabricated text"). Fix: both the type comment and panel description
+   were updated to an accurate phrasing that doesn't claim the condition,
+   while keeping the flavor/inspiration context (deep-sea creatures).
+2. **`tentacle` type comment**: said "primitive movement, slight speed +
+   sensing." Code review (`creature.ts` `effectiveMoveSpeed`): tentacle
+   ONLY contributes to the water-speed factor, it never appears in
+   `effectiveSenseRadius` — no contribution to sensing at all. The type
+   comment was fixed (the panel description was already correct,
+   untouched).
+3. **`wing`**: the panel description was IDENTICAL to `tentacle`'s ("Gives
+   a slight extra speed in water") — mechanically CORRECT (both
+   contribute to the same small water-speed bonus, confirmed in
+   `creature.ts`), but the "future flight" context in the type comment
+   was never reflected in the panel. The description was clarified to
+   avoid confusing the user ("for now... flight isn't implemented yet").
+
+Also, `sulfur_vent_organ`'s description was made consistent with
+`stomach`'s pattern (contributing to the same feeding-efficiency chain
+alongside mouth/stomach), a small clarity improvement (code review of
+`creature.ts` `feedingEfficiency` confirmed sulfurVent genuinely
+contributes multiplicatively to the same multiplier chain).
+
+The other 18 organ descriptions were reviewed one by one and found
+consistent with the actual mechanics — no further fix made. `npx tsc
+--noEmit`/`npm run build` clean.
+
+## Phase XI — `loadFromSave` Event-State Cleanup (archive)
+
+Found during a PM-assigned bug-hunting/simplification sweep (main.ts/
+ecosystem.ts/creature.ts, looking for an edge case overlooked in the
+interaction of recently added features — the import bug fix, the organ
+trend arrow, packHunter).
+
+**Finding**: `Ecosystem.reset(count)`, when resetting the population, also
+fully cleared lineage/event/organ-trend TRACKING state (lineage,
+`firedPrevalenceMilestones`, `prevalenceHistory`, `firedEnergyAdvantage`,
+`everObservedOrganTypes`, `firedExtinction`, `firedFirstCarnivore`,
+`oldAgeDeathCount`, `recentEventTexts`, `evolutionEventCheckTimer`,
+`pendingEvolutionEvents`, `resetGenomeIdCounter()`) — but `Ecosystem.
+loadFromSave(saved)` (the import/page-open-load-save path), DESPITE
+calling `clearAll()` to clear creatures/nutrients, never cleared this
+tracking state at all. This asymmetry wasn't documented anywhere in the
+file.
+
+**Why it had been harmless so far**: `loadFromSave`'s ONLY call site
+(`main.ts` line ~137) always ran on a NEWLY constructed `new
+Ecosystem(worldMap, world)` instance — these fields were already in their
+empty/default state, so it produced no observable bug in practice.
+
+**Why it was still a real risk**: this was an assumption never guaranteed/
+enforced in the code ("`loadFromSave` is only ever called on a fresh
+`Ecosystem`"). If someone later (e.g. adding a "load a different save
+without refreshing the page" feature) called `loadFromSave` on a RUNNING
+ecosystem, tracking data left over from the old population would SILENTLY
+mix with the NEW population — e.g. a false "went extinct" event for an
+organ that's still present in the new population, or the organ trend
+arrow pointing the wrong way based on old (irrelevant) data — a class of
+error that's hard to detect and directly violates TASKS.md's "Cause/
+rationale transparency... no fabrication" principle.
+
+**Fix (PM-approved)**: a shared `private clearEventTrackingState()` helper
+method was added (moved verbatim from `reset()`'s old body — EXCEPT
+`simulationTime`/`totalBirths`/`historicalMaxGeneration`, since those are
+reset in `reset()` and restored from the save in `loadFromSave()`, not
+shared "event TRACKING" state between the two). Both `reset()` and
+`loadFromSave()` now call this helper — behavior did NOT change at all
+(both calls were already operating on empty-state objects), it just closes
+off silently-incorrect behavior in a future reuse, while also removing
+code duplication between the two functions.
+
+**Verification**: `npx tsc --noEmit`/`npm run build` clean, zero API key
+leaks in `dist/`. 3 Playwright regression scenarios (temporary dev server,
+PID confirmed and only that PID stopped) — the SAME three scenarios from
+the previous round (Import Bug Fix) (import-before-start,
+import-onto-a-running-sim, normal-page-refresh) were re-run, all three
+produced EXACTLY the same results (population/map-seed match, zero
+water/land violations, zero page errors) — confirmed there was NO
+behavior change.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+Code review — confirmed `nextGenomeId` (`genome.ts`) is a
+MODULE-LEVEL variable and `loadFromSave`'s ONLY call site (`main.ts:137`)
+always runs during a FRESH module load (page open) — i.e. the
+`resetGenomeIdCounter()` call already runs at a moment when
+`nextGenomeId===1`, causing no behavior change. My own Playwright script
+(without relying on coder c5's tests, an isolated dev server) reproduced
+the 3 scenarios, plus extra lineage-contamination/ID-uniqueness checks: (1)
+import-before-start: seed/pop matched exactly (24=24), 0 violations,
+lineage record matched the imported data EXACTLY (24=24), and after
+running 4 more seconds post-import, newly born creatures' IDs stayed
+unique; (2) import ONTO a RUNNING sim (with its own 25 accumulated lineage
+records): after import, lineage record matched the IMPORTED data exactly
+(24), NOT CONTAMINATED/MERGED with the old running sim's 25 records —
+direct proof that `clearEventTrackingState()` genuinely works; (3) normal
+page refresh (import never used): population/seed unaffected. Zero page
+errors, tsc clean.
+
+## Phase XI — Organ Description Consistency, 2nd Independent Round
+## (archive)
+
+COMPLETE (coder, subagent, 2026-09-10), **Tester PASSED (independent,
+2026-09-10)**. `organs.ts`/`creature.ts`/`ecosystem.ts` were swept again
+from a different angle than Phase XI's first "Organ Description Text
+Sweep" (see above), by a second independent eye.
+
+**Inconsistency found**: `creature.ts`'s `survivalBonus()` function's doc
+comment said "in this phase, it also slightly lowers metabolism as a
+passive energy-efficiency bonus" — this behavior did NOT EXIST in the code
+(the function just returns an escape-chance number, never touches
+metabolism) and it already CONTRADICTED the `metabolismMultiplier()`
+comment in the same file (lines ~232-234: "camouflage/spike don't affect
+metabolism").
+
+**Fix (text only)**: the `survivalBonus()` comment was updated to
+correctly reference the organ's ACTUAL usage site (`ecosystem.ts`
+`huntCreature`/`packHuntEscapeReduction` — escape chance while being
+hunted); behavior/code logic unchanged. All other organ descriptions
+(including gill/lung/shell/torpor/blubber/venom/regeneration/
+nitrogen_sac/sulfur_vent_organ) were compared against `creature.ts`/
+`ecosystem.ts` mechanical effects, no further mismatch found.
+`prevalenceContext()` (ecosystem.ts) has special context text for only
+10/21 organs, the rest fall through to a harmless "spreading in the
+population" default — not a bug, left out of scope (no behavior change
+requested).
+
+**Verification (coder)**: `npx tsc --noEmit` (clean BEFORE and AFTER) +
+`npm run build` clean, `GEMINI_API_KEY` found neither by name nor by value
+in `dist/` (confirmed via grep), `dist/` deleted as a temporary artifact.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+`survivalBonus()`'s code was reviewed line by line — it returns a number
+based only on shell/camouflage/spike/venom gland, never touches
+metabolism; the actual usage site was confirmed as `ecosystem.ts`
+`huntCreature`/`packHuntEscapeReduction` as escape chance, the new comment
+is consistent with this behavior. `tsc --noEmit` and `npm run build`
+independently re-run clean, no key leak in `dist/`, `dist/` deleted.
+
+## Phase XI — Bug-Hunting Sweep (main.ts/hud.ts/lineagetree.ts/
+## savegame.ts/exportimport.ts) (archive)
+
+COMPLETE (coder, 2026-09-10), **Tester PASSED (independent, 2026-09-10)**.
+Event-listener cleanup, null/undefined checks, save/export-import format
+consistency reviewed — all ✅ healthy (event listeners are set up once
+for the app's lifetime, with `dataset.wired` guards; save and export/
+import share the SAME `isValidSaveData`, no inconsistency).
+
+**Inconsistency found**: `lineagetree.ts`'s `dominantOrganType()` comment
+claimed it picks the organ "with the highest `power` value," but the code
+actually returns `organs[organs.length - 1]` — the MOST RECENTLY GAINED
+organ (genome.ts's `maybeGainOrgan` appends new organs to the array, no
+power comparison at all) — the lineage-tree node ring color also relies
+on this (incorrectly documented) logic. Since the risk was low, only the
+comment was fixed (behavior was NOT CHANGED — actually switching to
+"highest power" logic would be a visual/behavioral change requiring PM
+approval, noted as a separate candidate in TASKS.md).
+
+**Verification (coder)**: `npx tsc --noEmit` and `npm run build` clean, no
+key leak in `dist/`, `dist/` deleted.
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+`dominantOrganType()`'s (lineagetree.ts lines ~140-142) actual code was
+confirmed — `organs.length > 0 ? organs[organs.length - 1] : null`, no
+`power` comparison/sort at all, the claim is correct. `genome.ts`'s
+`maybeGainOrgan` (lines ~275-283) was also confirmed — it appends the new
+organ to the end, comparing against no existing organ's power; the
+coder's append-only claim is correct. The new comment (lines 127-132) is
+consistent with the code. `npx tsc --noEmit` and `npm run build`
+independently re-run, both clean; key/leak scan in `dist/` negative;
+`dist/` deleted again. Behavior code unchanged (comment only), no diff
+risk.
+
+## Phase XI — Plague-Inc-Style Creature Diagram + Lineage Tree Full-Page
+## View (archive)
+
+User request (2026-09-10, coder 6f/c2, PM 6c assignment): COMPLETE,
+**Tester PASSED (independent, 2026-09-10)**.
+
+**Item 1 — Schematic creature diagram**: a small SVG was added ABOVE the
+organ list in the inspection panel, showing the body + owned organs
+(`hud.ts` `buildCreatureDiagram`). Each `OrganCategory` (movement/sense/
+feeding/defense, see `organs.ts`) is assigned to a fixed zone around the
+body (top=sense, right=feeding, bottom=movement, left=defense) — not
+aiming for anatomical accuracy, just a "what's where" feel. If a category
+has multiple organs, they're distributed at equal angles within that zone
+(same spirit as `organs.ts`'s `slotAngle`, but in SVG/DOM space, not
+dependent on Pixi `Graphics`). Each icon carries the organ's real
+`label`/`description` via `<title>` (hover tooltip). The most recently
+gained organ (`organs[organs.length-1]` — SAME as `lineagetree.ts`'s
+`dominantOrganType`, an already-documented rule) is highlighted with a
+subtle CSS `@keyframes` pulse animation. **The "no fabrication"
+guarantee**: EVERY icon shown is derived from `InspectionData.organs`
+(real genome data), there are no fixed/decorative icons — an organless
+microorganism shows an empty body circle. Added only for `showInspector`
+(live individuals), `showDeceasedInspector` was left out of scope
+(limited to the user's clearly-requested "live screen").
+
+**Item 2 — Lineage tree full-page view**: instead of `.overlay-panel`
+(fixed 520x380px in the top-right), a new `.overlay-panel-fullpage` class
+— covers nearly the entire scene area (14px margin). The existing zoom/
+pan/wheel/filter logic (`lineagetree.ts`) was NOT CHANGED AT ALL — explicit
+−/percentage/+/1:1 buttons were added on top (`setZoom`/`updateZoomLabel`,
+sharing the existing `ZOOM_STEP`/`MIN_ZOOM`/`MAX_ZOOM` constants), wheel
+zoom still works (buttons are an additional/more discoverable path, the
+old one wasn't broken).
+
+**Verification (coder side)**: `npx tsc --noEmit` and `npm run build`
+clean, zero API key leak scan in `dist/`, `dist/` deleted. Isolated
+Playwright test (port 6933, PID 37876, only its own PID stopped): the
+inspection panel was opened for a creature forced to have 5 organs —
+`.creature-diagram` present in the DOM, 5 icons rendered (`ICON_COUNT 5`),
+the most recently added one (`fin`) ALONE carries the pulse class
+(`PULSE_COUNT 1`) — correct. The lineage tree was opened and panel size
+measured: at a 1500x1000 viewport the panel is 1192x920px (markedly
+bigger than the old fixed 520x380, a genuine "full page" feel). Clicking
+the zoom button correctly updated the label 100%→110%. Zero page errors.
+Two screenshots were sent to the user (honest visual verification).
+
+### Tester verification (independent, 2026-09-10): PASSED
+
+Without relying on c2's scenario, a different combination was tested
+(temporary dev server, PID confirmed and only that PID stopped): (1)
+**Diagram**: `eye/mouth/leg/shell/spike` (5 organs, TWO in the same
+category — `shell`+`spike` are both "defense" — to also cover the angular
+distribution logic) was forced, the panel opened via a real click — 5
+icons rendered, ONLY the most recently added one (`spike`) carries the
+pulse class, each icon's `<title>` matched the real organ `label`/
+`description` EXACTLY (no fabrication). An organless individual was ALSO
+tested: 0 icons + just the body circle (as claimed). (2) **Lineage tree
+full page**: at a 1280×720 viewport the panel is 972×640 (76%×89% of the
+screen) — the "full page" claim confirmed. Zoomed in 3 times with the
+buttons (110%→120%→130%, label correct at every step), THEN zoomed AGAIN
+with the mouse wheel (1.3→1.4) — proof that button and wheel zoom share
+the SAME state and don't break each other (this combination wasn't tested
+in c2's test). The 1:1 button reset zoom exactly to 1.0/100%. Filter
+controls (5 of them) and node click positions (25 nodes) found/functional.
+Zero page errors. `npx tsc --noEmit`/`npm run build` independently
+re-run, clean; zero leak scan in `dist/`, `dist/` deleted.
+
+## Phase XI — `crossoverGenomes` Organ Merge Fairness Fix (archive)
+
+COMPLETE (coder 6f/c2, 2026-09-10, PM-approved — a finding by tester 62),
+**Tester PASSED (independent, 2026-09-10, tester 62)**.
+
+**Root cause**: `genome.ts`'s `crossoverGenomes` merged organs via a `Map`
+(`a.organs` added first, then `b.organs`, preserving insertion order) and
+the result was truncated with `.slice(0, MAX_ORGAN_TYPES)` (6). The
+comment's claim of a "fair union merge, no duplicates" was actually NOT
+FAIR: if the combined organ count exceeded 6 (a realistic scenario, since
+each parent could independently carry up to 6 distinct organs), because
+`a.organs` was added to the Map FIRST, the `slice` ALWAYS favored `a` over
+`b`. At the call site (`ecosystem.ts`'s `updateSexualReproduction`), `a`
+isn't random — it's always the "searcher" side in the pairing search
+(earlier index in the array) — i.e. a systematic, non-random bias.
+
+**Fix**: `genome.ts`'s `crossoverGenomes` — the combined organ list is now
+shuffled with Fisher-Yates BEFORE truncating, then cut to
+`MAX_ORGAN_TYPES`. The average-power merge logic (if both parents have the
+same organ type, their powers are averaged) is UNCHANGED — only who
+survives is now random (the intended behavior change).
+
+**Coder's own test**: a temporary `__debugCrossoverOrganBias(trials)`
+TEST-ONLY debug hook was added to main.ts — each parent given ONLY 4
+organs unique to itself (a: fin/leg/wing/tentacle, b: eyespot/eye/mouth/
+shell — 8 total > `MAX_ORGAN_TYPES`=6, the exact scenario that definitely
+triggers the old bug), run 2000 times: `aWins=5953, bWins=6047` → a's win
+rate **49.61%** (mathematically expected from the old code: a's 4 organs +
+b's first 2 would ALWAYS win, ~100% a-bias). `npx tsc --noEmit`/`npm run
+build` clean, zero leak scan in `dist/`, `dist/` deleted.
+
+### Tester verification (independent, 2026-09-10, tester 62): PASSED
+
+Code review — the Fisher-Yates shuffle itself (`for i=len-1..1,
+j=random(0..i), swap`) is the correct/standard algorithm, no off-by-one,
+independently confirmed. Without blindly trusting the coder's hook, the
+SAME hook was re-run with DIFFERENT trial counts (7000 and 100, not used
+by the coder) — temporary dev server (port 6711, PID 32256, only its own
+PID stopped): at 7000 trials `aWins=21053, bWins=20947` → a's ratio
+**50.13%** (within statistical noise, perfectly balanced); even at 100
+trials, `aWins=298, bWins=302` → 49.67% — no bias even at a small sample.
+`npx tsc --noEmit`/`npm run build` independently re-run, clean; zero leak
+scan in `dist/`, `dist/` deleted. Zero page errors. **Cleanup**: after
+verification completed, the `__debugCrossoverOrganBias` hook (main.ts) and
+the now-unused `crossoverGenomes`/`randomGenome` imports were FULLY
+removed — tsc/build re-confirmed clean, per project rule (test-only hooks
+are reverted after verification).
+
+## Phase XI — `geminiinsight.ts` Stale Organ Whitelist Fix (archive)
+
+COMPLETE (coder 6f/c2, 2026-09-10, PM-approved — a finding by tester 62),
+**Tester PASSED (independent, 2026-09-10, tester 62)**.
+
+**Root cause**: `VALID_SUGGESTION_TARGETS` ONLY listed Phase II's original
+10 organ types as a FIXED list (`fin, leg, wing, tentacle, eyespot, eye,
+mouth, shell, camouflage, spike` + `"sexual"`) — this list was never
+updated once the project grew to 21 organ types across Phase X/XIV/XVI.
+The prompt text also only listed these old 10 organs to Gemini.
+`applyOrganWeightSuggestion` (organs.ts) itself validated correctly
+against `ALL_ORGAN_TYPES`, but this stale whitelist in `extractSuggestion`
+SILENTLY rejected even a new organ (e.g. "venom") suggested by Gemini —
+Phase VII's "light guidance" feature had effectively been limited to less
+than half the organ pool.
+
+**Fix**: `VALID_SUGGESTION_TARGETS` is now DERIVED from `organs.ts`'s
+`ALL_ORGAN_TYPES` (`[...ALL_ORGAN_TYPES, "sexual"]`), and the organ list
+in the prompt text was made dynamic too.
+
+**Coder's own test**: a temporary TEST-ONLY debug hook (FULLY REVERTED
+after verification) called `extractSuggestion` on fake Gemini responses —
+NEW organs (`venom`, `nitrogen_sac`) are now ACCEPTED (previously
+rejected); OLD organs (`fin`) and `"sexual"` are still accepted (no
+regression); a fabricated target (`not_a_real_organ`) is still CORRECTLY
+rejected. `npx tsc --noEmit`/`npm run build` clean, zero leak scan in
+`dist/`, `dist/` deleted.
+
+### Tester verification (independent, 2026-09-10, tester 62): PASSED
+
+Without actually calling the Gemini API (daily quota is shared, to avoid
+wasting it), a fully STATIC code verification was done — the actual keys
+of the `ORGAN_DEFINITIONS` object in `organs.ts` (extracted via grep)
+match the 21 types in the `OrganType` union EXACTLY (`bioluminescence,
 blubber, camouflage, eye, eyespot, fin, gill, heart, leg, lung, mouth,
 nitrogen_sac, regeneration, shell, spike, stomach, sulfur_vent_organ,
-tentacle, torpor, venom, wing` — tam 21, eksik/fazla yok) — yani
-`ALL_ORGAN_TYPES = Object.keys(ORGAN_DEFINITIONS)` KESİN olarak 21 organı
-içeriyor, `VALID_SUGGESTION_TARGETS`'ın spread'i (`[...ALL_ORGAN_TYPES,
-"sexual"]`, filtre YOK) bunların TAMAMINI kapsıyor. `extractSuggestion`'ın
-`.includes(target)` kontrolü değişmemiş, mantık bozulmamış. Ayrıca
-`main.ts`'te `__debugCrossoverOrganBias` hook'unun GERÇEKTEN kaldırıldığı
-grep ile doğrulandı (0 eşleşme). `npx tsc --noEmit`/`npm run build`
-bağımsız tekrarlandı, temiz; `dist/` sızıntı taraması sıfır, `dist/`
-silindi.
+tentacle, torpor, venom, wing` — exactly 21, nothing missing/extra) —
+i.e. `ALL_ORGAN_TYPES = Object.keys(ORGAN_DEFINITIONS)` DEFINITELY
+contains all 21 organs, and `VALID_SUGGESTION_TARGETS`'s spread
+(`[...ALL_ORGAN_TYPES, "sexual"]`, NO filter) covers ALL of them.
+`extractSuggestion`'s `.includes(target)` check is unchanged, logic
+intact. Also confirmed via grep that the `__debugCrossoverOrganBias` hook
+in `main.ts` was GENUINELY removed (0 matches). `npx tsc --noEmit`/`npm
+run build` independently re-run, clean; zero leak scan in `dist/`, `dist/`
+deleted.
 
-## Faz XI — `vite.config.ts` Eksik Content-Type Header Düzeltmesi (arşiv)
+## Phase XI — `vite.config.ts` Missing Content-Type Header Fix (archive)
 
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM'in "daha önce dokunulmamış bir
-alanda küçük bir iyileştirme bul" talimatı üzerine bulundu, düşük risk/
-metin-only olduğu için direkt düzeltildi), **Tester GEÇTİ (bağımsız,
+COMPLETE (coder 6f/c2, 2026-09-10, found following the PM's "find a small
+improvement in an area not touched before" instruction, fixed directly
+since it was low-risk/text-only), **Tester PASSED (independent,
 2026-09-10, tester 62)**.
 
-**Bulgu**: her iki proxy middleware'de (`geminiProxyPlugin`,
-`populationTelemetryPlugin`) JSON gövdeli hata yanıtlarının HEPSİ
-`Content-Type: application/json` set ediyordu — SADECE 3 tane "405 Method
-Not Allowed" dalı (`/api/gemini-insight` kök, `/api/population-snapshot/history`,
-`/api/population-snapshot` kök) bu header'ı UNUTMUŞTU, tarayıcı/istemci
-yanıt gövdesini JSON olarak değil metin/`text/plain` (Node'un varsayılanı)
-olarak yorumlayabilirdi — tutarsız bir API sözleşmesi.
-
-**Düzeltme**: 3 eksik yere de `res.setHeader("Content-Type", "application/json")`
-eklendi (davranış/durum kodu DEĞİŞMEDİ, sadece header).
-
-**Coder'ın testi**: izole `curl` testi (port 6966, PID 25548, sadece kendi
-PID'i durduruldu): 4 senaryo (`/api/gemini-insight` GET→405, `/api/population-snapshot`
-GET→200 sanity, `/api/population-snapshot/history` POST→405,
-`/api/population-snapshot` DELETE→405) hepsi doğru header'ı döndürdü. `npx
-tsc --noEmit`/`npm run build` temiz, `dist/` sızıntı taraması sıfır,
-`dist/` silindi.
-
-### Tester doğrulaması (bağımsız, 2026-09-10, tester 62): GEÇTİ
-
-Kod incelemesi ile 3 düzeltmenin tam da doğru yerlere eklendiği satır
-satır teyit edildi. c2'nin KULLANMADIĞI metodlarla (PUT, PATCH — GET/DELETE
-değil) `curl -i` testi (geçici dev server, port 6811, PID doğrulanıp
-sadece o PID durduruldu): PUT `/api/gemini-insight` → 405 + doğru header;
-PATCH `/api/population-snapshot/history` → 405 + doğru header; PUT
-`/api/population-snapshot` → 405 + doğru header. Ayrıca regresyon kontrolü:
-`GET /api/population-snapshot` → 200 + json, `POST` geçerli veri → 204,
-`GET /history` → 200 + json — hiçbiri etkilenmemiş.
-
-## Faz XI — Soy Ağacı Tam Sayfa Panelinde ESC Tuşuyla Kapatma (arşiv)
-
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM onaylı — tester 62'nin
-erişilebilirlik bulgusu), **Tester GEÇTİ (bağımsız, 2026-09-10, tester
-62)**.
-
-**Bulgu**: soy ağacı paneli eskiden küçük bir köşe kutusuydu (520×380px),
-kullanıcı isteğiyle artık tam sayfa modal (ölçülen %76×%89 ekran kaplamı)
-— bu boyutta standart modal-kapatma beklentisi (ESC) belirgin, ama panel
-sadece "×" butonuyla kapanıyordu.
-
-**Düzeltme**: `lineagetree.ts`'e `document` üzerinde bir `keydown`
-dinleyicisi eklendi — panel SADECE görünürken (`this.visible` kontrolü)
-`Escape` tuşunda "×" butonuyla (`lineage-close`) AYNI `hide()` yolunu
-çağırıyor, iki kapatma yöntemi arasında tutarsızlık yok.
-
-**Coder'ın testi**: izole Playwright testi (port 6977, PID 43364, sadece
-kendi PID'i durduruldu), 6 senaryo: panel kapalıyken ESC → hiçbir şey
-olmuyor/hata yok; panel açılıp ESC → kapanıyor; ESC sonrası toggle
-butonunun `active` class'ı da doğru kalkıyor; tekrar aç → × ile kapat →
-ardından ESC → ikinci bir hata/çakışma olmadan sessizce no-op. Sıfır
-sayfa hatası. `npx tsc --noEmit`/`npm run build` temiz, `dist/` sızıntı
-taraması sıfır, `dist/` silindi.
-
-### Tester doğrulaması (bağımsız, 2026-09-10, tester 62): GEÇTİ
-
-Kod incelemesi — `main.ts`'te İKİNCİ bir global `keydown` handler'ı
-(Space/1/2/3, hız kontrolü) olduğu bulundu, `e.key==="Escape"` kontrolü
-yapmadığı ve `preventDefault`/`stopPropagation` çağırmadığı doğrulandı —
-çakışma riski yok. Farklı senaryolarla canlı test (Playwright, geçici
-port 6911, PID doğrulanıp sadece o PID durduruldu): (1) panel açıkken ESC
-ARKA ARKAYA 5 kez basıldı — ilk basışta kapandı, sonrakiler sessizce
-no-op, hata yok; (2) panel AÇIKKEN main.ts'in hız-kontrolü keydown
-handler'ının hâlâ ÇALIŞTIĞI doğrulandı (panel açıkken "2" tuşuna basılıp
-hızın gerçekten 2'ye değiştiği ölçüldü) — iki `keydown` dinleyicisi
-birbirini bozmuyor; (3) ESC, panelin İÇİNDE bir odak olmadan (body
-odaklı) da paneli DOĞRU şekilde kapattı (`document`-seviyeli dinleyici
-beklendiği gibi çalışıyor). Sıfır sayfa hatası.
-
-## Faz XI — `dominantOrganType()` "En Yüksek Power" Mantığına Geçiş (arşiv)
-
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM onaylı — kullanıcının "profesyonel
-soy ağacı" isteğine daha uygun bir davranış), **Tester GEÇTİ (bağımsız,
-2026-09-10, tester 62)**.
-
-**Kök neden**: Ana organ (soy ağacı düğüm halka rengini belirleyen)
-eskiden EN SON KAZANILAN organdı (`organs[organs.length-1]`) — yorum "en
-yüksek power" iddia etse de kod öyle davranmıyordu (bkz. TASKS_ARCHIVE.md
-2026-09-10 bug-avı taraması bulgusu).
-
-**Düzeltme**: `LineageRecord`'a yeni bir `dominantOrganType: OrganType |
-null` alanı eklendi, doğum anında (`ecosystem.ts` `recordLineage`, ham
-genom verisiyle — power orada mevcut) `computeDominantOrganType` ile BİR
-KEZ hesaplanıp saklanıyor (eşitlikte en son eklenen kazanıyor, eski
-davranışla tutarlı tie-break, `o.power >= dominant.power` karşılaştırması
-ile). **Kapsam bilinçli daraltıldı**: `LineageRecord.organs: OrganType[]`
-alanının kendisi (power YOK) ve onu kullanan 6 farklı çağrı yeri
-(`ecosystem.ts`/`lineagetree.ts`/`main.ts`) DOKUNULMADAN bırakıldı —
-bunun yerine sadece yeni, dar kapsamlı bir alan eklendi, daha riskli bir
-veri-modeli refactor'ü yerine. Save formatına etkisi yok (`LineageRecord`
-kayıt formatının parçası değil, her sayfa açılışında/kayıt yüklemesinde
-yeniden hesaplanıyor). `lineagetree.ts`'teki eski (yanlış belgelenmiş)
-yerel `dominantOrganType()` heuristiği tamamen kaldırıldı, artık
-`record.dominantOrganType` doğrudan okunuyor.
-
-**Coder'ın kendi testi**: iki geçici TEST-ONLY debug hook ile (doğrulama
-sonrası TAMAMEN geri alındı) 6 senaryo doğrulandı — en kritik ikisi: leg
-(hareket) ÖNCE eklenip yüksek power (0.9), eye (algı) SONRA eklenip düşük
-power (0.2) verildiğinde sonuç "leg" (eski kod "eye" seçerdi — sıra değil
-güç kazanıyor); tersi sırayla da (eye önce+yüksek, leg sonra+düşük) doğru
-şekilde "eye" seçildi — sıralamadan bağımsız, gerçekten power'a dayalı
-olduğu kanıtlandı. Ayrıca eşit-power tie-break, tekil organ, boş organ
-listesi (null), ve 3 organlı orta-en-yüksek senaryoları da doğru sonuç
-verdi. Doğal simülasyon verisiyle de (60s, 4x hız) 8 canlı üzerinde
-`getLineage()`'ın `dominantOrganType`'ı canlı organ verisiyle çapraz
-kontrol edildi, hepsi eşleşti. Görsel olarak soy ağacı paneli ekran
-görüntüsüyle de (140 popülasyon, 6 nesil) düğüm halkalarının hâlâ doğru
-render edildiği (mavi/sarı/mor kategoriler) teyit edildi. `npx tsc
---noEmit`/`npm run build` temiz, `dist/` sızıntı taraması sıfır, `dist/`
-silindi. Sıfır sayfa hatası.
-
-### Tester doğrulaması (bağımsız, 2026-09-10, tester 62): GEÇTİ
-
-Kod incelemesi: `__debugForceSyntheticLineageChain` (TEST-ONLY, sentetik
-soy zinciri üretici) hâlâ eski `organs[organs.length-1]` deseniyle
-görünüyordu — incelemede bunun bir REGRESYON OLMADIĞI doğrulandı: o
-fonksiyon sadece bare `OrganType[]` (power BİLGİSİ YOK) ile çalışıyor,
-`computeDominantOrganType` gerçek `Organ[]` (power'lı) bekliyor — tip
-uyumsuzluğu nedeniyle kullanılamıyor, kasıtlı bir tasarım kısıtı,
-unutulmuş bir güncelleme değil. `LineageRecord`'ın save formatının
-parçası olmadığı da ayrıca doğrulandı (`savegame.ts`'de hiç referans
-yok). Canlı Playwright testi (geçici dev server, port 7011, PID
-doğrulanıp sadece o PID durduruldu), c2'nin senaryosundan FARKLI bir
-kombinasyon: mouth(0.2, İLK) → shell(0.9, ORTADA) → spike(0.3, SON) —
-ana organ doğru şekilde "shell" (ortadaki en yüksek power) seçildi, hem
-ilk/son organ önyargısı hem basit sıra-tabanlı bir bug olmadığı
-kanıtlandı. Eşit-power tie-break iddiasını CANLI test ETMEDİM (mutasyon
-ebeveyn-çocuk arasında güçleri değiştirdiğinden gerçek bir "tam eşitlik"
-senaryosunu çocukta güvenilir şekilde üretmek pratik değil) — bunun
-yerine kodu statik olarak doğrudan izleyip `>=` mantığının iddia edilen
-tie-break'i ürettiğini teyit etti. `npx tsc --noEmit`/`npm run build`
-bağımsız tekrarlandı, temiz.
-
-## Faz XI — Dünya Olayları Manuel/Otomatik Tetikleme Tutarsızlığı Düzeltmesi (arşiv)
-
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM'in "worldevents.ts'i incele"
-görevlendirmesi üzerine bulundu, PM onaylı düzeltme), **Tester GEÇTİ
-(bağımsız, 2026-09-10, tester 62)**.
-
-**İnceleme sonucu**: Faz VIII'in belgelediği süre/yoğunluk parametreleri
-(iklim 45-90s, rüzgar 12-25s, deprem 25-50s) kodla (`worldevents.ts`
-sabitleri) birebir eşleşiyordu, dokümantasyon driftı YOK.
-
-**Bulunan gerçek tutarsızlık**: otomatik tetikleme (`updateChecks`)
-climate/wind/quake için "zaten aktifse yeni tetikleme yapma" koruması
-uyguluyordu (`if (this.xActiveTimer <= 0 && Math.random() < ...)`), ama
-manuel tetikleme (`forceTrigger`, HUD butonu) bu korumayı HİÇ
-paylaşmıyordu — art arda iki manuel tetikleme (örn. deprem üstüne
-deprem) ikincisi birincinin süresini SESSİZCE eziyordu. Deprem için daha
-ciddi: `world.ts` `quakeOverrides` birden fazla bölgeyi destekleyen bir
-dizi ama `WorldEventManager`'da TEK bir `quakeActiveTimer` vardı — ilk
-depremin bölgesi world.ts'te kalırken timer ikincinin süresine
-sıfırlanıyordu (kalıcı sızıntı yok, `clearQuakeOverrides` ikisini de
-temizliyor, ama süre-doğruluğu bozuluyordu).
-
-**Düzeltme**: `forceTrigger`'a meteor DIŞINDAKİ üç tip için aynı "zaten
-aktifse" koruması eklendi — engellenirse sessizce yok sayılmıyor, event
-log'a kısa bir "zaten aktif, bekleniyor" mesajı düşüyor (mevcut
-şeffaflık desenine uygun). Bu koruma çakışmayı zaten engellediğinden
-ayrı bir per-bölge zamanlayıcı sistemi GEREKSİZ görüldü (basit koruma
-yeterli, gereksiz karmaşıklık eklenmedi).
-
-**Coder'ın kendi testi**: izole Playwright testi (port 7033, PID 28864,
-sadece kendi PID'i durduruldu): art arda iki manuel deprem → ikinci
-ENGELLENDİ (`quake count` 1'de kaldı), event log'da "Deprem etkisi
-zaten aktif, bitmesi bekleniyor" mesajı doğru render edildi; aynı sonuç
-climate için de doğrulandı; meteor (aktif-durum kavramı yok) korumadan
-ETKİLENMEDİ — iki art arda manuel meteor ikisi de gerçekten tetiklendi
-(`meteor count` 0→2); 8 saniyelik 4x-hız otomatik koşu sırasında hiç
-hata/çökme olmadı. `npx tsc --noEmit`/`npm run build` temiz, `dist/`
-sızıntı taraması sıfır, `dist/` silindi. Sıfır sayfa hatası.
-
-### Tester doğrulaması (bağımsız, 2026-09-10, tester 62): GEÇTİ
-
-Kod incelemesi: koruma mantığının `updateChecks`'in kendi guard'ıyla
-(`climateActiveTimer > 0` vb.) birebir aynı koşulu kullandığı, event-log
-mesaj etiketlerinin doğru eşleştiği teyit edildi. c2'nin test ETMEDİĞİ
-iki ek senaryo, canlı Playwright testiyle (geçici dev server, port 7111,
-PID doğrulanıp sadece o PID durduruldu): (1) **wind** için de aynı
-engelleme (c2 sadece climate/quake/meteor test etmişti) — art arda iki
-manuel rüzgar, ikincisi doğru şekilde engellendi (`wind count` 1'de
-kaldı); (2) **engelin süre dolunca gerçekten AÇILDIĞI** — c2'nin testi
-sadece engellemenin olduğunu gösteriyordu, kalıcı bir kilitlenme
-olmadığını göstermiyordu; rüzgarın maksimum süresini (25s) güvenle
-aşacak kadar (4x hızda 8s gerçek zaman ≈ 32 sim-saniye) beklendi,
-`windActive` doğru şekilde `false`'a döndü, ÜÇÜNCÜ bir manuel rüzgar bu
-kez BAŞARIYLA tetiklendi (`wind count` 1→2) — engelin geçici olduğu,
-kalıcı bir kilitlenmeye dönüşmediği kanıtlandı. Ayrıca `getActiveState()`'in
-tetiklemeden HEMEN sonra doğru `true` döndüğü (deprem ile) ayrıca
-doğrulandı. Sıfır sayfa hatası. tsc/build bağımsız tekrarlandı, temiz;
-`dist/` sızıntı taraması sıfır.
-
-## Faz XI — Mobil/Dar-Ekran Responsive Taraması (arşiv)
-
-PM'in "bugün eklenen organ diyagramı + soy ağacı tam sayfa paneli, Faz XI
-Responsive'in dar-ekran davranışıyla uyumlu mu" sorusu üzerine (coder
-6f/c2, 2026-09-10), izole Playwright testiyle 375×667 (gerçek telefon
-boyutu) viewport'ta hem organ diyagramı hem soy ağacı tam sayfa paneli
-test edildi.
-
-**Bulgu**: soy ağacı paneli SORUNSUZDU (zoom kontrolleri erişilebilir,
-taşma yok). Ama canlı inceleme paneli (organ diyagramı dahil) `#stats-panel`
-ile YAN YANA sığdırılmaya çalışılan satır-tabanlı (flex-wrap) mobil
-düzende (Faz XI Responsive, `max-width:680px`) GERÇEKTEN taşıyordu —
-375px viewport'ta panel sağ kenarı viewport'u ~60-75px aşıyordu,
-`#side-panel` SADECE dikey kaydırmalı olduğundan bu içerik (diyagramın
-bir kısmı dahil) erişilemezdi. Kök neden TEK bir şey değildi: (1) yeni
-SVG diyagramın sabit `width="140"` özniteliği flex-item'ın varsayılan
-`min-width:auto` davranışıyla birleşip `max-width:100%`'ü geçersiz
-kılıyordu; (2) `#inspector-panel`'in masaüstü/dikey-düzen için var olan
-`flex-shrink:0` kuralı (event log'u sıkıştırmamak için, Faz XI UI/UX
-sadeleştirme) mobil satır-düzeninde de aktif kalıp paneli hiç
-küçültmüyordu; (3) EN TEMELDE, `#stats-panel`'in 2-sütunlu istatistik
-ızgarası (büyük harf etiketler yüzünden ~233px gerçek min-content
-tabanı) ile diyagram+metin içeren inceleme panelini 375px'lik bir satırda
-YAN YANA sığdırmaya çalışmak baştan gerçekçi değildi.
-
-**Düzeltme** (`dashboard.css`, 3 parça): SVG'ye `max-width:100%;
-min-width:0` eklendi (kendi başına yeterli değildi ama gerekli); mobil
-satır-düzeninde `#inspector-panel`'e `flex-shrink:1` override'ı eklendi
-(masaüstü/dikey düzendeki orijinal `flex-shrink:0` DEĞİŞMEDİ); YENİ bir
-`max-width:480px` kırılım noktası eklenip bu genişlikte `#side-panel`
-doğrudan `flex-direction:column`'a dönüyor (masaüstünün ZATEN kullandığı,
-kanıtlanmış düzen) — panelleri yan yana sığdırmaya ZORLAMAK yerine
-gerçekten dar ekranlarda TAM GENİŞLİKTE alt alta istifliyor. 480-680px
-arası (tablet/büyük telefon yatay) mevcut yan-yana düzen KORUNUYOR
-(niyet olarak — bkz. aşağıdaki bağımsız doğrulama bulgusu).
-
-**Coder'ın doğrulaması**: `npx tsc --noEmit`/`npm run build` temiz,
-`dist/` sızıntı taraması sıfır, `dist/` silindi. İzole Playwright testleri
-(port 7055, PID 10936, sadece kendi PID'i durduruldu): 375×667'de 4 organ
-zorlanan bir canlının inceleme paneli açıldı — `statsOverflows`/
-`inspectorOverflows`/`diagramOverflows`/`pageOverflowsHorizontally`
-HEPSİ `false` (düzeltme öncesi inceleme paneli 436-610px'e kadar
-taşıyordu); ekran görüntüsüyle görsel olarak da doğrulandı (paneller tam
-genişlikte, düzgün alt alta). Soy ağacı paneli aynı viewport'ta yine
-sorunsuz (zoom butonu tıklanabilir, 100%→110%). **Regresyon kontrolü**:
-600px genişlikte (480-680px aralığı) `#stats-panel`/`#inspector-panel`
-hâlâ YAN YANA (`sameRow:true`), taşma yok — orta genişlik düzeni bu
-düzeltmeden ETKİLENMEDİ (c2'nin iddiası). Sıfır sayfa hatası.
-
-**🔴 Bağımsız tester doğrulaması (62, 2026-09-10): 375px/320px/tam 480px
-sınırı için GEÇTİ, ama 480-680px "tablet" aralığında AYRI, GERÇEK bir
-CSS kaskad bug'ı bulundu (durum: TASKS.md'de "AÇIK" olarak takip
-ediliyor, c2'ye devredildi — bu arşiv girdisi coder'ın İLK turunu
-belgeliyor, düzeltmenin sonucu ayrı bir arşiv girdisinde olacak).**
-
-Kök neden: `dashboard.css` satır 313-321'deki BASE (media-query'siz)
-`#side-panel` kuralı `flex-direction: column` set ediyor — bu kural,
-`@media (max-width: 680px)` kuralından (satır 223, `flex-direction: row`,
-"tablet/yan-yana düzen korunuyor" diye belgelenmiş) dosyada SONRA
-geliyor. Aynı özgüllükte iki kural çakıştığında CSS kaskadında dosyadaki
-SONRAKİ kural kazanır — bir kuralın media query İÇİNDE olması onu
-otomatik önceliklendirmiyor, sadece hangi genişliklerde aktif olacağını
-belirliyor. Sonuç: 480-680px aralığında
-(`window.matchMedia("(max-width: 680px)").matches === true` doğrulandı)
-`flex-direction` GERÇEKTE hâlâ `column` (olması gereken: `row`) — c2'nin
-"`sameRow:true`" testi muhtemelen SADECE görsel/pozisyon kontrolü
-yapmış, `getComputedStyle` ile gerçek `flex-direction` DEĞERİNİ
-ölçmemiş (çünkü `flex-wrap: wrap` kuralın diğer yarısı hâlâ doğru
-uygulanıyor, panel yine de "sarılıyor" — görsel olarak fena
-görünmeyebilir ama düzen NİYETİ tamamen bozuk).
-
-Minimal repro (etkileşim yok, sadece sayfa yüklemesi, 600px viewport):
-`getComputedStyle(#side-panel).flexDirection === "column"`, `flexWrap
-=== "wrap"` (kuralın bir kısmı uyguluyor, flex-direction kısmı eziliyor).
-İnceleme paneli+organ diyagramı açıkken 600px'te ~235px, 680px'te
-~235px taşma ölçüldü (element `getBoundingClientRect()` ile).
-
-**Düzeltme yönü (PM onaylı, `!important` gibi bir özgüllük hack'i
-DEĞİL, kalıcı bir dosya-sırası refactor'ü isteniyor)**: base
-`#side-panel` kuralı (satır 313) dosyanın EN BAŞINA taşınmalı, media
-query kuralları HER ZAMAN ondan SONRA gelmeli — bu, CSS'in "sonraki
-kural kazanır" davranışının media query'lerin lehine çalışmasını garanti
-eder. c2'ye devredildi, tester 62 computed-style ölçümüyle tekrar
-doğrulayacak.
-
-### Düzeltme (coder 6f/c2, 2026-09-10) — TAMAMLANDI, Tester GEÇTİ (bağımsız, 62)
-
-`!important`/özgüllük hack'i DEĞİL, kalıcı bir dosya-sırası refactor'ü:
-base `#side-panel` kuralı dosyanın EN BAŞINA (tüm responsive medya
-sorgularından önce) taşındı, eski (yanlış konumdaki) kopyası tamamen
-kaldırıldı.
-
-**Coder'ın doğrulaması**: `npx tsc --noEmit`/`npm run build` temiz,
-`dist/` sızıntı taraması sıfır, `dist/` silindi. İzole Playwright testi
-(port 7066, PID 15428, sadece kendi PID'i durduruldu) — tester 62'nin
-AYNI yöntemiyle (sadece görsel değil, `getComputedStyle(...).flexDirection`
-DOĞRUDAN ölçüldü): 7 genişlik noktası (375/480/500/600/680/681/1200px)
-test edildi, HEPSİ beklenen değeri verdi — özellikle 600px (62'nin
-minimal repro'su) artık `"row"` döndürüyor (öncesi: `"column"`). Gerçek
-içerikle (organ zorlanmış canlı) fonksiyonel test: 375px'te column+taşma
-yok, 600px'te row+taşma yok+panel gerçekten yan yana (ekran görüntüsüyle
-de teyit edildi), 1200×800'de (uzun masaüstü) column doğru — 1200×500'de
-"row" çıkması BUG DEĞİL, mevcut/önceden var olan `max-height:560px`
-OR-koşulu kasıtlı olarak kısa viewport'larda (telefon yatay) genişlikten
-bağımsız kompakt düzeni tetikliyor, ayrıca doğrulandı. Sıfır sayfa hatası.
-
-**Bağımsız tester doğrulaması (62, 2026-09-10): GEÇTİ.** Kod incelemesi:
-base kuralın gerçekten TÜM `@media` sorgularından önce taşındığı, eski
-konumdaki kopyanın tamamen kaldırıldığı, ikinci/alakasız bir
-`#inspector-panel` `flex-shrink` kuralının bu değişiklikten etkilenmediği
-doğrulandı. Canlı test (Playwright, geçici port 7411, PID doğrulanıp
-sadece o PID durduruldu), computed-style ölçümüyle: orijinal 600px
-repro'm artık `flexDirection: "row"` (öncesi `"column"`); c2'nin test
-ETMEDİĞİ 550px de doğru; 480/481 sınırı doğru. Gerçek içerikle (organ
-zorlanmış canlı, inceleme paneli açık) 600px'te `#stats-panel`/
-`#inspector-panel` AYNI dikey konumda (`sameRow:true`) ve
-`overflowPx:0` — sadece computed-style değil, gerçek render de doğru.
-tsc/build bağımsız tekrarlandı, temiz; `dist/` sızıntı taraması sıfır.
-Sıfır sayfa hatası.
-
-## Faz XI — Kombinasyon Senaryosu Taraması (arşiv)
-
-PM'in "birden fazla sistem AYNI ANDA aktifken neler olur" isteği üzerine
-(coder 6f/c2, 2026-09-10) — TEMİZ GEÇTİ, bulgu yok.
-
-İzole Playwright testi (port 7044, PID 34276, sadece kendi PID'i
-durduruldu) climate+wind+quake'i AYNI ANDA manuel tetikledi, besin
-üretimini %25'e düşürdü (açlık baskısı), 4 saniye 4x hızda kaos altında
-koştu — SIFIR su/kara ihlali. Bu kaotik durumu dışa aktarıp taze bir
-sayfada içe aktardı — seed/popülasyon birebir eşleşti (24=24), dünya
-olayları korunmadı (beklenen — kayıt formatının parçası değil,
-doğrulandı: hepsi `false`'a döndü). İçe aktarılan popülasyon üzerine
-HEMEN yeniden quake+wind tetiklenip besin tekrar düşürülüp 6 saniye daha
-4x kaos altında koşuldu — popülasyon doğal şekilde 24→19'a düştü
-(açlık baskısı altında beklenen/sağlıklı), yine SIFIR ihlal. Event
-log'da "undefined/NaN/null/[object" gibi şüpheli metin YOK. Ekran
-görüntüsü: deprem'in su-override yaması haritada doğru/beklenen şekilde
-görünüyor, görsel bozulma yok. Sıfır konsol/sayfa hatası HER İKİ fazda
-da.
-
-Sonuç: bağımsız çalışan sistemler (dünya olayları, besin baskısı, dışa/
-içe aktarma) BİRLİKTE de beklenmedik bir etkileşim üretmiyor.
-
-## Faz XI — Baştan Sona Kullanıcı Akışı Taraması (arşiv)
-
-TAMAMLANDI (coder 6f/c2, 2026-09-10, PM görevlendirmesi) — TEMİZ GEÇTİ,
-sıfır bulgu.
-
-**Görev**: bu turda tamamlanan tüm parça parça değişikliklerin (7 bug
-düzeltmesi + 2 özellik — organ diyagramı, soy ağacı tam sayfa, crossover
-adaleti, Gemini whitelist, Content-Type header, ESC-kapat, dominantOrganType,
-dünya olayları çakışması, mobil responsive + CSS kaskad) GERÇEKTEN bir
-arada, sıfırdan bir kullanıcı deneyimi olarak sorunsuz çalıştığının
-doğrulanması — izole/tekil testler değil, tam bir "baştan sona kullanıcı
-gibi kullan" akışı.
-
-**Test edilen akış** (izole Playwright, port 7077, PID 2856, sadece kendi
-PID'i durduruldu):
-1. Taze sayfa açılışı → gezegen oluşum ekranı görünüyor (atmosfer bileşimi,
-   bio-madde listesi doğru render edildi).
-2. "Simülasyonu Başlat" → ekran kapanıyor, simülasyon başlıyor.
-3. ~15s gerçek izleme (4x hızda) → popülasyon 0→34, sağlıklı organik büyüme.
-4. Bir canlıya tıklama → inceleme paneli açılıyor, organ diyagramı (SVG)
-   DOM'da mevcut.
-5. Soy Ağacı butonu → tam sayfa panel açılıyor; diyet filtresi (otçul)
-   uygulandı; zoom butonuyla yakınlaştırma (100%→110%, doğru); ESC tuşu
-   → panel doğru kapandı.
-6. Detaylar açılıp manuel dünya olayı tetiklendi (rastgele seçim: meteor
-   çıktı) — olay sayacı 0→1, harita üzerinde flaş göründü (ekran
-   görüntüsüyle teyit edildi), `climateActive`/`windActive`/`quakeActive`
-   hepsi `false` kaldı (meteor'un "aktif süre" kavramı olmaması ile
-   tutarlı, önceki bulgularla uyumlu).
-7. Dışa Aktar → indirme tetiklendi, popülasyon(35)/seed kaydedildi.
-8. Sayfa normal yenilendi (import KULLANILMADI, sadece otomatik kayıt) →
-   popülasyon/seed dışa aktarılanla BİREBİR aynı kaldı.
-9. Taze bir sayfada dışa aktarılan kayıt içe aktarıldı → popülasyon(35)/
-   seed dışa aktarılanla BİREBİR eşleşti, su/kara ihlali SIFIR.
-10. Simülasyona ~6s daha devam edildi (4x hız) → popülasyon 35→37, nesil
-    ilerledi (organik büyüme, çökme/donma yok).
-
-**Sonuç**: 10 adımın HEPSİ beklenen şekilde çalıştı. Sıfır sayfa hatası,
-sıfır konsol hatası, event log'da uydurma/bozuk (`undefined`/`NaN`/`null`/
-`[object`) metin yok. 5 ekran görüntüsü (gezegen oluşumu, canlı inceleme,
-filtreli/zoomlu soy ağacı, meteor flaşı, içe aktarma sonrası devam eden
-simülasyon) kullanıcıya doğrudan gönderildi (dürüst görsel doğrulama).
-
-## Faz XI — Gemini Gerçek Çağrı + Ölü Kod Taraması (arşiv)
-
-### Gemini API — gerçek uçtan uca doğrulama (coder 6f/c2, 2026-09-10, PM görevlendirmesi)
-GEÇTİ. Bugüne kadarki doğrulamaların çoğu kod incelemesi/mock idi — PM günlük
-kota paylaşıldığından TEK bir gerçek çağrı istedi, kotayı zorlamamamı söyledi.
-`.env`'de anahtar mevcut olduğu doğrulandı (değeri okunmadı), izole dev server
-(port 7088, PID 31732, sadece kendi PID'i durduruldu) üzerinden
-`/api/gemini-insight` proxy'sine GERÇEK bir "soy analizi" tarzı prompt ile TEK
-bir istek atıldı: HTTP 200, Gemini'den `{"text": "..."}` şeklinde gerçek,
-veriye dayalı (uydurmayan, sadece verilen sayısal/olgusal bilgiyi yorumlayan)
-bir Türkçe yanıt geldi. İkinci bir gerçek çağrı YAPILMADI (kota tasarrufu) —
-geçersiz prompt (boş string) testi 400 ile yerel doğrulamada durdu, API'ye
-hiç gitmedi. Sonuç: sunucu-taraflı proxy zinciri (`vite.config.ts` → Gemini
-REST API → yanıt ayrıştırma) uçtan uca gerçekten çalışıyor, kod incelemesiyle
-doğrulanan teorik davranış GERÇEK bir çağrıyla da teyit edildi.
-
-### Ölü kod taraması (coder 6f/c2, 2026-09-10, PM görevlendirmesi)
-TEMİZ, 1 küçük metin-only leftover bulunup düzeltildi, gerçek ölü kod YOK. Bu
-oturumda değişen dosyalar (`ecosystem.ts`, `genome.ts`, `lineagetree.ts`,
-`dashboard.css`, `worldevents.ts`) sistematik grep ile tarandı:
-`computeDominantOrganType`/`LineageRecord.dominantOrganType`,
-`crossoverGenomes`'un Fisher-Yates blokları, `lineagetree.ts`'in yeni zoom
-metodları (`setZoom`/`updateZoomLabel`), `worldevents.ts`'teki
-`forceTrigger`'ın `alreadyActive` koruması — HEPSİ en az bir gerçek çağrı
-noktasına sahip, hiçbiri yetim değil. Tüm geçici TEST-ONLY debug hook'ların
-(`__debugCrossoverOrganBias`, `__debugComputeDominantOrganType`,
-`__debugExtractSuggestion`) GERÇEKTEN kaldırıldığı grep ile yeniden
-doğrulandı (0 eşleşme). Yeni CSS sınıfları (`.creature-diagram*`,
-`.overlay-panel-fullpage`, `.lineage-zoom-controls`) hepsi TS/HTML'de en
-az bir kez referanslı, yetim kural yok. `organs.ts`'teki bazı export'ların
-(`hasOrganType`, `resetOrganWeightMultipliers`, vb.) dışarıda hiç
-çağrılmadığı doğru ama bu dosya BU OTURUMDA hiç değiştirilmedi — pre-existing,
-kapsam dışı, dokunulmadı. **Bulunan tek şey**: `dashboard.css`'te
-`flex-basis:100%` denemesinden (terk edilmiş ilk yaklaşım) kalan garbled/
-tekrarlı bir yorum cümlesi — kod DEĞİL, sadece açıklayıcı metin, düzeltildi.
-`npx tsc --noEmit`/`npm run build` temiz, `dist/` sızıntı taraması sıfır,
-`dist/` silindi. **Tester GEÇTİ (bağımsız, 62, 2026-09-10)**: yorum metninin
-gerçekten tutarlı/garbled-olmadığı doğrudan okunarak, `flex-direction:column`
-kuralının yorumla eşleştiği teyit edilerek, `tsc --noEmit` + `npm run build`
-tekrar çalıştırılıp temiz çıktığı bağımsız doğrulandı.
-
-### Dünya olayları — manuel/otomatik tetikleme tutarsızlığı düzeltmesi (coder 6f/c2, 2026-09-10)
-TAMAMLANDI, Tester GEÇTİ (bağımsız, 62). Otomatik tetikleme "zaten aktifse"
-koruması manuel tetiklemede yoktu — `forceTrigger`'a aynı koruma eklendi.
-
-### `dominantOrganType()` en-yüksek-power geçişi + ESC-kapat + Content-Type header düzeltmesi + Gemini stale whitelist + `crossoverGenomes` adalet düzeltmesi (2026-09-10, coder 6f/c2)
-Çoğu tester 62'nin bug-avı bulgusu. Hepsi TAMAMLANDI, Tester GEÇTİ (bağımsız,
-62 — her biri farklı bir açıdan/senaryoyla tekrar test edildi, örn. crossover
-%50.13/%49.67 istatistiksel dengeyle, 7000 deneme).
-
-### Plague Inc tarzı canlı diyagramı + soy ağacı tam sayfa görünümü (2026-09-10, coder 6f/c2)
-TAMAMLANDI, Tester GEÇTİ (bağımsız, 2026-09-10, iki ayrı test turunda).
-İnceleme paneline gerçek organ verisinden türetilen şematik SVG diyagram
-(kategoriye göre konumlu ikonlar, en son organ pulse animasyonlu) + soy ağacı
-artık tam sayfa (eski 520x380px yerine sahne alanının neredeyse tamamı) +
-açık zoom butonları.
-
-### Bug-avı taraması — main.ts/hud.ts/lineagetree.ts/savegame.ts/exportimport.ts (2026-09-10, coder)
-TAMAMLANDI, Tester GEÇTİ. Event-listener/null-kontrol/save-export-import
-tutarlılığı sağlıklı bulundu; 1 gerçek kod/yorum tutarsızlığı
-(`dominantOrganType()` yanlış "en yüksek power" iddiası, gerçekte en son
-kazanılan organ) sadece yorum düzeltmesiyle giderildi.
-
-## Faz XVIII — Uzun koşuda gecikmeli toplu popülasyon çöküşü bug'ı (arşiv)
-
-### Keşif (2026-09-10, coder a7)
-18-20 dakikalık (4x hız) bir uzun-koşu stabilite testinde, popülasyon
-140'ta (muhtemel tavan) uzun süre stabilken (nesil/bölünme sayaçları
-düzenli artıyor, sim canlı) ~simTime 1810-2046s aralığında 140 → 60 → 0'a
-çöktü ve bir daha toparlanmadı. Çöküş anında event log'da bir "🌡️ Sıcak
-bir dalga" (iklim) olayı var. Sıfır console/page hatası — crash değil,
-gerçek bir ekosistem dengesizliği. İlk kod incelemesi bu oturumun aynı
-günkü değişiklikleriyle (crossover/dominantOrganType/spatial-partitioning
-scope/worldevents guard) İLGİSİZ olduğunu teyit etti — bu değişiklikler
-ecosystem.ts'nin nutrient/hunger-boost mekanizmasına hiç dokunmuyor.
-Muhtemelen Faz XIII'ün 3 parçalı düzeltmesinin (cap lag + hunger boost +
-spawn-rate boost) o zamanki validasyon koşularından (5×240s = 4dk) çok
-daha UZUN sürede (30+ dk sim-time) hâlâ yetersiz kaldığı, ÖNCEDEN VAR OLAN
-ama hiç bu kadar uzun test edilmediği için keşfedilmemiş bir sınır
-durumu — yeni bir regresyon değil.
-
-### Kök neden analizi (2026-09-11, coder a7)
-Dünya olayları tamamen KAPALIYKEN popülasyon simTime 2200s+'ye kadar hiç
-çökmedi (izolasyon testiyle doğrulandı) — saf yoğunluk/açlık-boost
-mekanizması TEK BAŞINA yeterli değil. Buna karşın TEK bir elle
-tetiklenmiş climate olayı (auto-events kapalı, kontrollü test) 2/3
-bağımsız koşuda çöküşe yetti — ama çöküş climate AKTİF İKEN değil,
-BİTTİKTEN ~450-600s SONRA gecikmeli başlıyor (starvation ölüm sayacı
-aniden patlıyor, su/kara nutrient STOKU sabit/dolu kalıyor — "besin
-sayıca yeterli ama coğrafi olarak erişilemez" imzası, Faz IV/XIII'in
-bulduğu kök nedenle aynı aile). Mekanizma: climate sırasında yüksek
-nutrientMultiplier ile o anki popülasyon konumlarına göre nutrient hızla
-birikiyor/cap'e yapışıyor; climate bitip popülasyon zamanla yer
-değiştirdikçe (normal ölüm/hareket) birikmiş stok eski konumlarda
-"donmuş" kalıyor, cap dolu olduğu için yeni nutrient güncel konuma hiç
-eklenemiyor. 3. bağımsız koşuda (aynı yöntem) çöküş YAŞANMADI — yani
-tetikleyici olasılıksal, muhtemelen o anki popülasyonun uzamsal
-kümelenme derecesine bağlı (kümelenmiş popülasyonda risk yüksek, dağınık
-popülasyonda düşük). Ölçüm yöntemi Faz XIII'in orijinal
-`medianDistToFood` ölçümüyle birebir aynı (geçici debug hook, doğrulama
-bitince kaldırıldı).
-
-### Fix (2026-09-11, coder a7, PM f9/e6 onaylı)
-`ecosystem.ts`'e yeni bir `relocateStrandedNutrient()` metodu — nutrient
-cap'i DOLUYKEN (yeni spawn engellendiği an) VE açlık ciddiyeti sıfırdan
-büyükken, canlılara en uzak/stranded nutrient'ı aç bir bireyin yakınına
-TAŞIR (toplam nutrient SAYISI değişmez, sadece coğrafi dağılım
-popülasyona duyarlı hale gelir). Hem `updateNutrientSpawning` (su) hem
-`updateLandNutrientSpawning` (kara) tarafına uygulandı. Faz XIII'in
-sayısal kapasite genişletmesini (`computeHungerCapacityBoost`)
-TAMAMLIYOR, onun yerine geçmiyor. Performans notu (tester 3c/0f
-teyidiyle): tick başına en fazla ~300 nutrient × 140 canlı ≈ 42k
-karşılaştırma, sadece kıtlık anında tetikleniyor — projenin zaten tolere
-ettiği O(n²) komşu-arama maliyetleriyle aynı mertebede.
-
-### Doğrulama — 7/7 bağımsız koşu PASS (2026-09-11)
-5 bağımsız, izole (ayrı dev server/port) kısa koşu aynı repro
-senaryosuyla (auto-events kapalı, pop 140'a stabilize, tek climate
-force, ~12-20dk izleme) çalıştırıldı — HİÇBİRİ çökmedi:
-- Koşu 1: minEnergy=0.658, maxDist=163px
-- Koşu 2: minEnergy=0.55, maxDist=254px (~600s düşük enerji, toparlandı)
-- Koşu 3: minEnergy=0.568, maxDist=264px (test sonunda kötüleşen bir
-  trend gözlendi — genişletilmiş koşuyla netleştirildi, aşağıda)
-- Koşu 4: minEnergy=0.773, maxDist=92px (en sağlıklısı)
-- Koşu 5: minEnergy=0.544 (en düşük), maxDist=378px (en yüksek), ~1200s
-  boyunca sürekli 0.55-0.6 enerji aralığında (fix ÖNCESİ koşullarda bu
-  profil KESİN çöküşle sonuçlanıyordu) — yine de popülasyon 140'ta kaldı,
-  toparlandı.
-
-Faz XIII'te ilk düzeltme denemesinin 6 koşudan 1'inde başarısız olduğu
-hatadan ders alınarak TEK bir başarılı koşuyla kapatılmadı.
-
-**Genişletilmiş trend-takip koşusu (6. koşu, coder a7)**: koşu 3'te test
-penceresinin (35 örnek/~2200s) SON birkaç örneğinde medianDist sürekli
-artan bir trend gösterdi (150→155→197→264px), enerji dalgalanıyordu, test
-tam bu noktada kesildi. Bunu netleştirmek için genişletilmiş (~2862s
-sim-time'a kadar, 60 örnek/30s) bir koşu çalıştırıldı: SONUÇ crashed=false.
-Test boyunca benzer/daha şiddetli dalgalanmalar TEKRAR TEKRAR yaşandı
-(enerji oranı 0.57-0.89 arası sürekli salınım, medianDist birkaç kez
-124-200px'e sıçrama, dört ayrı ayrı spike simTime 2337/2567/2683/2801
-civarında) AMA HİÇBİRİ kalıcı çöküşe gitmedi — her seferinde birkaç örnek
-içinde toparlandı. Bu, koşu 3'teki "kötüleşen trend" korkusunun YANLIŞ
-olduğunu, sistemin gerçekten uzun vadede de stabil salınım rejiminde
-kaldığını (normal, tekrarlayan stres-toparlanma döngüsü, "yavaş yavaş
-kötüye gidiş" DEĞİL) kanıtladı.
-
-**Bağımsız doğrulama — 7. koşu, FARKLI metodoloji (tester 0f, 2026-09-11,
-GEÇTİ)**: a7'nin tüm koşularından FARKLI bir açı — auto-events AÇIK
-bırakılıp (elle tetikleme YOK) doğal/rastgele dünya olayı tetiklenmesine
-izin verildi, izole dev server/port, ~26dk wall-clock (4x hız, ~104dk
-sim-time, tWall 1568s'e kadar 52 örnek/30s aralıklarla). Sonuç: **ÇÖKÜŞ
-YOK**. Popülasyon ilk ~60s'de 82'den 140'a çıktı ve TÜM koşu boyunca
-(1568s) sabit 140'ta kaldı — hiç düşmedi. Bu süre içinde 6 climate, 5
-meteor, 4 wind, 3 quake olayı DOĞAL/rastgele tetiklendi (yani a7'nin
-tek-olay senaryosundan çok daha yoğun/kaotik bir stres testi) —
-medianDist 30-112px arasında dalgalandı (hiçbir zaman a7'nin koşu 3'ünde
-görülen kötüleşen trende benzer bir kalıcı artış yok), ölüm nedenleri
-sağlıklı bir dağılım gösterdi (old_age çoğunlukla artan, starvation/
-predation yavaş artan — beklenen doğal demografik desen, ani bir patlama
-YOK). Sıfır page/console hatası.
-
-### Temizlik
-Geçici debug hook'lar (`__debugMedianDistToFood`, `__debugGetDeathCauseCounts`,
-`__debugDeathCauseCounts`) doğrulama tamamlanınca `ecosystem.ts`/`main.ts`'ten
-tamamen kaldırıldı — grep ile sıfır kalıntı teyit edildi. `relocateStrandedNutrient`
-fix'i kodda kalıcı. tsc --noEmit ve `vite build` son bir kez temiz.
-
-## Faz XIX — Organ diyagramı ölü/soy ağacı bireylerinde görünmüyordu (arşiv)
-
-### Kök neden (2026-09-11, tester 0f)
-Kullanıcı raporu: "organ diyagramı hâlâ görünmüyor". Araştırma sonucu: canlı
-bir birey seçildiğinde (`hud.ts` `showInspector`) şematik organ diyagramı
-(`Hud.buildCreatureDiagram`) doğru render ediliyordu (canlı testle
-doğrulandı) — AMA soy ağacından ÖLÜ bir birey seçildiğinde (`showDeceasedInspector`,
-main.ts:632'den çağrılıyor) diyagram hiç render EDİLMİYORDU, `buildCreatureDiagram`
-çağrısı o fonksiyonda hiç yoktu. Panel başlığı ("Seçili Birey") her iki durumda
-da aynı olduğundan kullanıcı hangi moda düştüğünü ayırt edemiyordu. Kod
-incelemesinde bu davranışı AÇIKLAYAN bir yorum bulundu (hud.ts, 2026-09-10
-tarihli) — BİLİNÇLİ bir kapsam kararıydı ("kapsam kullanıcının net istediği
-'canlı ekranı'yla sınırlı tutuldu"). PM, kullanıcının aktif şikayetinin bu
-kararı geçersiz kıldığına (kullanıcı net biçimde ölü/soy ağacı bireylerinde
-de diyagram istiyor) karar verip genişletmeyi onayladı.
-
-### Fix (2026-09-11, coder a7, PM e6 onaylı)
-`hud.ts`: `buildCreatureDiagram`'ın `diet` parametresi nullable yapıldı
-(`"herbivore" | "carnivore" | null`) — ölü kayıtlarda (`LineageRecord`)
-diyet bilgisi hiç tutulmuyor. `null` verildiğinde gövde rengi nötr gri
-(#8a8f98) oluyor, organ ikonlarının renk/konum mantığını HİÇ etkilemiyor
-(sadece gövde dolgu rengi). `showDeceasedInspector` artık `.creature-diagram-wrap`
-+ `buildCreatureDiagram(data.organs, null)` çağrısını `showInspector`'daki
-desenle tutarlı şekilde içeriyor.
-
-### Doğrulama
-tsc --noEmit ve `vite build` temiz. Playwright ile gerçek bir uçtan-uca
-test: simülasyon 4x hızda ~25s çalıştırılıp doğal bir ölüm kaydı (id=13,
-organsız) bulundu; main.ts'teki GERÇEK `onNodeClick` production handler'ı
-(`lineageNodeClickHandler`, canvas click koordinatlarının kırılgan olması
-nedeniyle geçici bir debug hook'la, `__debugClickLineageNode`, tetiklendi —
-doğrulama sonrası kod tabanından tamamen kaldırıldı, grep ile teyit edildi)
-bu id ile çağrıldı. Sonuç: `.creature-diagram-wrap`/`.creature-diagram` SVG
-ikisi de DOM'da mevcut, gövde çemberi doğru nötr renkte (#8a8f98), panel
-görünür, sıfır page/console hatası. Ekran görüntüsüyle görsel olarak da
-teyit edildi ("Seçili Birey" panelinde #13 💀 için gri diyagram çemberi
-görünüyor).
-
-## Faz XX — Yeni organ: Kromatofor (aktif kamuflaj) (arşiv)
-
-### Görev (2026-09-11, PM 31)
-Kullanıcı "yaratıcı/geliştirici görev" istedi: mevcut 21 organ tipine ek,
-gerçekçi/bilim-esinli 1-2 yeni organ tipi tasarlanıp uygulanacaktı. PM'in
-önerdiği fikirlerden biri seçildi: mürekkep balığı/bukalemun ilhamlı
-"aktif kamuflaj" — mevcut statik `camouflage`'dan (sabit/pasif bir temel
-kaçış payı) FARKLI bir mekanik olması istendi. Kural (kritik, "uydurma
-yok" ilkesi): gerçek/ölçülebilir bir mekanik etki, panel açıklamasıyla
-birebir tutarlı, mutasyon havuzuna ve organ diyagramına doğru entegre.
-
-### Tasarım ve uygulama (coder a7)
-Mekanik: `survivalBonus()`'un (kabuk/kamuflaj/diken/zehir — SABİT, her an
-geçerli bir bonus) yanına, SADECE yakalanma anında (`ecosystem.ts`
-`huntCreature`) devreye giren AYRI bir "tepkisel kaçış şansı" eklendi —
-`Creature.chromatophoreReactiveEscapeChance()`, formül `0.12 + power*0.2`
-(organ yoksa 0, hiçbir başka bireyi etkilemez). `huntCreature`'daki
-escapeChance hesaplamasına toplamsal olarak eklendi (survivalBonus'un
-üstüne, packHuntEscapeReduction'ın ALTINDA — sıralama mevcut yapıyla
-tutarlı).
-
-`organs.ts`: `OrganType` union'a `chromatophore` eklendi, `ORGAN_DEFINITIONS`
-kaydına `defense` kategorisinde bir girdi (label "Kromatofor (Aktif
-Kamuflaj)", description mekanik etkiyle birebir tutarlı), şematik çizimi
-kamuflaj'ın tek-renkli düşük-alfa benek deseninden GÖRSEL OLARAK ayırt
-edilebilir olacak şekilde tasarlandı — birkaç örtüşen, magenta/pembe
-vurgu renkli (gövde paletinden bağımsız, "renk değişimi" hissi) düzensiz
-"leke" halkası.
-
-Mutasyon havuzu (`genome.ts` `maybeGainOrgan` → `pickRandomOrganType`)
-ve organ diyagramı (`hud.ts` `CATEGORY_ZONE`) ikisi de registry-driven
-(`ALL_ORGAN_TYPES = Object.keys(ORGAN_DEFINITIONS)`, `Record<OrganCategory,...>`
-tip kontrolü) olduğundan HİÇBİR ek değişiklik gerekmedi — sadece
-`ORGAN_DEFINITIONS`'a kayıt eklemek yeterliydi, açık uçlu organ sisteminin
-tam olarak amaçladığı davranış.
-
-### Doğrulama (coder a7)
-tsc --noEmit ve `vite build` temiz. Playwright ile:
-1. Geçici bir `__forceOrgan` debug hook'u (genel amaçlı, `__forcePackHunter`/
-   `__forceDiet` emsaliyle tutarlı — KALICI bırakıldı, gelecekteki organ
-   testleri için de kullanılabilir) ile bir canlı bireye organ zorlandı.
-2. Geçici bir escape-chance sorgu hook'u ile formül DOĞRULANDI:
-   power=0.7 → escapeChance=0.26 (beklenen: 0.12+0.7*0.2=0.26, tam eşleşme),
-   organsız bir birey için 0 (etkisiz, izole).
-3. Geçici bir id-bazlı seçim hook'u (önceki Faz XIX'teki
-   `lineageNodeClickHandler` yeniden kullanılarak) ile organ ikonu/tooltip
-   GERÇEK inceleme panelinde doğru render edildiği ekran görüntüsüyle
-   görsel olarak teyit edildi (magenta ikon, doğru kategori konumunda,
-   tooltip metni description ile birebir).
-4. Genel bir smoke test (15s/4x hız simülasyon): sıfır page/console hatası.
-
-### Temizlik
-Test-only debug hook'lar (`__debugGetChromatophoreEscapeChance`,
-`__debugSelectById`) doğrulama sonrası tamamen kaldırıldı — grep ile sıfır
-kalıntı teyit edildi. `__forceOrgan` bilinçli olarak KALICI bırakıldı
-(genel test altyapısı, tek seferlik değil). tsc/build son bir kez temiz.
-
-## Faz XXI — Yeni organ: Simbiyotik Bağırsak Florası (arşiv)
-
-### Görev (2026-09-11, PM 31)
-Kullanıcının "yaratıcı fikirlerle ilerlet" isteğiyle, Faz XX'in (kromatofor)
-ardından ikinci bir organ istendi. PM'in önerdiği fikirlerden "simbiyotik
-bağırsak florası" seçildi (elektrik organı yerine — o fikir sense/hunt
-mekaniklerine çok yakın düşme riski taşıyordu).
-
-### Tasarım kararı (coder a7)
-Mevcut TÜM feeding-kategorisi organlar (`mouth`, `stomach`, `regeneration`)
-aynı eksende çalışıyordu: "beslenmeden/avdan kazanılan ENERJİYİ artırır".
-Kullanıcının "uydurma yok" + gerçekten farklı bir mekanik isteğiyle
-tutarlı olmak için BİLİNÇLİ olarak farklı bir eksen seçildi: kazanılan
-enerji değil, avdan sonraki SİNDİRİM MOLASI SÜRESİ (`ecosystem.ts`
-`DIGEST_COOLDOWN`, `huntCreature`'da başarılı bir avdan sonra predatöre
-uygulanan bekleme süresi) — predatöre "daha çok enerji" değil "daha sık
-avlanma fırsatı" veriyor. SADECE etçillerde (avlanan bir birey) anlamlı
-bir etkisi olur — otçullarda organ hiçbir zaman tetiklenmez (DIGEST_COOLDOWN
-sadece huntCreature'da set ediliyor).
-
-### Uygulama
-`creature.ts`: `digestCooldownMultiplier()` — `1 - power*0.5` (organ
-yoksa 1, davranış TAMAMEN aynı kalır — hiçbir mevcut bireyi etkilemez).
-`ecosystem.ts`: `huntCreature`'daki `digestCooldowns.set` çağrısına
-`* predator.digestCooldownMultiplier()` eklendi. `organs.ts`: `OrganType`
-union'a `symbiotic_gut_flora` eklendi, `ORGAN_DEFINITIONS` kaydı (feeding
-kategorisi, description mekanikle birebir tutarlı — "Avdan sonraki
-sindirim molası süresini kısaltır (daha sık avlanma fırsatı)"), şematik
-çizimi `stomach`'ın tek noktasından görsel olarak ayırt edilebilir birkaç
-küçük, hafif kıvrımlı yeşilimsi nokta (bağırsak/koloni izlenimi).
-
-Mutasyon havuzu ve organ diyagramı yine registry-driven olduğundan
-(`ALL_ORGAN_TYPES`/`CATEGORY_ZONE` tip-kontrollü) HİÇBİR ek değişiklik
-gerekmedi.
-
-### Doğrulama (coder a7)
-tsc --noEmit ve `vite build` temiz. Playwright ile: (1) `__forceOrgan`
-(Faz XX'ten kalıcı bırakılan genel test hook'u) ile bir bireye organ
-zorlandı; (2) geçici bir multiplier sorgu hook'u ile formül DOĞRULANDI:
-power=0.6 → multiplier=0.7 (beklenen: 1-0.6*0.5=0.7, tam eşleşme),
-organsız birey → 1 (etkisiz); (3) geçici bir id-bazlı seçim hook'u
-(lineageNodeClickHandler yeniden kullanılarak, Faz XIX/XX'teki desenle
-tutarlı) ile organ ikonu/tooltip GERÇEK inceleme panelinde doğru render
-edildiği ekran görüntüsüyle görsel olarak teyit edildi (yeşilimsi ikon,
-doğru kategori konumunda, tooltip metni description ile birebir); (4)
-genel bir smoke test (20s/4x hız simülasyon): sıfır page/console hatası.
-
-### Temizlik
-Test-only debug hook'lar (`__debugGetDigestCooldownMultiplier`,
-`__debugSelectById`) doğrulama sonrası tamamen kaldırıldı — grep ile
-sıfır kalıntı teyit edildi. tsc/build son bir kez temiz.
-
-## Faz XXII — Küçük yardımcı dosyalarda ölü kod temizliği (arşiv)
-
-### Görev (2026-09-13, PM 31)
-Repo git-tracked hale geldikten sonra (proje adı "Evosim"), tester
-boşta olduğu için PM, coder a7'ye bağımsız (kendi test disiplinini
-uygulayarak) bir görev verdi: bu oturumda hiç dokunulmamış küçük
-yardımcı dosyalarda (`angle.ts`/`color.ts`/`rng.ts`) bir bug-avı/kod-
-kalitesi taraması.
-
-### Bulgular (coder a7)
-`grep -rn` ile her dosyanın her export edilen fonksiyonunun projedeki
-TÜM kullanım noktaları tarandı (import ifadeleri + doğrudan çağrılar).
-3 gerçek ölü kod parçası bulundu — sıfır çağrı noktası:
-1. `angle.ts`'in TEK fonksiyonu, `shortestAngleDiff` (dosyanın tamamı
-   pratikte tek bu fonksiyondan ibaretti). Ek not: fonksiyonun kendi
-   doc yorumu "(-π, π]" aralığı vaat ediyordu ama `shortestAngleDiff(0,
-   -Math.PI)` tam `-π` döndürüyordu (aralığın açık ucunun dışında) —
-   kullanılmadığı için pratik etkisi yoktu, sadece bilgi amaçlı not
-   edildi.
-2. `color.ts`'teki `muteColor` — dosya başındaki yorum "Faz A takip"
-   notuyla `genomeToPalette`'e (`genome.ts:392`) atıfta bulunuyordu,
-   ama `genomeToPalette` "nötr/bilimsel görünüm" hedefini HSL
-   aşamasında (saturation/lightness kısıtlamasıyla) zaten sağlıyordu —
-   `muteColor`'ın post-processing (RGB'yi luma'ya doğru karıştırma)
-   yaklaşımı hiç kullanılmıyordu. Muhtemelen bir tasarım denemesinden
-   kalmıştı.
-3. `rng.ts`'teki `pick` — hiç çağrılmıyordu.
-
-### Uygulama (PM 31)
-Dosya silme işlemi (`angle.ts`) coder'ın permission sınıflandırıcısı
-tarafından "Irreversible Local Destruction" gerekçesiyle engellenince
-(git-tracked olsa bile), PM kendi izin seviyesinde işlemi tamamladı —
-git-tracked/tamamen geri alınabilir bir işlem olduğu değerlendirmesiyle.
-`angle.ts` silindi, `color.ts`'ten `muteColor` + yardımcı `clampByte`
-(sadece muteColor kullanıyordu) kaldırıldı, `rng.ts`'ten `pick`
-kaldırıldı. tsc --noEmit temiz. Commit atıldı (push yok, kullanıcı/PM
-onayı bekliyor).
-
-## Faz XXIII — Proje adı değişikliği taraması (arşiv)
-
-### Görev (2026-09-13, PM 31)
-Repo "Evosim" olarak yeniden adlandırıldıktan (`package.json`/
-`index.html` başlığı zaten güncellenmişti) sonra, kod tabanında hâlâ
-eski isme ("Evrimsel Gezegen") referans veren kullanıcı-görünür yerler
-kalıp kalmadığını tarama görevi.
-
-### Yöntem ve bulgular (coder a7)
-`git ls-files | xargs grep -ln "Evrimsel Gezegen"` ile TÜM tracked
-dosyalar tarandı (TASKS.md/TASKS_ARCHIVE.md hariç tutuldu — orada
-bilinçli bir "eski adıyla" tarihsel notu zaten var, PM'in önceki turda
-eklediği). Ayrıca büyük/küçük harf duyarsız ve tire/boşluk varyasyonları
-(`evrimsel gezegen`, `EvrimselGezegen`, `evrimsel-gezegen`) da tarandı.
-
-2 gerçek kullanıcı-görünür kalıntı bulundu:
-1. `src/exportimport.ts` `EXPORT_FILENAME_PREFIX = "evrimsel-gezegen-kayit"`
-   — kullanıcının "Dışa Aktar" butonuyla indirdiği kayıt dosyasının adı.
-   Saf kozmetik, format/uyumluluk etkisi yok (içe aktarma dosya adını
-   HİÇ okumuyor, sadece JSON içeriğini `isValidSaveData`'yla doğruluyor).
-2. `package-lock.json`'daki İKİ `"name"` alanı ("evrimsel-gezegen")
-   `package.json`'ın ("evosim") gerisinde kalmıştı — `npm` tarafından
-   otomatik senkronize edilmemiş, muhtemelen `package.json` elle
-   düzenlendiğinde `npm install` çalıştırılmamış.
-
-`dist/index.html`'de de eski isim vardı ama bu git-tracked DEĞİL (build
-artifact, `.gitignore`'da) — gerçek bir bulgu değil, sadece stale bir
-önceki build; yeniden `vite build` ile otomatik düzeldi.
-
-### Uygulama (coder a7)
-`EXPORT_FILENAME_PREFIX` → `"evosim-kayit"` — Playwright ile gerçek
-export akışı test edildi, indirilen dosya adı doğru üretiliyor
-(`evosim-kayit-<timestamp>.json`), sıfır page error. `package-lock.json`
-iki `"name"` alanı elle `"evosim"` yapıldı (dependency sürümlerini
-etkilememesi için `npm install --package-lock-only` ile "up to date, no
-changes" olduğu doğrulandı — sadece metadata, `git diff` ile 2 satırlık
-minimal değişiklik teyit edildi). tsc --noEmit ve `vite build` temiz.
-
-### Bilinçli olarak dokunulmayan: `savegame.ts` `SAVE_KEY`
-`SAVE_KEY = "evrimsel-gezegen-save-v8"` bir `localStorage` anahtarı —
-kullanıcı arayüzünde hiç görünmüyor ama değiştirilirse mevcut TÜM
-kayıtlı oyunlar (kullanıcının tarayıcısında, farklı bir anahtarda
-arandığı için) sessizce "kayıt yok" durumuna düşer. Bu saf bir isim
-değişikliği DEĞİL, geriye dönük uyumluluk kararı gerektiriyor — aday
-havuzuna "ONAY BEKLİYOR" olarak eklendi, kullanıcı/PM kararı olmadan
-uygulanmadı. **Karar (PM 31, 2026-09-13)**: şimdilik DEĞİŞTİRİLMEYECEK
-— risk asimetrik (isim kozmetiği için veri kaybı riski almaya değmez).
-Aday havuzunda "düşük öncelik" olarak kalıyor, ileride istenirse bir
-migration (eski anahtarı oku, bulamazsan yeni anahtarla dene, eski
-bulunursa yeni anahtara taşı) eklenebilir.
-
-## Faz XI — Tamamlanan turlar (arşiv, TASKS.md'den taşındı)
-
-### Gemini gerçek uçtan uca doğrulama + ölü kod taraması + baştan sona akış + mobil/responsive CSS kaskad düzeltmesi + kombinasyon senaryosu + arşiv anchor taraması + soy ağacı entegrasyon testi (coder 6f/c2, tester 62, 2026-09-10)
-Hepsi TAMAMLANDI/TEMİZ/GEÇTİ. Anchor'lar: `#faz-xi-gemini-gerçek-çağrı--ölü-kod-taraması`,
-`#faz-xi-baştan-sona-kullanıcı-akışı-taraması`, `#faz-xi-mobildar-ekran-responsive-taraması`.
-
-### Dünya olayları tetikleme + dominantOrganType()/ESC-kapat/Content-Type/Gemini whitelist/crossoverGenomes adalet düzeltmeleri + Plague Inc canlı diyagramı + soy ağacı tam sayfa + bug-avı taraması (2026-09-10, coder 6f/c2)
-Hepsi TAMAMLANDI, Tester GEÇTİ (bağımsız, 62, farklı açılardan).
-
-### Organ açıklaması tutarlılığı + loadFromSave temizliği + içe aktarma bug + organ trend oku + uzamsal bölümleme + performans denetimi 2. tur + ayrıştırıcı-besin katkısı (2026-09-05—10, coder c5/6f/c2)
-Hepsi TAMAMLANDI, Tester GEÇTİ. Anchor: `#faz-xi-organ-açıklaması-tutarlılığı-2-bağımsız-tur`
-(diğer anchor'lar aynı dosyada `faz-xi-*` ile aranabilir).
-
-### Çoklu kayıt slotu (2026-09-03)
-Eklendi + doğrulandı, sonra kaldırıldı. Anchor: `#faz-xi-çoklu-kayıt-slotu`.
-
-### Soy ağacı zoom/pan + performans denetimi + UI/UX sadeleştirme + Dışa/İçe Aktarma + Responsive destek (2026-09-03)
-Hepsi TAMAMLANDI + Tester GEÇTİ.
-
-## Temizlik Notu (tester 0f, 2026-09-11, arşiv)
-Proje kökü process/dosya kalıntı taraması: orphan process yok, 3 gerçek
-dosya leftover'ı (`diag_server.pid`, 2 Faz XV temp script'i) silindi, tsc
-temiz doğrulandı.
+**Finding**: in both proxy middlewares (`geminiProxyPlugin`,
+`populationTelemetryPlugin`), ALL JSON-bodied error responses set
+`Content-Type: application/json` — EXCEPT 3 "405 Method Not Allowed"
+branches (`/api/gemini-insight` root, `/api/population-snapshot/history`,
+`/api/population-snapshot` root), which FORGOT this header — the browser/
+client could interpret the response body as text/`text/plain` (Node's
+default) rather than JSON — an inconsistent API contract.
+
+**Fix**: `res.setHeader("Content-Type", "application/json")` added to all
+3 missing spots (behavior/status code UNCHANGED, header only).
+
+**Coder's test**: isolated `curl` test (port 6966, PID 25548, only its own
+PID stopped): 4 scenarios (`/api/gemini-insight` GET→405,
+`/api/population-snapshot` GET→200 sanity check,
+`/api/population-snapshot/history` POST→405, `/api/population-snapshot`
+DELETE→405) all returned the correct header. `npx tsc --noEmit`/`npm run
+build` clean, zero leak scan in `dist/`, `dist/` deleted.
+
+### Tester verification (independent, 2026-09-10, tester 62): PASSED
+
+Code review confirmed all 3 fixes were added at exactly the right spots,
+line by line. `curl -i` testing with methods c2 DIDN'T USE (PUT, PATCH —
+not GET/DELETE) (temporary dev server, port 6811, PID confirmed and only
+that PID stopped): PUT `/api/gemini-insight` → 405 + correct header;
+PATCH `/api/population-snapshot/history` → 405 + correct header; PUT
+`/api/population-snapshot` → 405 + correct header. Also a regression
+check: `GET /api/population-snapshot` → 200 + json, `POST` with valid data
+→ 204, `GET /history` → 200 + json — none affected.
+
+## Phase XI — ESC-to-Close on the Lineage Tree Full-Page Panel (archive)
+
+COMPLETE (coder 6f/c2, 2026-09-10, PM-approved — an accessibility finding
+by tester 62), **Tester PASSED (independent, 2026-09-10, tester 62)**.
+
+**Finding**: the lineage tree panel used to be a small corner box
+(520×380px); at the user's request it's now a full-page modal (measured
+76%×89% screen coverage) — at this size the standard modal-close
+expectation (ESC) is pronounced, but the panel only closed via the "×"
+button.
+
+**Fix**: a `keydown` listener on `document` was added to `lineagetree.ts`
+— ONLY while the panel is visible (checking `this.visible`), pressing
+`Escape` calls the SAME `hide()` path as the "×" button
+(`lineage-close`), so there's no inconsistency between the two closing
+methods.
+
+**Coder's test**: isolated Playwright test (port 6977, PID 43364, only
+its own PID stopped), 6 scenarios: ESC while the panel is closed →
+nothing happens/no error; open the panel and press ESC → it closes; after
+ESC, the toggle button's `active` class also correctly clears; open again
+→ close via × → then ESC → silently no-ops without a second error/
+conflict. Zero page errors. `npx tsc --noEmit`/`npm run build` clean,
+zero leak scan in `dist/`, `dist/` deleted.
+
+### Tester verification (independent, 2026-09-10, tester 62): PASSED
+
+Code review — found a SECOND global `keydown` handler in `main.ts`
+(Space/1/2/3, speed control), confirmed it doesn't check
+`e.key==="Escape"` and doesn't call `preventDefault`/`stopPropagation` —
+no conflict risk. Live testing with different scenarios (Playwright,
+temporary port 6911, PID confirmed and only that PID stopped): (1) with
+the panel open, ESC was pressed 5 times in a row — closed on the first
+press, subsequent ones silently no-op, no error; (2) confirmed
+`main.ts`'s speed-control keydown handler STILL WORKS while the panel is
+OPEN (pressed "2" while the panel was open and measured that speed
+genuinely changed to 2) — the two `keydown` listeners don't interfere with
+each other; (3) ESC correctly closed the panel even without focus INSIDE
+the panel (body-focused) (the `document`-level listener works as
+expected). Zero page errors.
+
+## Phase XI — Switching `dominantOrganType()` to "Highest Power" Logic
+## (archive)
+
+COMPLETE (coder 6f/c2, 2026-09-10, PM-approved — a behavior better suited
+to the user's "professional lineage tree" request), **Tester PASSED
+(independent, 2026-09-10, tester 62)**.
+
+**Root cause**: the dominant organ (determining the lineage-tree node ring
+color) used to be the MOST RECENTLY GAINED organ (`organs[organs.length-1]`)
+— though the comment claimed "highest power," the code didn't actually
+behave that way (see the 2026-09-10 bug-hunting sweep finding in
+TASKS_ARCHIVE.md).
+
+**Fix**: a new `dominantOrganType: OrganType | null` field was added to
+`LineageRecord`, computed ONCE at birth (`ecosystem.ts` `recordLineage`,
+using raw genome data — power is available there) via
+`computeDominantOrganType` and stored (ties go to the most recently added,
+consistent with the old tie-break behavior, via an `o.power >=
+dominant.power` comparison). **Scope deliberately narrowed**: the
+`LineageRecord.organs: OrganType[]` field itself (no power) and the 6
+different call sites using it (`ecosystem.ts`/`lineagetree.ts`/`main.ts`)
+were left UNTOUCHED — instead just a new, narrowly-scoped field was
+added, rather than a riskier data-model refactor. No effect on the save
+format (`LineageRecord` isn't part of the save format, it's recomputed on
+every page open/save load). The old (incorrectly documented) local
+`dominantOrganType()` heuristic in `lineagetree.ts` was removed entirely,
+now `record.dominantOrganType` is read directly.
+
+**Coder's own test**: with two temporary TEST-ONLY debug hooks (FULLY
+REVERTED after verification), 6 scenarios were verified — the two most
+critical: when leg (movement) is added FIRST with high power (0.9), and
+eye (sense) added LATER with low power (0.2), the result is "leg" (the
+old code would have picked "eye" — power wins, not order); and in reverse
+order too (eye first+high, leg later+low), "eye" was correctly picked —
+proven to be order-independent, genuinely power-based. Equal-power
+tie-break, a single organ, an empty organ list (null), and a 3-organ
+middle-is-highest scenario also gave the correct result. With natural
+simulation data too (60s, 4x speed), `getLineage()`'s `dominantOrganType`
+was cross-checked against 8 creatures' live organ data, all matched.
+Visually, the lineage tree panel was also confirmed via screenshot to
+still render node rings correctly (140 population, 6 generations, blue/
+yellow/purple categories). `npx tsc --noEmit`/`npm run build` clean, zero
+leak scan in `dist/`, `dist/` deleted. Zero page errors.
+
+### Tester verification (independent, 2026-09-10, tester 62): PASSED
+
+Code review: `__debugForceSyntheticLineageChain` (TEST-ONLY, the synthetic
+lineage-chain generator) still appeared to use the old
+`organs[organs.length-1]` pattern — on review this was confirmed to NOT BE
+A REGRESSION: that function only works with a bare `OrganType[]` (NO power
+INFORMATION), while `computeDominantOrganType` expects a real `Organ[]`
+(with power) — unusable due to a type mismatch, a deliberate design
+constraint, not a forgotten update. Also confirmed `LineageRecord` isn't
+part of the save format (no reference at all in `savegame.ts`). Live
+Playwright test (temporary dev server, port 7011, PID confirmed and only
+that PID stopped), a combination DIFFERENT from c2's scenario: mouth(0.2,
+FIRST) → shell(0.9, MIDDLE) → spike(0.3, LAST) — the dominant organ was
+correctly picked as "shell" (the highest power in the middle), proving
+it's neither a first/last-organ bias nor a simple order-based bug. I did
+NOT live-test the equal-power tie-break claim (since mutation changes
+powers between parent and child, reliably producing a true "exact tie"
+scenario in a child isn't practical) — instead I directly traced the code
+statically and confirmed the `>=` logic produces the claimed tie-break.
+`npx tsc --noEmit`/`npm run build` independently re-run, clean.
+
+## Phase XI — World Events Manual/Automatic Trigger Inconsistency Fix
+## (archive)
+
+COMPLETE (coder 6f/c2, 2026-09-10, found following the PM's "review
+worldevents.ts" assignment, PM-approved fix), **Tester PASSED
+(independent, 2026-09-10, tester 62)**.
+
+**Review result**: the duration/intensity parameters Phase VIII documented
+(climate 45-90s, wind 12-25s, quake 25-50s) matched the code
+(`worldevents.ts` constants) exactly, NO documentation drift.
+
+**Real inconsistency found**: automatic triggering (`updateChecks`)
+applied an "don't trigger again if already active" guard for climate/wind/
+quake (`if (this.xActiveTimer <= 0 && Math.random() < ...)`), but manual
+triggering (`forceTrigger`, the HUD button) shared NONE of this guard —
+two manual triggers in a row (e.g. an earthquake on top of an earthquake)
+would SILENTLY overwrite the first one's duration with the second. Worse
+for earthquakes: `world.ts`'s `quakeOverrides` is an array supporting
+multiple regions, but `WorldEventManager` had a SINGLE
+`quakeActiveTimer` — the first earthquake's region stayed in world.ts
+while the timer reset to the second's duration (no permanent leak,
+`clearQuakeOverrides` clears both, but duration-accuracy was broken).
+
+**Fix**: the same "already active" guard was added to `forceTrigger` for
+the three types other than meteor — if blocked, it's not silently
+ignored, a short "already active, please wait" message is logged to the
+event log (consistent with the existing transparency pattern). Since this
+guard already prevents the conflict, a separate per-region timer system
+was deemed UNNECESSARY (a simple guard was enough, no unnecessary
+complexity added).
+
+**Coder's own test**: isolated Playwright test (port 7033, PID 28864,
+only its own PID stopped): two manual earthquakes in a row → the second
+was BLOCKED (`quake count` stayed at 1), the event log correctly rendered
+"Earthquake effect already active, waiting for it to end"; the same result
+was confirmed for climate; meteor (no "active state" concept) was
+UNAFFECTED by the guard — two manual meteors in a row both genuinely
+triggered (`meteor count` 0→2); during an 8-second 4x-speed automatic run,
+no errors/crashes occurred. `npx tsc --noEmit`/`npm run build` clean, zero
+leak scan in `dist/`, `dist/` deleted. Zero page errors.
+
+### Tester verification (independent, 2026-09-10, tester 62): PASSED
+
+Code review: confirmed the guard logic uses exactly the same condition as
+`updateChecks`'s own guard (`climateActiveTimer > 0` etc.), and that the
+event-log message labels match correctly. Two scenarios c2 DID NOT TEST,
+via live Playwright testing (temporary dev server, port 7111, PID
+confirmed and only that PID stopped): (1) the same blocking for **wind**
+too (c2 only tested climate/quake/meteor) — two manual winds in a row, the
+second correctly blocked (`wind count` stayed at 1); (2) **that the block
+genuinely OPENS once the duration ends** — c2's test only showed blocking
+occurs, not that it isn't a permanent lock; waited long enough to safely
+exceed wind's max duration (25s) (8s real time at 4x speed ≈ 32
+sim-seconds), `windActive` correctly returned to `false`, a THIRD manual
+wind this time SUCCEEDED (`wind count` 1→2) — proof the block is
+temporary, not a permanent lock. Also confirmed `getActiveState()`
+correctly returns `true` IMMEDIATELY after triggering (with earthquake).
+Zero page errors. tsc/build independently re-run, clean; zero leak scan in
+`dist/`.
+
+## Phase XI — Mobile/Narrow-Screen Responsive Sweep (archive)
+
+Following the PM's question "are today's newly added organ diagram +
+lineage-tree full-page panel compatible with Phase XI Responsive's
+narrow-screen behavior" (coder 6f/c2, 2026-09-10), both the organ diagram
+and the lineage tree full-page panel were tested at a 375×667 (real phone
+size) viewport with an isolated Playwright test.
+
+**Finding**: the lineage tree panel was FINE (zoom controls accessible, no
+overflow). But the creature inspection panel (including the organ
+diagram), in the row-based (flex-wrap) mobile layout that tries to fit it
+SIDE BY SIDE with `#stats-panel` (Phase XI Responsive, `max-width:680px`),
+GENUINELY overflowed — at a 375px viewport the panel's right edge
+overflowed the viewport by ~60-75px, and since `#side-panel` only scrolls
+VERTICALLY, this content (including part of the diagram) was inaccessible.
+The root cause wasn't a single thing: (1) the new SVG diagram's fixed
+`width="140"` attribute combined with the flex-item's default
+`min-width:auto` behavior overrode `max-width:100%`; (2)
+`#inspector-panel`'s existing `flex-shrink:0` rule (for the desktop/
+vertical layout, to avoid squeezing the event log, from the Phase XI
+UI/UX simplification) stayed active in the mobile row-layout too, never
+shrinking the panel; (3) MOST FUNDAMENTALLY, trying to fit `#stats-panel`'s
+2-column stat grid (with a ~233px real min-content floor due to uppercase
+labels) SIDE BY SIDE with the diagram+text-bearing inspection panel in a
+375px-wide row was never realistic to begin with.
+
+**Fix** (`dashboard.css`, 3 parts): `max-width:100%; min-width:0` added to
+the SVG (not sufficient on its own but necessary); a `flex-shrink:1`
+override added to `#inspector-panel` in the mobile row-layout (the
+original `flex-shrink:0` for desktop/vertical layout UNCHANGED); a NEW
+`max-width:480px` breakpoint was added, at which `#side-panel` switches
+directly to `flex-direction:column` (the layout the desktop version
+ALREADY uses, a proven layout) — instead of FORCING the panels side by
+side, on genuinely narrow screens they stack FULL WIDTH one below the
+other. The 480-680px range (tablet/large phone landscape) KEEPS the
+existing side-by-side layout (intentionally — see the independent
+verification finding below).
+
+**Coder's verification**: `npx tsc --noEmit`/`npm run build` clean, zero
+leak scan in `dist/`, `dist/` deleted. Isolated Playwright tests (port
+7055, PID 10936, only its own PID stopped): at 375×667, the inspection
+panel was opened for a creature forced to have 4 organs —
+`statsOverflows`/`inspectorOverflows`/`diagramOverflows`/
+`pageOverflowsHorizontally` were ALL `false` (before the fix, the
+inspection panel overflowed by 436-610px); also visually confirmed with a
+screenshot (panels full-width, stacked cleanly). The lineage tree panel
+was still fine at the same viewport (zoom button clickable, 100%→110%).
+**Regression check**: at 600px width (within the 480-680px range),
+`#stats-panel`/`#inspector-panel` are still SIDE BY SIDE (`sameRow:true`),
+no overflow — the medium-width layout was NOT AFFECTED by this fix (c2's
+claim). Zero page errors.
+
+**🔴 Independent tester verification (62, 2026-09-10): PASSED for the
+375px/320px/exact-480px boundary, but a SEPARATE, REAL CSS cascade bug
+was found in the 480-680px "tablet" range (status: tracked as "OPEN" in
+TASKS.md, handed to c2 — this archive entry documents the coder's FIRST
+round, the fix's outcome will be in a separate archive entry).**
+
+Root cause: the BASE (no media-query) `#side-panel` rule at
+`dashboard.css` lines 313-321 sets `flex-direction: column` — this rule
+comes LATER in the file than the `@media (max-width: 680px)` rule (line
+223, `flex-direction: row`, documented as "tablet/side-by-side layout
+preserved"). When two rules of the same specificity conflict, the rule
+that comes LATER in the file wins in the CSS cascade — being inside a
+media query doesn't automatically prioritize a rule, it only determines at
+which widths it's active. Result: in the 480-680px range
+(`window.matchMedia("(max-width: 680px)").matches === true` confirmed),
+`flex-direction` was ACTUALLY still `column` (should be `row`) — c2's
+"`sameRow:true`" test likely only checked visual/position, not the actual
+`flex-direction` VALUE via `getComputedStyle` (because `flex-wrap: wrap`,
+the other half of the rule, was still applying correctly, so the panel
+still "wrapped" — might not have looked obviously wrong visually, but the
+layout INTENT was completely broken).
+
+Minimal repro (no interaction, just a page load, 600px viewport):
+`getComputedStyle(#side-panel).flexDirection === "column"`, `flexWrap ===
+"wrap"` (part of the rule applies, the flex-direction part is overridden).
+With the inspection panel+organ diagram open, ~235px overflow was measured
+at 600px, ~235px at 680px (via `getBoundingClientRect()`).
+
+**Fix direction (PM-approved, NOT an `!important` specificity hack, a
+permanent file-order refactor is wanted)**: the base `#side-panel` rule
+(line 313) should be moved to the VERY TOP of the file, with media query
+rules ALWAYS coming AFTER it — this guarantees CSS's "later rule wins"
+behavior works in the media queries' favor. Handed to c2, tester 62 will
+re-verify with a computed-style measurement.
+
+### Fix (coder 6f/c2, 2026-09-10) — COMPLETE, Tester PASSED (independent, 62)
+
+NOT an `!important`/specificity hack, a permanent file-order refactor: the
+base `#side-panel` rule was moved to the VERY TOP of the file (before all
+responsive media queries), the old (misplaced) copy was fully removed.
+
+**Coder's verification**: `npx tsc --noEmit`/`npm run build` clean, zero
+leak scan in `dist/`, `dist/` deleted. Isolated Playwright test (port
+7066, PID 15428, only its own PID stopped) — using tester 62's SAME
+method (not just visual, `getComputedStyle(...).flexDirection` measured
+DIRECTLY): 7 width points tested (375/480/500/600/680/681/1200px), ALL
+gave the expected value — notably 600px (62's minimal repro) now returns
+`"row"` (before: `"column"`). Functional test with real content (a
+creature with forced organs): at 375px column+no overflow, at 600px
+row+no overflow+panels genuinely side by side (also confirmed via
+screenshot), at 1200×800 (tall desktop) column correctly — that "row"
+appears at 1200×500 is NOT A BUG, it was also confirmed that the existing/
+pre-existing `max-height:560px` OR-condition deliberately triggers the
+compact layout on short viewports (phone landscape) regardless of width.
+Zero page errors.
+
+**Independent tester verification (62, 2026-09-10): PASSED.** Code
+review: confirmed the base rule was genuinely moved before ALL `@media`
+queries, the old-location copy was completely removed, and that a second/
+unrelated `#inspector-panel` `flex-shrink` rule was unaffected by this
+change. Live test (Playwright, temporary port 7411, PID confirmed and only
+that PID stopped), with computed-style measurement: my original 600px
+repro now shows `flexDirection: "row"` (was `"column"`); 550px, which c2
+DID NOT TEST, is also correct; the 480/481 boundary is correct. With real
+content (forced organs, inspection panel open) at 600px,
+`#stats-panel`/`#inspector-panel` are at the SAME vertical position
+(`sameRow:true`) and `overflowPx:0` — not just computed-style, real
+rendering is correct too. tsc/build independently re-run, clean; zero leak
+scan in `dist/`. Zero page errors.
+
+## Phase XI — Combination Scenario Sweep (archive)
+
+Following the PM's "what happens when multiple systems are active AT THE
+SAME TIME" request (coder 6f/c2, 2026-09-10) — PASSED CLEANLY, no findings.
+
+An isolated Playwright test (port 7044, PID 34276, only its own PID
+stopped) manually triggered climate+wind+quake SIMULTANEOUSLY, dropped
+food production to 25% (hunger pressure), and ran for 4 seconds at 4x
+speed under chaos — ZERO water/land violations. This chaotic state was
+exported and imported on a fresh page — seed/population matched exactly
+(24=24), world events weren't preserved (expected — not part of the save
+format, confirmed: all returned `false`). Immediately after import, quake+
+wind were retriggered on the imported population, food dropped again, and
+it ran 6 more seconds under 4x chaos — population naturally dropped

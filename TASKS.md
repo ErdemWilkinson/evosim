@@ -1,344 +1,364 @@
-# Evosim (eski adıyla Evrimsel Gezegen) — Proje Spesifikasyonu (v3, tam sıfırlama)
+# Evosim (formerly Evolutionary Planet) — Project Specification (v3, full reset)
 
-> **Not**: Tarihsel detaylar/tester kanıtları için `TASKS_ARCHIVE.md`'ye bakın.
-> Her fazın burada 1-3 satırlık bir özeti var; tam uygulama detayı ve bağımsız
-> tester doğrulama raporu arşiv dosyasında (`TASKS_ARCHIVE.md#faz-i` gibi
-> başlıklarla) kronolojik sırayla tutuluyor.
+> **Note**: For historical details/tester evidence, see `TASKS_ARCHIVE.md`.
+> Each phase here has a 1-3 line summary; the full implementation details and
+> independent tester verification reports are kept in chronological order in
+> the archive file (under headings like `TASKS_ARCHIVE.md#faz-i`).
 
-## Önceki sürümlerle ilgili not
-- **v1** (Webbed tarzı sevimli/karikatür canlılarla bir "yaşam simülasyonu"):
-  kullanıcı tarafından reddedildi — "evrim simülasyonu istedim, yaşam simülasyonu
-  değil".
-- **v2** (dairesel gezegen + bilimsel/D3 dashboard: filogenetik ağaç, trait
-  histogramları, sekmeli panel): kullanıcı tarafından yine reddedildi — menü/
-  dashboard fazla karmaşık bulundu, konsept "hazır canlılar bir gezegende
-  yaşıyor" yerine "mikroorganizmadan başlayan gerçek bir evrim/organ kazanma
-  süreci" olmalı, ayrıca dairesel gezegen yerine düz bir harita (su+kara)
-  isteniyor.
-- Bu doküman ve kod tabanı **yine sıfırdan** yazıldı (v3). v2'deki bazı alt
-  sistemler (genom/mutasyon çekirdek mantığı, nesil takibi, kaydet/yükle, hız
-  kontrolü mimarisi) kavramsal olarak yeniden kullanıldı ama **gezegen/dünya
-  modeli, canlı başlangıç noktası (artık mikroorganizma) ve TÜM UI/dashboard
-  tamamen yeniden tasarlandı.**
+## Note on previous versions
+- **v1** (a "life simulation" with Webbed-style cute/cartoon creatures):
+  rejected by the user — "I asked for an evolution simulation, not a life
+  simulation."
+- **v2** (circular planet + scientific/D3 dashboard: phylogenetic tree, trait
+  histograms, tabbed panel): also rejected by the user — the menu/dashboard
+  was found too complex; the concept should be "a real evolution/organ-gain
+  process starting from a microorganism" rather than "ready-made creatures
+  living on a planet," and a flat map (water+land) was wanted instead of a
+  circular planet.
+- This document and codebase were **rewritten from scratch again** (v3).
+  Some v2 subsystems (genome/mutation core logic, generation tracking,
+  save/load, speed control architecture) were conceptually reused, but the
+  **planet/world model, the creature starting point (now a microorganism),
+  and the ENTIRE UI/dashboard were completely redesigned.**
 
-## Yeni Vizyon (v3)
-"Canlılar mikroorganizmadan başlayarak nasıl evrimleşirdi" sorusuna cevap arayan,
-sade/minimal bir arayüze sahip bir evrim simülasyonu.
+## New Vision (v3)
+An evolution simulation with a simple/minimal interface, seeking to answer
+the question "how would creatures have evolved starting from a
+microorganism."
 
-## Dünya Modeli
-- **Düz bir harita** (dairesel gezegen YOK). Sabit boyutlu (1600×1000), dikdörtgen
-  bir alan.
-- Harita **bir kez, başlangıçta** prosedürel olarak (value-noise, ekstra
-  kütüphane yok) üretilir: su/kara. Faz VIII'den beri harita seed'i her yeni
-  sayfa yüklemesinde rastgele üretiliyor (kaydet/yükle ile uyumlu).
-- **Arazi çeşitleri (Faz XVII)**: aynı ham noise değeri "yükseklik" olarak
-  yeniden kullanılıp 5 tipe (derin su/sığ su/kumsal/ova/dağ) ayrılıyor — sadece
-  görsel/kategorik bir üst katman, `terrainAt`/`isWater` (tüm hareket/spawn
-  mantığının dayandığı ikili ayrım) değişmedi.
-- **Gezegen oluşum ekranı (Faz XVI)**: her yeni simülasyon başlamadan önce,
-  harita seed'inden TÜRETİLEN (deterministik) bir atmosfer/bio-madde özeti +
-  kısa bir anlatı gösteriliyor, "Simülasyonu Başlat" ile devam ediliyor. Bir
-  kayıt yüklenirken bu ekran hiç açılmıyor.
-- "Gezegen bilgileri": su/kara %, sığ/derin su ayrımı, atmosfer/oksijen
-  seviyesi (Faz X) — HUD "Detaylar" bölmesinde gösteriliyor.
+## World Model
+- **A flat map** (NO circular planet). A fixed-size (1600×1000), rectangular
+  area.
+- The map is generated procedurally **once, at the start** (value-noise, no
+  extra library): water/land. Since Phase VIII, the map seed is generated
+  randomly on every new page load (compatible with save/load).
+- **Terrain variety (Phase XVII)**: the same raw noise value is reused as
+  "elevation" and split into 5 types (deep water/shallow water/beach/
+  plains/mountain) — this is purely a visual/categorical extra layer;
+  `terrainAt`/`isWater` (the binary distinction all movement/spawn logic
+  relies on) is unchanged.
+- **Planet formation screen (Phase XVI)**: before each new simulation
+  starts, an atmosphere/biomass summary DERIVED (deterministically) from the
+  map seed is shown along with a short narrative, and the user continues
+  with "Start Simulation." This screen never opens when loading a save.
+- "Planet info": water/land %, shallow/deep water split, atmosphere/oxygen
+  level (Phase X) — shown in the HUD's "Details" panel.
 
-## Canlı Modeli — Mikroorganizmadan Başlayan Açık Uçlu Evrim
-- **Başlangıç**: Tüm canlılar en başta **tek hücreli/organsız mikroorganizmalar**
-  olarak başlar. Su bölgelerinde yaşarlar.
-- **Açık organ havuzu**: Mutasyon, zamanla genoma yeni bir organ/uzuv TİPİ ekleme
-  şansı verir (sabit bir "evrim ağacı" sırası YOK). Kategoriler: hareket
-  (fin/leg/wing/tentacle), algı (eyespot/eye), beslenme (mouth/stomach),
-  savunma (shell/camouflage/spike), solunum (gill/lung), iç organ (heart),
-  kışlama/izolasyon/biyolüminesans/zehir/rejenerasyon (Faz XIV: torpor/blubber/
-  bioluminescence/venom/regeneration), gezegene-özgü (Faz XVI: `nitrogen_sac`/
-  `sulfur_vent_organ`, sadece uygun gezegen profilinde mümkün). 21 tip, liste
-  kapalı değil.
-- **Su → kara geçişi**: Bacak organı olan bir canlı karaya çıkıp orada da
-  hayatta kalabilir/beslenebilir.
-- **Neden/gerekçe şeffaflığı**: organ ortaya çıkıp yayıldığında/elenirken
-  event log'a gerçek, eşik-tabanlı bir olay düşer (Faz III), uydurma yok.
-- **Diyet/etoloji (Faz IX/XIII/XVII)**: `diet: herbivore|carnivore`, wander/
-  seek/flee/hunt durum makinesi, sınır farkındalığı/gerçek besin arayışı,
-  **sürü avlanma** (`packHunter` geni — yakındaki aynı-tip etçil sayısı avlanma
-  başarısını artırır).
-- **Üreme çeşitliliği (Faz VII)**: aseksüel bölünme + fırsatçı cinsel üreme
-  (crossover) + yumurtalama + basit yavru bakımı, hepsi paralel var olabilir.
-- **Yaşam döngüsü (Faz IX)**: `maxLifespan` geni ile yaşlılıktan ölüm.
-- **Ölüm/ayrıştırma (Faz VI/XI)**: ölüm görünür (ceset/iskelet), ayrıştırıcı
-  bakteriler cesetleri tüketir ve besin havuzuna küçük bir katkı bırakır.
-- **Organ açıklamaları (Faz XIV)**: inceleme panelinde her organın gerçek
-  mekanik etkisini anlatan kısa bir cümle gösteriliyor.
-- **Soy ağacı (Faz VI/XII/XVI)**: varsayılan KAPALI, buton ile açılan bir
-  overlay; zoom/pan/filtre (diyet/organ/durum/nesil), organ-rengi halkası,
-  bezier ebeveyn→çocuk dallanması. Çok büyük soylar TAMAMEN silinmiyor, eski
-  bloklar bir özet düğüme sıkıştırılıyor (veri kaybı yok); canvas dikey
-  boyutu üst sınırlı (`MAX_CONTENT_HEIGHT`, Faz XVII).
+## Creature Model — Open-Ended Evolution Starting from a Microorganism
+- **Start**: All creatures begin as **single-celled/organless
+  microorganisms**. They live in water regions.
+- **Open organ pool**: Mutation gives a chance to add a new organ/limb TYPE
+  to the genome over time (there's NO fixed "evolutionary tree" order).
+  Categories: movement (fin/leg/wing/tentacle), sensing (eyespot/eye),
+  feeding (mouth/stomach), defense (shell/camouflage/spike), respiration
+  (gill/lung), internal organ (heart), hibernation/insulation/
+  bioluminescence/venom/regeneration (Phase XIV: torpor/blubber/
+  bioluminescence/venom/regeneration), planet-specific (Phase XVI:
+  `nitrogen_sac`/`sulfur_vent_organ`, only possible on a suitable planet
+  profile). 21 types, the list isn't closed.
+- **Water → land transition**: A creature with a leg organ can move onto
+  land and survive/feed there too.
+- **Cause/rationale transparency**: when an organ emerges/spreads/dies out,
+  a real, threshold-based event is logged to the event log (Phase III) — no
+  fabrication.
+- **Diet/ethology (Phase IX/XIII/XVII)**: `diet: herbivore|carnivore`,
+  wander/seek/flee/hunt state machine, boundary awareness/real food seeking,
+  **pack hunting** (`packHunter` gene — the number of nearby carnivores of
+  the same type increases hunting success).
+- **Reproductive diversity (Phase VII)**: asexual division + opportunistic
+  sexual reproduction (crossover) + egg-laying + simple offspring care, all
+  able to coexist.
+- **Life cycle (Phase IX)**: death from old age via the `maxLifespan` gene.
+- **Death/decomposition (Phase VI/XI)**: death is visible (corpse/skeleton),
+  decomposer bacteria consume corpses and leave a small contribution to the
+  food pool.
+- **Organ descriptions (Phase XIV)**: the inspection panel shows a short
+  sentence describing each organ's actual mechanical effect.
+- **Lineage tree (Phase VI/XII/XVI)**: OFF by default, an overlay opened
+  with a button; zoom/pan/filter (diet/organ/state/generation),
+  organ-color ring, bezier parent→child branching. Very large lineages are
+  NOT deleted entirely — old blocks are compressed into a summary node (no
+  data loss); canvas vertical size is capped (`MAX_CONTENT_HEIGHT`, Phase
+  XVII).
 
-## Arayüz — Minimal Menü
-- v2'deki sekmeli D3 dashboard'u TAMAMEN kaldırıldı. Ana odak harita+canlı sahnesi.
-- Tek, kompakt bir yan panel: birincil 2x2 istatistik ızgarası her zaman
-  görünür; ikincil bilgiler (Dünya/Diyet/Atmosfer) varsayılan KAPALI "▾
-  Detaylar" bölmesinde.
-- **Evrim olay akışı (event log)**: organ ortaya çıktığında/yayıldığında/
-  tükendiğinde kısa satırlar. Tekil avlanma olayları BİLEREK log'a düşmüyor
-  (gürültü kararı, Faz X).
-- Canlı inceleme paneli (tıklamayla) + seçim halkası + Gemini "Bu soyu analiz
-  et" butonu.
-- Header: hız kontrolü (II/1x/2x/4x) + Yeniden Başlat + Dışa/İçe Aktar + manuel
-  doğa olayı kontrolleri (Faz XII), gruplar arası ince ayraçlarla.
-  (Faz XI'de eklenen çoklu-kayıt-slotu kullanıcı isteğiyle kaldırıldı — tek-slot
-  otomatik kayda dönüldü, bkz. `TASKS_ARCHIVE.md#faz-xi-çoklu-kayıt-slotu`.)
-- Responsive: dar ekranlarda panel sahnenin altına inip tek sütuna dönüşüyor.
+## Interface — Minimal Menu
+- v2's tabbed D3 dashboard was COMPLETELY removed. Main focus is the
+  map+creature scene.
+- A single, compact side panel: the primary 2x2 stat grid is always
+  visible; secondary info (World/Diet/Atmosphere) is in a "▾ Details"
+  panel that's collapsed by default.
+- **Evolution event feed (event log)**: short lines when an organ
+  emerges/spreads/dies out. Individual hunting events are DELIBERATELY kept
+  out of the log (a noise-reduction decision, Phase X).
+- Creature inspection panel (via click) + selection ring + Gemini "Analyze
+  this lineage" button.
+- Header: speed control (II/1x/2x/4x) + Restart + Export/Import + manual
+  natural-event controls (Phase XII), with thin separators between groups.
+  (The multi-save-slot feature added in Phase XI was removed at the user's
+  request — reverted to single-slot auto-save, see
+  `TASKS_ARCHIVE.md#phase-xi--multiple-save-slots-added-then-removed-archive`.)
+- Responsive: on narrow screens, the panel moves below the scene and
+  becomes a single column.
 
-## Teknik Yığın
-- Vite + TypeScript + PixiJS (sahne render'ı).
-- D3.js kullanılmıyor — soy ağacı düz `<canvas>` 2D çizimi.
-- Basit value-noise fonksiyonu harita üretimi için yeterli.
-- Gemini API (`gemini-flash-lite-latest`) — sunucu taraflı proxy
-  (`vite.config.ts` `/api/gemini-insight`), anahtar ASLA client'a
-  gönderilmiyor, `.env`'de tutulur.
+## Technical Stack
+- Vite + TypeScript + PixiJS (scene rendering).
+- D3.js is not used — the lineage tree is drawn with plain `<canvas>` 2D.
+- A simple value-noise function is sufficient for map generation.
+- Gemini API (`gemini-flash-lite-latest`) — a server-side proxy
+  (`vite.config.ts`, `/api/gemini-insight`); the key is NEVER sent to the
+  client, and is kept in `.env`.
 
-## Faz Özeti ve Durum
+## Phase Summary and Status
 
-Tüm fazlar TAMAMLANDI ve bağımsız tester tarafından GEÇTİ olarak doğrulandı,
-aksi belirtilmedikçe. Detaylar için `TASKS_ARCHIVE.md`'ye bakın.
+All phases are COMPLETE and verified as PASSED by an independent tester,
+unless otherwise noted. See `TASKS_ARCHIVE.md` for details.
 
-- **Faz I — Dünya + mikroorganizma iskeleti**: TAMAMLANDI, Tester GEÇTİ.
+- **Phase I — World + microorganism skeleton**: COMPLETE, Tester PASSED.
   `TASKS_ARCHIVE.md#faz-i`.
-- **Faz II — Açık organ sistemi**: TAMAMLANDI, Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-ii`.
-- **Faz III — Neden/gerekçe şeffaflığı**: TAMAMLANDI, Tester GEÇTİ.
+- **Phase II — Open organ system**: COMPLETE, Tester PASSED.
+  `TASKS_ARCHIVE.md#faz-ii`.
+- **Phase III — Cause/rationale transparency**: COMPLETE, Tester PASSED.
   `TASKS_ARCHIVE.md#faz-iii`.
-- **Faz IV — Popülasyon çöküşü düzeltmesi**: TAMAMLANDI. Kök neden besin
-  MİKTARI değil ERİŞİLEBİLİRLİĞİYDİ. `TASKS_ARCHIVE.md#faz-iv`.
-- **Faz V — Canlı inceleme + üreme/büyüme görselliği + Gemini derin analiz**:
-  TAMAMLANDI, Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-v`.
-- **Faz VI — Ölüm görünürlüğü, soy ağacı, seçim halkası, soy tükenmesi,
-  ayrıştırıcılar**: TAMAMLANDI, Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-vi`.
-- **Faz VII — Çiftleşme, yumurtalama, yavru bakımı + Gemini hafif yönlendirme**:
-  TAMAMLANDI, Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-vii`.
-- **Faz VIII — Rastgele harita + dünya olayları**: TAMAMLANDI, Tester GEÇTİ.
+- **Phase IV — Population collapse fix**: COMPLETE. The root cause was food
+  ACCESSIBILITY, not QUANTITY. `TASKS_ARCHIVE.md#faz-iv`.
+- **Phase V — Creature inspection + reproduction/growth visuals + Gemini
+  deep analysis**: COMPLETE, Tester PASSED. `TASKS_ARCHIVE.md#faz-v`.
+- **Phase VI — Death visibility, lineage tree, selection ring, lineage
+  extinction, decomposers**: COMPLETE, Tester PASSED.
+  `TASKS_ARCHIVE.md#faz-vi`.
+- **Phase VII — Mating, egg-laying, offspring care + light Gemini
+  guidance**: COMPLETE, Tester PASSED. `TASKS_ARCHIVE.md#faz-vii`.
+- **Phase VIII — Random map + world events**: COMPLETE, Tester PASSED.
   `TASKS_ARCHIVE.md#faz-viii`.
-- **Faz IX — Bug düzeltmeleri + diyet sistemi + etoloji**: TAMAMLANDI, Tester
-  GEÇTİ. `TASKS_ARCHIVE.md#faz-ix`.
-- **Faz X — Sığ/derin su + avlanma log gürültüsü + solunum organları/atmosfer**:
-  TAMAMLANDI, Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-x`.
-- **Faz XI — Sürekli İyileştirme**: açık uçlu faz, PM tarafından sürdürülüyor.
-  Detaylar ve güncel aday havuzu aşağıda.
-- **Faz XII — Manuel kontroller + soy ağacı iyileştirmeleri**: TAMAMLANDI,
-  Tester GEÇTİ. `TASKS_ARCHIVE.md#faz-xii`.
-- **Faz XIII — Davranış AI kalitesi + besin çöküşü bug'ı**: TAMAMLANDI VE
-  KAPANDI. Kök neden bulunup düzeltildi; toplam 20 kısa koşu + tam 22 dakikalık
-  yoğun-müdahaleli bir koşu = sıfır çöküş, sıfır gerçek hata. Kullanıcının
-  bildirdiği tekil olay muhtemelen eski/HMR-drift bir dev server sekmesiydi
-  (düzeltildi). `TASKS_ARCHIVE.md#faz-xiii`.
-- **Faz XIV — Yeni/sıra dışı organlar + soy ağacı seçim bug'ı + organ
-  açıklamaları**: Madde 1 (5 yeni organ) ve Madde 3 (organ açıklamaları)
-  TAMAMLANDI, Tester GEÇTİ. Madde 2 (soy ağacı seçim halkası bug'ı) hem coder
-  hem tester tarafından YENİDEN ÜRETİLEMEDİ — açık, bkz. aşağıda "Güncel/Açık
-  Konular". `TASKS_ARCHIVE.md#faz-xiv`.
-- **Faz XV — Performans regresyonu: popülasyon tavanında FPS çöküşü**:
-  TAMAMLANDI VE KAPANDI. Kök neden (fixed-timestep sarmalı + O(n²) sqrt
-  maliyeti) bulunup düzeltildi, sistem-sakin bağımsız doğrulama da tamamlandı
-  (FPS 14-25.4 arası platoya oturuyor, eski "ölüm sarmalı" bir daha
-  görülmedi). `TASKS_ARCHIVE.md#faz-xv`.
-- **Faz XVI — Profesyonel soy ağacı + gezegen oluşum ekranı + gezegene özgü
-  organlar**: TAMAMLANDI, Tester GEÇTİ (3/3 madde). Soy ağacı özet düğüm
-  (sıfır veri kaybı) + bezier görsel yeniden tasarım; gezegen oluşum ekranı
-  (deterministik, save/load uyumlu); 2 yeni gezegene-özgü organ + filtreleme
-  katmanı. `TASKS_ARCHIVE.md#faz-xvi`. Ardından bağımsız bir performans/
-  entegrasyon denetimi de GEÇTİ (Faz XV'in sarmalı geri gelmedi).
-- **Faz XVII — Donma bug'ı + sürü davranışı + arazi çeşitleri**: TAMAMLANDI,
-  Tester GEÇTİ (4/4 madde, İKİ AYRI bağımsız tester turunda doğrulandı).
-  Harita sınırı donma bug'ı (kesin kök neden, iki parça düzeltme); `packHunter`
-  sürü avlanma geni (ölçülebilir etki: %8/müttefik, %35 tavan); 5 tipli arazi
-  çeşitliliği (yükseklik-izdüşümü, performans önbellekli); soy ağacı canvas
-  yükseklik sınırı (Faz XVI'nın görsel-dayanıklılık bulgusu düzeltildi).
+- **Phase IX — Bug fixes + diet system + ethology**: COMPLETE, Tester
+  PASSED. `TASKS_ARCHIVE.md#faz-ix`.
+- **Phase X — Shallow/deep water + hunting log noise + respiration
+  organs/atmosphere**: COMPLETE, Tester PASSED. `TASKS_ARCHIVE.md#faz-x`.
+- **Phase XI — Continuous Improvement**: an open-ended phase, maintained by
+  the PM. Details and current candidate pool below.
+- **Phase XII — Manual controls + lineage tree improvements**: COMPLETE,
+  Tester PASSED. `TASKS_ARCHIVE.md#faz-xii`.
+- **Phase XIII — Behavior AI quality + food-collapse bug**: COMPLETE AND
+  CLOSED. Root cause found and fixed; total of 20 short runs + one full
+  22-minute intensive-intervention run = zero collapses, zero real errors.
+  The single incident the user reported was likely a stale/HMR-drifted dev
+  server tab (fixed). `TASKS_ARCHIVE.md#faz-xiii`.
+- **Phase XIV — New/unusual organs + lineage-tree selection bug + organ
+  descriptions**: Item 1 (5 new organs) and Item 3 (organ descriptions)
+  COMPLETE, Tester PASSED. Item 2 (lineage-tree selection-ring bug) could
+  NOT be REPRODUCED by either the coder or the tester — open, see "Current/
+  Open Issues" below. `TASKS_ARCHIVE.md#faz-xiv`.
+- **Phase XV — Performance regression: FPS collapse at population cap**:
+  COMPLETE AND CLOSED. Root cause (fixed-timestep wrapping + O(n²) sqrt
+  cost) found and fixed; system-idle independent verification also
+  completed (FPS plateaus between 14-25.4, the old "death spiral" was never
+  seen again). `TASKS_ARCHIVE.md#faz-xv`.
+- **Phase XVI — Professional lineage tree + planet formation screen +
+  planet-specific organs**: COMPLETE, Tester PASSED (3/3 items). Lineage
+  tree summary node (zero data loss) + bezier visual redesign; planet
+  formation screen (deterministic, save/load compatible); 2 new
+  planet-specific organs + a filtering layer. `TASKS_ARCHIVE.md#faz-xvi`.
+  An independent performance/integration audit afterward also PASSED (Phase
+  XV's spiral did not return).
+- **Phase XVII — Freeze bug + pack behavior + terrain variety**: COMPLETE,
+  Tester PASSED (4/4 items, verified across TWO separate independent tester
+  rounds). Map-boundary freeze bug (definitive root cause, two-part fix);
+  `packHunter` pack-hunting gene (measurable effect: 8%/ally, 35% cap); 5-type
+  terrain variety (elevation-projection, performance-cached); lineage-tree
+  canvas height cap (fixed the visual-durability finding from Phase XVI).
   `TASKS_ARCHIVE.md#faz-xvii`.
-- **Faz XVIII — Uzun koşuda gecikmeli toplu popülasyon çöküşü bug'ı
-  (2026-09-10/11)**: TAMAMLANDI VE KAPANDI. Kök neden: bir iklim olayı
-  sırasında nutrient popülasyon konumlarına göre hızla birikip cap'e
-  yapışıyor, olay bitip popülasyon yer değiştirdikçe stok eski konumlarda
-  "donmuş" kalıyor. Düzeltme: `ecosystem.ts` `relocateStrandedNutrient()`
-  — stranded nutrient'ı aç bir bireyin yakınına taşır. TOPLAM 7/7 bağımsız
-  doğrulama PASS (5 kısa koşu + 1 genişletilmiş + 1 tamamen farklı
-  senaryo/tester). `TASKS_ARCHIVE.md#faz-xviii`.
-- **Faz XIX — Organ diyagramı ölü/soy ağacı bireylerinde görünmüyordu
-  (2026-09-11)**: TAMAMLANDI VE KAPANDI. Kök neden: `buildCreatureDiagram`
-  sadece canlı birey seçildiğinde (`showInspector`) çağrılıyordu,
-  `showDeceasedInspector`'da hiç yoktu. Düzeltme: `diet` parametresi
-  nullable yapılıp (nötr gri renk) `showDeceasedInspector`'a da aynı
-  diyagram çağrısı eklendi. Tester GEÇTİ (bağımsız, 0f — farklı organ/
-  birey kombinasyonuyla, `lung` organlı gerçek bir ölüm kaydı). `tsc`
-  temiz. `TASKS_ARCHIVE.md#faz-xix`.
-- **Faz XX — Yeni organ: Kromatofor (aktif kamuflaj) (2026-09-11)**:
-  TAMAMLANDI. 22. organ tipi — mürekkep balığı ilhamlı, YAKALANMA ANINDA
-  devreye giren tepkisel bir kaçış şansı (`chromatophoreReactiveEscapeChance()`,
-  `0.12+power*0.2`), statik `camouflage`'dan mekanik olarak farklı.
-  **Tester GEÇTİ (bağımsız, 2b)**: "uydurma yok" ilkesi kod satırıyla
-  doğrulandı, farklı power değeri + camouflage ile combined senaryo test
-  edildi. `TASKS_ARCHIVE.md#faz-xx`.
-- **Faz XXI — Yeni organ: Simbiyotik Bağırsak Florası (2026-09-11)**:
-  TAMAMLANDI. 23. organ tipi — `mouth`/`stomach`'tan farklı bir eksende,
-  avdan sonraki sindirim molası süresini kısaltır
-  (`digestCooldownMultiplier()`, `1-power*0.5`). **Tester GEÇTİ (bağımsız,
-  2b)**: farklı power değeri + combined senaryo test edildi, "sadece
-  etçillerde anlamlı" iddiası hem kod-yolu izlemesiyle hem canlı testle
-  (otçula zorla eklenip 15s çalıştırıldı, davranış hiç etkilenmedi)
-  doğrulandı. `TASKS_ARCHIVE.md#faz-xxi`.
-- **Faz XXII — Küçük yardımcı dosyalarda ölü kod temizliği (2026-09-13)**:
-  TAMAMLANDI. Coder a7'nin bug-avı taraması (`angle.ts`/`color.ts`/`rng.ts`)
-  3 gerçek ölü kod parçası buldu — hiçbiri hiçbir dosyada import/çağrı
-  edilmiyordu (grep ile teyit): `angle.ts`'in TEK fonksiyonu
-  `shortestAngleDiff` (dosyanın tamamı), `color.ts`'teki `muteColor`
-  (`genomeToPalette`'in "nötr/bilimsel görünüm" hedefini HSL aşamasında
-  zaten kısıtlayarak sağladığı, post-processing yaklaşımının hiç
-  kullanılmadığı teyit edildi), `rng.ts`'teki `pick`. PM 31, dosya silme
-  işlemini (`angle.ts`) kendi izin seviyesinde uygulayıp commit attı
-  (git-tracked/geri alınabilir). tsc --noEmit temiz. `TASKS_ARCHIVE.md#faz-xxii`.
-- **Faz XXIII — Proje adı değişikliği taraması: "Evrimsel Gezegen" →
-  "Evosim" (2026-09-13, coder a7)**: TAMAMLANDI. `git ls-files | grep`
-  ile TÜM tracked dosyalar tarandı (TASKS*.md hariç — orada bilinçli
-  bir "eski adıyla" tarihsel notu var, dokunulmadı). 2 gerçek kullanıcı-
-  görünür kalıntı bulundu ve düzeltildi: (1) `exportimport.ts`'teki
-  `EXPORT_FILENAME_PREFIX` ("evrimsel-gezegen-kayit" → "evosim-kayit",
-  indirilen kayıt dosyası adı, saf kozmetik, format/uyumluluk etkisi
-  yok — Playwright ile gerçek dosya adının doğru üretildiği doğrulandı);
-  (2) `package-lock.json`'daki iki `"name"` alanı `package.json`'la
-  senkronize edildi ("evrimsel-gezegen" → "evosim", `npm install
-  --package-lock-only` ile doğrulandı, bağımlılık sürümlerinde HİÇBİR
-  değişiklik yok). `dist/` klasöründeki eski isim referansı (git-tracked
-  DEĞİL, stale build artifact) yeniden build ile otomatik düzeldi.
+- **Phase XVIII — Delayed mass population-collapse bug on long runs
+  (2026-09-10/11)**: COMPLETE AND CLOSED. Root cause: during a climate
+  event, nutrients rapidly accumulate at population locations and hit the
+  cap; once the event ends and the population moves, the stock stays
+  "frozen" at the old locations. Fix: `ecosystem.ts`
+  `relocateStrandedNutrient()` — moves stranded nutrient near a hungry
+  individual. TOTAL of 7/7 independent verifications PASSED (5 short runs +
+  1 extended run + 1 completely different scenario/tester).
+  `TASKS_ARCHIVE.md#faz-xviii`.
+- **Phase XIX — Organ diagram not showing on dead/lineage-tree individuals
+  (2026-09-11)**: COMPLETE AND CLOSED. Root cause: `buildCreatureDiagram`
+  was only called when a live individual was selected (`showInspector`), it
+  was never called in `showDeceasedInspector`. Fix: made the `diet`
+  parameter nullable (neutral gray color) and added the same diagram call
+  to `showDeceasedInspector`. Tester PASSED (independent, 0f — with a
+  different organ/individual combination, a real death record with a
+  `lung` organ). `tsc` clean. `TASKS_ARCHIVE.md#faz-xix`.
+- **Phase XX — New organ: Chromatophore (active camouflage) (2026-09-11)**:
+  COMPLETE. 22nd organ type — squid-inspired, a reactive escape chance that
+  kicks in AT THE MOMENT OF CAPTURE (`chromatophoreReactiveEscapeChance()`,
+  `0.12+power*0.2`), mechanically distinct from the static `camouflage`.
+  **Tester PASSED (independent, 2b)**: the "no fabrication" principle was
+  verified against the code line, tested with a combined scenario of
+  different power values + camouflage. `TASKS_ARCHIVE.md#faz-xx`.
+- **Phase XXI — New organ: Symbiotic Gut Flora (2026-09-11)**: COMPLETE.
+  23rd organ type — on a different axis from `mouth`/`stomach`, shortens
+  the post-hunt digestion cooldown (`digestCooldownMultiplier()`,
+  `1-power*0.5`). **Tester PASSED (independent, 2b)**: tested with
+  different power values + a combined scenario; the claim that it "only
+  matters for carnivores" was verified both by tracing the code path and
+  with a live test (force-added to an herbivore and run for 15s, behavior
+  was completely unaffected). `TASKS_ARCHIVE.md#faz-xxi`.
+- **Phase XXII — Dead-code cleanup in small helper files (2026-09-13)**:
+  COMPLETE. Coder a7's bug-hunting sweep (`angle.ts`/`color.ts`/`rng.ts`)
+  found 3 real pieces of dead code — none were imported/called anywhere
+  (confirmed via grep): `angle.ts`'s ONLY function `shortestAngleDiff` (the
+  entire file), `color.ts`'s `muteColor` (confirmed that
+  `genomeToPalette`'s "neutral/scientific look" goal was already achieved
+  by constraining at the HSL stage, the post-processing approach was never
+  used), `rng.ts`'s `pick`. PM 31 carried out the file deletion
+  (`angle.ts`) within its own permission level and committed it
+  (git-tracked/reversible). tsc --noEmit clean. `TASKS_ARCHIVE.md#faz-xxii`.
+- **Phase XXIII — Project rename sweep: "Evolutionary Planet" → "Evosim"
+  (2026-09-13, coder a7)**: COMPLETE. ALL tracked files were scanned with
+  `git ls-files | grep` (except TASKS*.md — those intentionally contain a
+  historical "formerly named" note, left untouched). 2 real user-visible
+  remnants were found and fixed: (1) `exportimport.ts`'s
+  `EXPORT_FILENAME_PREFIX` ("evrimsel-gezegen-kayit" → "evosim-kayit", the
+  downloaded save filename, purely cosmetic, no format/compatibility
+  impact — verified with Playwright that the correct filename is actually
+  generated); (2) the two `"name"` fields in `package-lock.json` were
+  synced with `package.json` ("evrimsel-gezegen" → "evosim", verified with
+  `npm install --package-lock-only`, NO change to dependency versions). The
+  old-name reference in the `dist/` folder (NOT git-tracked, a stale build
+  artifact) was automatically fixed by rebuilding.
 
-  **Bilinçli olarak DOKUNULMADI**: `savegame.ts`'teki `SAVE_KEY =
-  "evrimsel-gezegen-save-v8"` — bu bir `localStorage` anahtarı, kullanıcı
-  arayüzünde hiç görünmüyor ama değiştirilirse mevcut TÜM kayıtlı oyunlar
-  (kullanıcının tarayıcısındaki) sessizce erişilemez hale gelir (farklı
-  anahtar = "kayıt yok" görünür). Bu saf bir isim değişikliği değil,
-  geriye dönük uyumluluk kararı — kullanıcı/PM onayı olmadan
-  uygulanmamalı. Aday havuzuna eklendi.
+  **Deliberately left UNTOUCHED**: `savegame.ts`'s `SAVE_KEY =
+  "evrimsel-gezegen-save-v8"` — this is a `localStorage` key, never visible
+  in the user interface, but if changed, ALL existing saved games (in the
+  user's browser) would silently become inaccessible (a different key =
+  appears as "no save"). This isn't a pure rename, it's a
+  backward-compatibility decision — should not be made without user/PM
+  approval. Added to the candidate pool.
 
-  tsc --noEmit ve `vite build` temiz. Commit atıldı (push yok).
+  tsc --noEmit and `vite build` clean. Committed (not pushed).
   `TASKS_ARCHIVE.md#faz-xxiii`.
-- **Faz XXIV — `decomposer.ts`/`corpse.ts` ölü kod + kırılgan senkron
-  (2026-09-14, coder a7)**: TAMAMLANDI. Tarama sırasında `Decomposer.progress`
-  adında public bir getter bulundu — docstring'i "Ecosystem bunu bağlı
-  cesedin solma hızını hızlandırmak için kullanabilir" diyordu ama grep ile
-  sıfır kullanım teyit edildi (ölü kod). Bunun yerine `corpse.ts` kendi
-  `elapsed` sayacıyla `LIFETIME*0.18` (≈3.96s) kullanarak tüketim oranını
-  BAĞIMSIZ hesaplıyordu — `Decomposer.CONSUME_DURATION=4`'e sadece tesadüfen
-  yakın, gerçek bir bağlantı yok. `progress` getter'ı kaldırıldı, her iki
-  dosyadaki yorum bu iki sabitin ELLE senkronize tutulması gerektiğini (biri
-  değişirse diğeri sessizce kayar) açıkça belirtecek şekilde güncellendi.
-  tsc/build temiz, 30s'lik gerçek bir simülasyon koşusuyla (doğal ölüm/ceset/
-  ayrıştırıcı döngüsü) doğrulandı, sıfır hata. Commit atıldı (push yok).
+- **Phase XXIV — `decomposer.ts`/`corpse.ts` dead code + fragile sync
+  (2026-09-14, coder a7)**: COMPLETE. During the sweep, a public getter
+  named `Decomposer.progress` was found — its docstring said "the Ecosystem
+  can use this to speed up the decay rate of the attached corpse," but grep
+  confirmed zero usages (dead code). Instead, `corpse.ts` was
+  INDEPENDENTLY computing the consumption rate using its own `elapsed`
+  counter with `LIFETIME*0.18` (≈3.96s) — only coincidentally close to
+  `Decomposer.CONSUME_DURATION=4`, with no real connection. The `progress`
+  getter was removed, and comments in both files were updated to clearly
+  state that these two constants must be kept in MANUAL sync (if one
+  changes, the other silently drifts). tsc/build clean, verified with a
+  real 30-second simulation run (natural death/corpse/decomposer cycle),
+  zero errors. Committed (not pushed).
 
-## Güncel/Açık Konular (bir sonraki PM/coder turunda ele alınmalı)
-- **Faz XIV Madde 2 — soy ağacı seçim bug'ı**: kod hem coder hem tester
-  tarafından incelendi, GERÇEK bir hata bulunamadı. Kullanıcıdan tam tekrar
-  adımları (tarayıcı, pencere boyutu, hangi düğüme nasıl tıklandığı) istenmesi
-  gerekiyor — bu bilgi olmadan ilerlemek zor.
+## Current/Open Issues (to be addressed in the next PM/coder round)
+- **Phase XIV Item 2 — lineage-tree selection bug**: the code was reviewed
+  by both the coder and the tester, no real bug was found. Full
+  reproduction steps are needed from the user (browser, window size, which
+  node was clicked how) — hard to proceed without this information.
 
-## Gelecek Yön (henüz bir faza dönüşmedi)
-- **"Sandbox oyunu" fikri (2026-09-06)**: Kullanıcı, projenin ileride bir
-  sandbox oyununa dönüşüp dönüşemeyeceğini sordu. PM değerlendirmesi: EVET,
-  mümkün — mevcut mimari (gezegen oluşturma, genom/organ sistemi, manuel
-  besin/doğa olayı kontrolleri, kaydet/yükle) zaten bir "god game"in
-  temelini taşıyor. Eksik olan asıl şey: OYUNCUYA DOĞRUDAN MÜDAHALE
-  araçları — örn. eliyle canlı yerleştirme/organ düzenleme, arazi
-  şekillendirme (terraforming), hedef/senaryo/skorlama sistemi.
-  **Kullanıcı kararı**: Şimdilik mevcut yönde (gerçekçi, gözlemlenebilir,
-  "gözlemci" bir evrim simülasyonu) devam edilecek; sandbox modu İLERİDE
-  ayrı, isteğe bağlı bir mod olarak eklenecek — ana deneyimi (gözlemci
-  bilimsel his) sulandırmadan. Henüz somut bir faz/görev açılmadı, kullanıcı
-  ne zaman hazır olursa burada bir faz olarak detaylandırılabilir.
+## Future Direction (not yet turned into a phase)
+- **"Sandbox game" idea (2026-09-06)**: The user asked whether the project
+  could eventually turn into a sandbox game. PM's assessment: YES, it's
+  possible — the current architecture (planet generation, genome/organ
+  system, manual food/natural-event controls, save/load) already carries
+  the foundation of a "god game." What's actually missing: tools for DIRECT
+  PLAYER INTERVENTION — e.g., manually placing creatures/editing organs,
+  terrain shaping (terraforming), a goal/scenario/scoring system.
+  **User's decision**: For now, continue in the current direction (a
+  realistic, observable, "observer" evolution simulation); sandbox mode
+  will be added LATER as a separate, optional mode — without diluting the
+  main experience (the observer/scientific feel). No concrete phase/task
+  has been opened yet; it can be detailed here as a phase whenever the user
+  is ready.
 
-## Otonom Çalışma Modu (kullanıcı isteği, 2026-09-06)
-Kullanıcı dışarı çıkıyor, projenin kendi kendine sürekli mükemmelleştirilmesini
-istiyor. Roller AYRIŞTIRILDI (3 ayrı session, 3 ayrı cron):
-- **PM** (bu session, cron zaten aktif): görev dağıtımı, coder/tester
-  raporlarını işleme, aday havuzundan yeni görev seçme, arşivleme, kullanıcıya
-  (döndüğünde) özet.
-- **Coder** (ayrı bir peer session, kendi cron'u): PM'den görev bekler veya
-  boştaysa TASKS.md'deki aday havuzdan/açık konulardan kendi seçip uygular.
-- **Tester** (ayrı bir peer session, kendi cron'u): coder'ın tamamladığı ama
-  bağımsız doğrulama bekleyen fazları test eder.
-- **Kullanıcı isteği — hem frontend hem backend işler**: Şu ana kadarki proje
-  saf frontend (Vite+PixiJS SPA + küçük bir Vite dev-server proxy'si, gerçek
-  bir backend yok). Kullanıcı backend tarafında da iş bekliyor — popülasyon/
-  soy verisini dışa aktarabilen bir API + zaman serisi geçmişi **TAMAMLANDI**
-  (aşağıya bakın). Kalan aday fikirler: Gemini proxy'sini gerçek/kalıcı bir
-  backend servisine taşımak, ileride çoklu-oyunculu/paylaşılan durum için bir
-  sunucu bileşeni. Coder cron'u bir sonraki turlarda bunu değerlendirmeli —
-  büyük bir mimari değişiklik olacaksa (örn. gerçek bir Node/Express backend
-  eklemek) önce PM'e (ve gerekirse kullanıcıya döndüğünde) danışılmalı.
+## Autonomous Operation Mode (user request, 2026-09-06)
+The user is going away and wants the project to keep perfecting itself
+continuously. Roles are SEPARATED (3 separate sessions, 3 separate crons):
+- **PM** (this session, cron already active): task distribution, processing
+  coder/tester reports, picking new tasks from the candidate pool,
+  archiving, summary for the user (when they return).
+- **Coder** (a separate peer session, its own cron): waits for tasks from
+  the PM, or if idle, picks its own from the candidate pool/open issues in
+  TASKS.md.
+- **Tester** (a separate peer session, its own cron): tests phases the
+  coder has completed but that are awaiting independent verification.
+- **User request — both frontend and backend work**: The project so far has
+  been pure frontend (Vite+PixiJS SPA + a small Vite dev-server proxy), with
+  no real backend. The user expects backend work too — an API that can
+  export population/lineage data + time-series history is **COMPLETE** (see
+  below). Remaining candidate ideas: moving the Gemini proxy to a real/
+  persistent backend service, a server component for future
+  multiplayer/shared state. The coder's cron should evaluate this in
+  upcoming rounds — if it would be a major architectural change (e.g.,
+  adding a real Node/Express backend), the PM (and the user, when they
+  return, if necessary) should be consulted first.
 
-### Popülasyon Telemetri API'si (2 tur, TAMAMLANDI, Tester GEÇTİ)
-`/api/population-snapshot` (GET/POST) + `/history` (ring-buffer, son 50
-kayıt) — canlı popülasyon/soy verisini dışarıya açan salt-okunur bir
-telemetri API'si, in-memory, mimari değişiklik değil (PM onaylı).
+### Population Telemetry API (2 rounds, COMPLETE, Tester PASSED)
+`/api/population-snapshot` (GET/POST) + `/history` (ring buffer, last 50
+records) — a read-only telemetry API exposing live population/lineage data
+externally, in-memory, not an architectural change (PM-approved).
 `TASKS_ARCHIVE.md#faz-xi-telemetri-zaman-serisi`.
 
-### Geniş sağlık taraması (tester, 2026-09-10)
-Save/load, export/import, Gemini proxy, telemetri tarandı — 1 KRİTİK BUG
-bulundu (dışa/içe aktarma sonrası harita/popülasyon bozulması), coder'a
-devredilip DÜZELTİLDİ ve Tester GEÇTİ (bkz. "Tamamlanan turlar").
-`TASKS_ARCHIVE.md#faz-xi-geniş-sağlık-taraması`.
+### Broad health sweep (tester, 2026-09-10)
+Save/load, export/import, Gemini proxy, and telemetry were scanned — 1
+CRITICAL BUG found (map/population corruption after export/import), handed
+off to the coder and FIXED, Tester PASSED (see "Completed rounds").
+`TASKS_ARCHIVE.md#phase-xi--broad-health-sweep-archive`.
 
-## Faz XI — Sürekli İyileştirme (açık uçlu, kapanmıyor)
-PM, kullanıcıdan yeni bir talimat gelmediği sürece kendi kararıyla değerli
-iyileştirmeler seçip ilerletir.
+## Phase XI — Continuous Improvement (open-ended, never closes)
+The PM selects and advances valuable improvements at its own discretion,
+unless a new instruction comes from the user.
 
-### Aday yön havuzu (PM her turda buradan seçer veya yeni bir fikir üretir)
-- **`savegame.ts` `SAVE_KEY` eski isim taşıyor (Faz XXIII, 2026-09-13)**:
-  `"evrimsel-gezegen-save-v8"` — **Karar (PM 31): DEĞİŞTİRİLMEYECEK**
-  (risk asimetrik, mevcut kayıtları sessizce kırma riski isim kozmetiğine
-  değmez). Düşük öncelik, `TASKS_ARCHIVE.md#faz-xxiii`'te detay var.
-- Yeni organ/davranış fikirleri (kullanıcı istediğinde).
-- Genel performans/entegrasyon yeniden-denetimi (periyodik olarak
-  tekrarlanabilir, en son 2026-09-09 yapıldı — sonuç: mevcut kod zaten
-  optimize).
-- Uzamsal bölümleme (grid/quadtree): `updateSexualReproduction` kısmı
-  **TAMAMLANDI, Tester GEÇTİ**. `findNearestPrey`/`findNearestThreat`/
-  `packHuntEscapeReduction` BİLEREK KAPSAM DIŞI bırakıldı (mid-frame mutasyon
-  riski nedeniyle) — sadece belirgin bir performans şikayeti varsa ve güvenli
-  bir yaklaşım (örn. hareket öncesi/sonrası iki-geçişli grid) bulunursa
-  yeniden değerlendirilmeli.
-- **Düşük öncelikli erişilebilirlik gözlemleri** (tester 62, 2026-09-10
-  ESC-kapat incelemesi sırasında bulundu, düzeltme İSTENMİYOR — bilgi
-  amaçlı): (1) canvas-tabanlı soy ağacı düğüm tıklaması klavyeyle
-  erişilemiyor (screen reader/klavye-only kullanıcı düğümlere ulaşamaz) —
-  proje hiçbir yerde WCAG uyumluluğu iddia etmiyor, mevcut/önceden var olan
-  bir sınırlama; (2) zoom butonlarında (`lineage-zoom-*`) `title` var ama
-  `aria-label` yok (close butonlarında ikisi de var) — küçük bir
-  tutarsızlık, opsiyonel.
-- **`npm audit` — orta önem dev-server güvenlik uyarısı** (tester 62,
-  2026-09-10 config/bağımlılık taraması, ONAY BEKLİYOR): `esbuild <=0.24.2`
-  (vite@5.4.21'in transitive bağımlılığı, sadece dev-time tooling, `dist/`'e
-  girmiyor) — GHSA-67mh-4wv8-2f99: dev server çalışırken herhangi bir
-  websitesi ona istek gönderip yanıtı okuyabiliyor. Prod build'e/API
-  anahtarına sızmıyor, ama düzeltme (`npm audit fix --force`) major bir
-  framework sürüm atlaması gerektiriyor (vite@5→8, breaking change riski) —
-  EMIR.md'nin "mimari değişiklik, kullanıcı yokken yapılmaz" kategorisine
-  giriyor, kullanıcı/PM onayı olmadan uygulanmamalı.
+### Candidate direction pool (the PM picks from here each round, or generates a new idea)
+- **`savegame.ts`'s `SAVE_KEY` carries the old name (Phase XXIII,
+  2026-09-13)**: `"evrimsel-gezegen-save-v8"` — **Decision (PM 31): WILL
+  NOT BE CHANGED** (the risk is asymmetric, silently breaking existing
+  saves isn't worth a cosmetic name change). Low priority, details in
+  `TASKS_ARCHIVE.md#faz-xxiii`.
+- New organ/behavior ideas (when the user wants them).
+- General performance/integration re-audit (can be repeated periodically,
+  last done 2026-09-09 — result: the existing code is already optimized).
+- Spatial partitioning (grid/quadtree): the `updateSexualReproduction` part
+  is **COMPLETE, Tester PASSED**. `findNearestPrey`/`findNearestThreat`/
+  `packHuntEscapeReduction` were DELIBERATELY left OUT OF SCOPE (due to
+  mid-frame mutation risk) — should only be reconsidered if there's a
+  noticeable performance complaint and a safe approach is found (e.g., a
+  two-pass grid before/after movement).
+- **Low-priority accessibility observations** (tester 62, found during the
+  2026-09-10 ESC-close review, fix NOT REQUESTED — informational only): (1)
+  clicking canvas-based lineage-tree nodes is not keyboard-accessible
+  (screen reader/keyboard-only users can't reach the nodes) — the project
+  doesn't claim WCAG compliance anywhere, this is an existing/pre-existing
+  limitation; (2) the zoom buttons (`lineage-zoom-*`) have a `title` but no
+  `aria-label` (close buttons have both) — a minor inconsistency, optional.
+- **`npm audit` — medium-severity dev-server security warning** (tester 62,
+  2026-09-10 config/dependency scan, AWAITING APPROVAL): `esbuild <=0.24.2`
+  (a transitive dependency of vite@5.4.21, dev-time tooling only, doesn't
+  end up in `dist/`) — GHSA-67mh-4wv8-2f99: while the dev server is
+  running, any website can send it a request and read the response.
+  Doesn't leak into the prod build/API key, but the fix (`npm audit fix
+  --force`) requires a major framework version jump (vite@5→8, breaking
+  change risk) — falls under EMIR.md's "architectural change, not made
+  while the user is away" category, should not be applied without
+  user/PM approval.
 
-### Tamamlanan turlar (kronolojik, 2026-09-03—11)
-Tüm detaylar `TASKS_ARCHIVE.md`'nin "Faz XI — Tamamlanan turlar" ve
-"Temizlik Notu" bölümlerinde — Gemini uçtan uca doğrulama, ölü kod
-taramaları, baştan sona kullanıcı akışı, mobil/responsive CSS düzeltmesi,
-dünya olayları/organ açıklaması/içe aktarma bug düzeltmeleri, soy ağacı
-zoom/pan + tam sayfa, çoklu kayıt slotu (eklendi sonra kaldırıldı), proje
-kökü dosya kalıntı taraması — hepsi TAMAMLANDI, bağımsız tester GEÇTİ.
+### Completed rounds (chronological, 2026-09-03—11)
+All details are in `TASKS_ARCHIVE.md`'s "Phase XI — Completed rounds" and
+"Cleanup Note" sections — Gemini end-to-end verification, dead-code
+sweeps, full user-flow walkthrough, mobile/responsive CSS fix, world-event/
+organ-description/import bug fixes, lineage-tree zoom/pan + full-page,
+multi-save-slot (added then removed), project-root file-remnant sweep — all
+COMPLETE, independent tester PASSED.
 
-## Süreç Notu (PM, 2026-09-01)
-Coder/tester (veya coder/coder) görevleri PARALEL çalıştırılınca aynı dosyalar
-üzerinde çakışıp geçici hatalara yol açıyor (birkaç kez gözlendi — testerlar
-bunu doğru şekilde tespit edip temiz kod üzerinde tekrar test ederek telafi
-etti, ama riskli). Bundan sonra: bir faz üzerinde coder çalışırken aynı anda
-başka bir coder/tester aynı kod tabanında SIRAYLA çalıştırılacak, paralel
-dispatch edilmeyecek.
+## Process Note (PM, 2026-09-01)
+Running coder/tester (or coder/coder) tasks in PARALLEL causes conflicts on
+the same files, leading to temporary errors (observed several times —
+testers correctly identified this and compensated by re-testing on the
+clean code, but it's risky). From now on: while a coder is working on a
+phase, another coder/tester will run SEQUENTIALLY on the same codebase, not
+dispatched in parallel.
 
-## Roller
-- **Coder**: Faz'lara göre implementasyon (subagent olarak yönetiliyor, session-only).
-- **Tester**: Her faz sonunda bağımsız doğrulama (subagent olarak yönetiliyor).
-- **PM** (bu session): Görev dağıtımı, önceliklendirme, kullanıcıyla iletişim,
-  kabul/red kararları, sürekli cron ile otomatik ilerletme.
+## Roles
+- **Coder**: implementation per phase (managed as a subagent, session-only).
+- **Tester**: independent verification at the end of each phase (managed as
+  a subagent).
+- **PM** (this session): task distribution, prioritization, communication
+  with the user, accept/reject decisions, continuous automatic progress via
+  cron.
