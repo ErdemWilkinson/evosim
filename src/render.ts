@@ -1,0 +1,964 @@
+import { Diet, DIETS, Genome } from "./genome";
+import { OrganType } from "./organs";
+import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
+import { View } from "./client";
+import { MAP_H, MAP_W, RIDGE_WIDTH, World } from "./world";
+
+/** Sahne çizimi (Canvas 2D). Simülasyondan gelen kareleri yalnızca okur. */
+
+// ------------------------------------------------------------------ tema
+
+export interface Theme {
+  dark: boolean;
+  ink: string;
+  ink2: string;
+  ink3: string;
+  line: string;
+  surface: string;
+  sceneBg: string;
+  accent: string;
+  critical: string;
+  warn: string;
+  plantWater: string;
+  plantLand: string;
+  diet: Record<Diet, string>;
+}
+
+/** Arayüz tek, koyu bir görünüme sahiptir. */
+export function isDark(): boolean {
+  return true;
+}
+
+export function readTheme(): Theme {
+  const cs = getComputedStyle(document.documentElement);
+  const v = (name: string): string => cs.getPropertyValue(name).trim();
+  const diet = {} as Record<Diet, string>;
+  for (const d of DIETS) diet[d] = v(`--d-${d}`);
+  return {
+    dark: isDark(),
+    ink: v("--ink"),
+    ink2: v("--ink-2"),
+    ink3: v("--ink-3"),
+    line: v("--line"),
+    surface: v("--surface"),
+    sceneBg: v("--scene-bg"),
+    accent: v("--accent"),
+    critical: v("--critical"),
+    warn: v("--warn"),
+    plantWater: v("--plant-water"),
+    plantLand: v("--plant-land"),
+    diet,
+  };
+}
+
+// ------------------------------------------------------------------ arazi dokusu
+
+type RGB = [number, number, number];
+interface MapPalette {
+  deep: RGB;
+  shallow: RGB;
+  beach: RGB;
+  plainLow: RGB;
+  plainHigh: RGB;
+  mountain: RGB;
+  peak: RGB;
+  contour: number;
+}
+const MAP_LIGHT: MapPalette = { deep: [170, 190, 204], shallow: [212, 224, 231], beach: [233, 230, 219], plainLow: [224, 227, 216], plainHigh: [204, 210, 194], mountain: [178, 181, 176], peak: [136, 140, 139], contour: 0.96 };
+const MAP_DARK: MapPalette = { deep: [4, 8, 24], shallow: [10, 54, 78], beach: [62, 56, 46], plainLow: [24, 30, 30], plainHigh: [40, 46, 38], mountain: [62, 64, 80], peak: [126, 130, 152], contour: 1.22 };
+
+const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+/** Haritayı bir kez boyar: suda kıyıya uzaklıkla derinleşen ton ve eş-derinlik
+ *  çizgileri; karada yükseklik tonu, hafif kabartma ve sıradağ sırtları. */
+export function renderTerrain(world: World, dark: boolean, width = 1600): HTMLCanvasElement {
+  const height = Math.round((width * MAP_H) / MAP_W);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d")!;
+  const image = ctx.createImageData(width, height);
+  const data = image.data;
+  const pal = dark ? MAP_DARK : MAP_LIGHT;
+  const sx = MAP_W / width;
+  const sea = world.seaLevel;
+  const mount = world.mountainLevel;
+  const hasQuakes = world.quakes.length > 0;
+
+  for (let py = 0; py < height; py++) {
+    const y = (py + 0.5) * sx;
+    for (let px = 0; px < width; px++) {
+      const x = (px + 0.5) * sx;
+      let h = world.sample(world.height, x, y);
+      let c = world.sample(world.coast, x, y);
+      let ridge = 1;
+      if (hasQuakes) {
+        const q = world.quakeAt(x, y);
+        if (q !== null) {
+          h = q ? sea - 0.1 : sea + 0.1;
+          c = 3;
+        } else ridge = world.sample(world.ridge, x, y);
+      } else ridge = world.sample(world.ridge, x, y);
+      let rgb: RGB;
+      if (h < sea) {
+        const t = Math.min(1, c / 26);
+        rgb = mix(pal.shallow, pal.deep, t * t * (3 - 2 * t));
+        const f = (c / 7) % 1;
+        if (c > 1.5 && f < 0.07) rgb = [rgb[0] * pal.contour, rgb[1] * pal.contour, rgb[2] * pal.contour];
+      } else {
+        let base: RGB;
+        if (h > mount && c > 5) base = mix(pal.mountain, pal.peak, Math.min(1, (h - mount) / 1.2));
+        else base = mix(pal.plainLow, pal.plainHigh, Math.min(1, Math.max(0, (h - sea) / Math.max(0.01, mount - sea))));
+        // Sıradağ: sırta yaklaştıkça koyulaşan bant, tam sırtta ince bir çizgi.
+        if (ridge < RIDGE_WIDTH && c > 3.2) {
+          const t = 1 - ridge / RIDGE_WIDTH;
+          base = mix(base, ridge < 0.016 ? pal.peak : pal.mountain, Math.min(1, 0.55 + t * 0.45));
+        }
+        // Kumsal geçişi yükseklikten türetilir (hücre ızgarasının basamakları görünmesin).
+        const bt = Math.min(1, Math.max(0, (h - sea) / 0.2));
+        const beach = bt * bt * (3 - 2 * bt);
+        const slope = world.sample(world.height, x + 5, y + 5) - world.sample(world.height, x - 5, y - 5);
+        const shade = Math.min(1.1, Math.max(0.86, 1 - slope * 1.4)) * beach + (1 - beach);
+        rgb = mix(pal.beach, base, beach);
+        rgb = [rgb[0] * shade, rgb[1] * shade, rgb[2] * shade];
+      }
+      const i = (py * width + px) * 4;
+      data[i] = rgb[0];
+      data[i + 1] = rgb[1];
+      data[i + 2] = rgb[2];
+      data[i + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  return canvas;
+}
+
+// ------------------------------------------------------------------ canlı çizimi
+
+interface BodyPalette {
+  fill: string;
+  edge: string;
+  inner: string;
+  pale: string;
+}
+const paletteCache = [new WeakMap<Genome, BodyPalette>(), new WeakMap<Genome, BodyPalette>()];
+
+function bodyPalette(g: Genome, dark: boolean): BodyPalette {
+  const cache = paletteCache[dark ? 1 : 0];
+  let p = cache.get(g);
+  if (!p) {
+    const h = Math.round(g.hue);
+    const s = Math.round(g.saturation * 0.85);
+    const l = Math.round(dark ? 50 + (g.lightness - 30) * 0.36 : 62 + (g.lightness - 30) * 0.42);
+    p = {
+      fill: `hsl(${h} ${s}% ${l}%)`,
+      edge: `hsl(${h} ${Math.round(s * 0.9)}% ${dark ? l + 34 : l - 36}%)`,
+      inner: `hsl(${h} ${s}% ${dark ? l + 16 : l - 16}%)`,
+      pale: `hsl(${h} ${Math.round(s * 0.6)}% ${dark ? l - 12 : l + 16}%)`,
+    };
+    cache.set(g, p);
+  }
+  return p;
+}
+
+/** Gövdenin arkasında çizilen uzantılar. */
+const BEHIND = new Set<OrganType>(["tentacle", "fin", "leg", "wing", "sucker", "olfactory", "filter_comb", "claw", "spike", "brood_pouch", "mucus_coat"]);
+
+/** İç keseler: [x, y, yarıçap, dolgu] — gövde yarıçapına oranla. */
+const VESICLE: Partial<Record<OrganType, [number, number, number, string]>> = {
+  stomach: [0.1, 0.2, 0.26, "rgba(60,40,30,0.32)"],
+  sulfur_vent_organ: [-0.3, -0.3, 0.15, "#d9b526"],
+  heart: [0.32, -0.05, 0.14, "#d0484a"],
+  nitrogen_sac: [-0.28, 0.32, 0.17, "#8fb6e8"],
+  fat_store: [-0.48, -0.22, 0.19, "#ead48a"],
+  ink_sac: [-0.52, 0.18, 0.14, "#1d1d26"],
+  venom: [-0.6, -0.1, 0.13, "#8c54c4"],
+};
+
+function line(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+
+function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fill: string): void {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome): void {
+  const lw = Math.max(0.35, r * 0.09);
+  ctx.strokeStyle = pal.edge;
+  ctx.lineWidth = lw;
+  ctx.lineCap = "round";
+  const vesicle = VESICLE[type];
+  if (vesicle) {
+    dot(ctx, vesicle[0] * fx, vesicle[1] * sy, vesicle[2] * r * (0.8 + p * 0.4), vesicle[3]);
+    return;
+  }
+  switch (type) {
+    case "tentacle":
+      for (const k of [-1, 1]) {
+        const len = r * (0.9 + p);
+        ctx.beginPath();
+        ctx.moveTo(-fx * 0.92, k * sy * 0.25);
+        ctx.bezierCurveTo(-fx - len * 0.35, k * sy * 0.9, -fx - len * 0.65, -k * sy * 0.3, -fx - len, k * sy * 0.45);
+        ctx.stroke();
+      }
+      break;
+    case "fin": {
+      const len = r * (0.55 + p * 0.55);
+      ctx.fillStyle = pal.pale;
+      ctx.beginPath();
+      ctx.moveTo(-fx * 0.85, 0);
+      ctx.lineTo(-fx - len, -sy * 0.7);
+      ctx.lineTo(-fx - len * 0.7, 0);
+      ctx.lineTo(-fx - len, sy * 0.7);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case "leg":
+      for (let i = -1; i <= 1; i++) {
+        const x = i * fx * 0.5;
+        const len = r * (0.35 + p * 0.45);
+        for (const k of [-1, 1]) line(ctx, x, k * sy * 0.85, x - r * 0.18, k * (sy + len));
+      }
+      break;
+    case "wing":
+      ctx.fillStyle = pal.pale;
+      for (const k of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(fx * 0.2, k * sy * 0.7);
+        ctx.quadraticCurveTo(-r * 0.2, k * (sy + r * (1 + p * 0.7)), -fx * 0.95, k * (sy + r * 0.25));
+        ctx.quadraticCurveTo(-fx * 0.4, k * sy * 0.9, fx * 0.2, k * sy * 0.7);
+        ctx.globalAlpha *= 0.6;
+        ctx.fill();
+        ctx.globalAlpha /= 0.6;
+        ctx.stroke();
+      }
+      break;
+    case "sucker":
+      ctx.beginPath();
+      ctx.arc(-fx - r * 0.14, 0, r * 0.22, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    case "olfactory":
+      for (const k of [-1, 1]) line(ctx, fx * 0.85, k * sy * 0.2, fx + r * (0.4 + p * 0.35), k * sy * 0.55);
+      break;
+    case "filter_comb":
+      for (let i = -2; i <= 2; i++) line(ctx, fx * 0.9, i * sy * 0.16, fx + r * (0.3 + p * 0.3), i * sy * 0.3);
+      break;
+    case "claw":
+      for (const k of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(fx * 0.75, k * sy * 0.5);
+        ctx.quadraticCurveTo(fx + r * (0.55 + p * 0.4), k * sy * 0.95, fx + r * (0.4 + p * 0.3), k * sy * 0.12);
+        ctx.lineWidth = lw * 1.5;
+        ctx.stroke();
+        ctx.lineWidth = lw;
+      }
+      break;
+    case "spike":
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI * 0.35 + (i / 6) * Math.PI * 1.3;
+        const cx = Math.cos(a);
+        const cy = Math.sin(a);
+        line(ctx, cx * fx * 0.95, cy * sy * 0.95, cx * (fx + r * (0.25 + p * 0.35)), cy * (sy + r * (0.25 + p * 0.35)));
+      }
+      break;
+    case "brood_pouch":
+      ctx.fillStyle = pal.pale;
+      ctx.beginPath();
+      ctx.arc(-r * 0.1, sy * 0.8, r * 0.36, 0, Math.PI);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    case "mucus_coat":
+      ctx.globalAlpha *= 0.35;
+      ctx.lineWidth = lw * 2.4;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, fx + r * 0.28, sy + r * 0.28, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha /= 0.35;
+      break;
+    case "sprint_muscle":
+      for (const x of [-0.15, -0.45]) {
+        ctx.beginPath();
+        ctx.moveTo((x + 0.2) * fx, -sy * 0.42);
+        ctx.lineTo(x * fx, 0);
+        ctx.lineTo((x + 0.2) * fx, sy * 0.42);
+        ctx.stroke();
+      }
+      break;
+    case "eyespot":
+      dot(ctx, fx * 0.58, -sy * 0.32, r * 0.13, pal.edge);
+      break;
+    case "eye":
+      for (const k of [-1, 1]) {
+        const er = r * (0.17 + p * 0.09);
+        dot(ctx, fx * 0.55, k * sy * 0.42, er, "#f4f6f8");
+        ctx.beginPath();
+        ctx.arc(fx * 0.55, k * sy * 0.42, er, 0, Math.PI * 2);
+        ctx.stroke();
+        dot(ctx, fx * 0.55 + er * 0.3, k * sy * 0.42, er * 0.5, "#14171c");
+      }
+      break;
+    case "bioluminescence":
+      dot(ctx, -fx * 0.25, -sy * 0.05, r * 0.42, "rgba(110,220,245,0.3)");
+      dot(ctx, -fx * 0.25, -sy * 0.05, r * 0.14, "#8fe6f8");
+      break;
+    case "lateral_line":
+      ctx.setLineDash([r * 0.16, r * 0.14]);
+      line(ctx, -fx * 0.7, sy * 0.48, fx * 0.6, sy * 0.48);
+      ctx.setLineDash([]);
+      break;
+    case "electroreceptor":
+      ctx.beginPath();
+      ctx.moveTo(fx * 0.15, -sy * 0.62);
+      ctx.lineTo(fx * 0.3, -sy * 0.42);
+      ctx.lineTo(fx * 0.45, -sy * 0.62);
+      ctx.lineTo(fx * 0.6, -sy * 0.42);
+      ctx.stroke();
+      break;
+    case "mouth":
+      ctx.lineWidth = lw * 1.6;
+      ctx.beginPath();
+      ctx.arc(fx, 0, r * (0.22 + p * 0.16), Math.PI * 0.62, Math.PI * 1.38);
+      ctx.stroke();
+      break;
+    case "symbiotic_gut_flora":
+      for (const [x, y] of [
+        [0.05, 0.42],
+        [-0.15, 0.5],
+        [0.22, 0.52],
+      ])
+        dot(ctx, x * fx, y * sy, r * 0.06, pal.edge);
+      break;
+    case "pigment":
+      for (const [x, y] of [
+        [0.3, 0.35],
+        [-0.1, -0.45],
+        [-0.4, 0.3],
+        [0.1, -0.1],
+      ])
+        dot(ctx, x * fx, y * sy, r * 0.11, "#3f9d4a");
+      break;
+    case "shell":
+      ctx.lineWidth = lw * (1.6 + p * 2.2);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, fx, sy, 0, Math.PI * 0.42, Math.PI * 1.58);
+      ctx.stroke();
+      break;
+    case "camouflage":
+      for (const [x, y] of [
+        [0.45, -0.1],
+        [-0.2, 0.3],
+        [-0.55, -0.3],
+        [0.1, 0.55],
+        [0.15, -0.55],
+      ])
+        dot(ctx, x * fx, y * sy, r * 0.09, pal.inner);
+      break;
+    case "chromatophore":
+      dot(ctx, fx * 0.1, -sy * 0.4, r * 0.15, `hsl(${(g.hue + 130) % 360} 70% 55%)`);
+      dot(ctx, -fx * 0.4, sy * 0.1, r * 0.13, `hsl(${(g.hue + 220) % 360} 70% 55%)`);
+      dot(ctx, fx * 0.35, sy * 0.4, r * 0.11, `hsl(${(g.hue + 60) % 360} 70% 55%)`);
+      break;
+    case "regeneration":
+      line(ctx, -fx * 0.45, -sy * 0.5, -fx * 0.45, -sy * 0.2);
+      line(ctx, -fx * 0.45 - r * 0.15, -sy * 0.35, -fx * 0.45 + r * 0.15, -sy * 0.35);
+      break;
+    case "gill":
+      for (let i = 0; i < 3; i++) line(ctx, fx * (0.2 + i * 0.16), sy * 0.78, fx * (0.1 + i * 0.16), sy * 0.38);
+      break;
+    case "lung":
+      ctx.fillStyle = "rgba(244,246,248,0.55)";
+      for (const k of [-1, 1]) {
+        ctx.beginPath();
+        ctx.ellipse(fx * 0.05, k * sy * 0.3, r * 0.3, r * 0.17, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    case "torpor":
+      ctx.beginPath();
+      ctx.arc(-fx * 0.62, -sy * 0.02, r * 0.16, Math.PI * 0.3, Math.PI * 1.7);
+      ctx.stroke();
+      break;
+    case "blubber":
+      ctx.globalAlpha *= 0.55;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, fx * 0.84, sy * 0.84, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha /= 0.55;
+      break;
+    case "swim_bladder":
+      ctx.strokeStyle = "rgba(244,246,248,0.8)";
+      ctx.beginPath();
+      ctx.ellipse(-fx * 0.05, -sy * 0.3, r * 0.3, r * 0.14, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    case "immune_gland":
+      ctx.beginPath();
+      ctx.arc(fx * 0.42, sy * 0.36, r * 0.12, 0, Math.PI * 2);
+      ctx.stroke();
+      break;
+    default:
+      break;
+  }
+}
+
+function bodyPath(ctx: CanvasRenderingContext2D, g: Genome, r: number): void {
+  ctx.beginPath();
+  if (g.stage === 0) ctx.arc(0, 0, r, 0, Math.PI * 2);
+  else if (g.stage === 1) {
+    // Koloni: bir arada kalmış hücreler.
+    for (let i = 0; i < 4; i++) {
+      const a = Math.PI / 4 + (i * Math.PI) / 2;
+      const x = Math.cos(a) * r * 0.45;
+      const y = Math.sin(a) * r * 0.45;
+      ctx.moveTo(x + r * 0.62, y);
+      ctx.arc(x, y, r * 0.62, 0, Math.PI * 2);
+    }
+  } else ctx.ellipse(0, 0, r * 1.25, r * 0.85, 0, 0, Math.PI * 2);
+}
+
+/**
+ * Canlıyı yerel koordinatlarda çizer (merkez 0,0; +x yönüne bakar). Gövde rengi
+ * genetiktir; çekirdeğin rengi beslenme biçimini gösterir. `full` kapalıyken
+ * (uzak görünüm) yalnızca gövde ve çekirdek çizilir.
+ */
+export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Theme, full: boolean): void {
+  const r = g.radius;
+  const pal = bodyPalette(g, theme.dark);
+  const fx = g.stage === 2 ? r * 1.25 : r;
+  const sy = g.stage === 2 ? r * 0.85 : r;
+  if (full) {
+    for (const organ of g.organs) if (BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
+    // Erkek süsü: arkada, süs geninin büyüklüğüyle uzayan parlak iplikler.
+    if (g.reproductionStrategy === "sexual" && g.sex === "m" && g.ornament > 0.12) {
+      ctx.strokeStyle = `hsl(${(g.hue + 180) % 360} 80% ${theme.dark ? 68 : 48}%)`;
+      ctx.lineWidth = Math.max(0.4, r * 0.11);
+      ctx.lineCap = "round";
+      for (let i = -1; i <= 1; i++) line(ctx, -fx * 0.8, i * sy * 0.35, -fx - r * (0.3 + g.ornament * 1.5), i * sy * (0.5 + g.ornament * 0.5));
+    }
+  }
+  bodyPath(ctx, g, r);
+  ctx.fillStyle = pal.fill;
+  ctx.fill();
+  ctx.strokeStyle = pal.edge;
+  ctx.lineWidth = Math.max(0.5, r * 0.1);
+  ctx.stroke();
+  if (full) {
+    if (g.stage === 2) {
+      ctx.lineWidth = Math.max(0.3, r * 0.05);
+      ctx.globalAlpha *= 0.5;
+      for (const x of [-0.45, 0.2]) {
+        ctx.beginPath();
+        ctx.ellipse(x * fx, 0, r * 0.18, sy * (x < 0 ? 0.82 : 0.92), 0, -Math.PI / 2, Math.PI / 2);
+        ctx.stroke();
+      }
+      ctx.globalAlpha /= 0.5;
+    }
+    for (const organ of g.organs) if (!BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
+  }
+  // Çekirdek: beslenme biçiminin rengi.
+  dot(ctx, g.stage === 2 ? -fx * 0.12 : 0, 0, r * (full ? 0.3 : 0.42), theme.diet[g.diet]);
+}
+
+// ------------------------------------------------------------------ sahne
+
+export type Tool = "select" | "plants" | "place" | "meteor" | "remove";
+
+const TOOL_RADIUS: Partial<Record<Tool, number>> = { plants: 34, meteor: 65 };
+
+export interface SceneState {
+  selected: number;
+  senseRadius: number;
+  highlightSpecies: number;
+  tool: Tool;
+}
+
+export class Scene {
+  public cx = MAP_W / 2;
+  public cy = MAP_H / 2;
+  public zoom = 0;
+  public onTap: (x: number, y: number, tolerance: number) => void = () => {};
+  public onUserPan: () => void = () => {};
+  /** Sağda panelin kapattığı genişlik (px): açılış görünümü kalan alana ortalanır. */
+  public padRight = 0;
+  private glow = new Map<string, HTMLCanvasElement>();
+  /** İlk canlının belirişi: kamera ona yakın başlar, sonra tüm haritaya açılır. */
+  private genesis: { x: number; y: number; t0: number } | null = null;
+  private readonly ctx: CanvasRenderingContext2D;
+  private terrain: HTMLCanvasElement | null = null;
+  private terrainKey = "";
+  private width = 0;
+  private height = 0;
+  private hover: { x: number; y: number } | null = null;
+  private pointers = new Map<number, { x: number; y: number }>();
+  private dragged = 0;
+  private pinch = 0;
+
+  constructor(
+    public readonly canvas: HTMLCanvasElement,
+    public theme: Theme
+  ) {
+    this.ctx = canvas.getContext("2d")!;
+    canvas.addEventListener("pointerdown", (e) => {
+      canvas.setPointerCapture(e.pointerId);
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      this.genesis = null;
+      if (this.pointers.size === 1) this.dragged = 0;
+      this.pinch = 0;
+    });
+    canvas.addEventListener("pointermove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      this.hover = this.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+      const prev = this.pointers.get(e.pointerId);
+      if (!prev) return;
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.pointers.size === 1) {
+        this.dragged += Math.abs(dx) + Math.abs(dy);
+        if (this.dragged > 4) {
+          this.cx -= dx / this.zoom;
+          this.cy -= dy / this.zoom;
+          this.clamp();
+          this.onUserPan();
+        }
+      } else if (this.pointers.size === 2) {
+        const [a, b] = Array.from(this.pointers.values());
+        const dist = Math.hypot(a.x - b.x, a.y - b.y);
+        if (this.pinch > 0) this.zoomAt((a.x + b.x) / 2 - rect.left, (a.y + b.y) / 2 - rect.top, dist / this.pinch);
+        this.pinch = dist;
+        this.dragged = 99;
+      }
+    });
+    const release = (e: PointerEvent): void => {
+      const had = this.pointers.delete(e.pointerId);
+      this.pinch = 0;
+      if (had && e.type === "pointerup" && this.pointers.size === 0 && this.dragged <= 4) {
+        const rect = canvas.getBoundingClientRect();
+        const p = this.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+        this.onTap(p.x, p.y, (e.pointerType === "touch" ? 22 : 12) / this.zoom);
+      }
+    };
+    canvas.addEventListener("pointerup", release);
+    canvas.addEventListener("pointercancel", release);
+    canvas.addEventListener("pointerleave", () => (this.hover = null));
+    canvas.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        this.zoomAt(e.clientX - rect.left, e.clientY - rect.top, Math.exp(-e.deltaY * 0.0015));
+      },
+      { passive: false }
+    );
+  }
+
+  private fitZoom(): number {
+    return Math.min(this.width / MAP_W, this.height / MAP_H);
+  }
+
+  /** Açılış görünümü: alanı doldurur, ama haritanın en çok üçte birini dışarıda bırakır. */
+  private homeZoom(): number {
+    const w = Math.max(200, this.width - this.padRight);
+    const contain = Math.min(w / MAP_W, this.height / MAP_H);
+    return Math.max(this.fitZoom(), Math.min(Math.max(w / MAP_W, this.height / MAP_H), contain * 1.35));
+  }
+
+  public fit(): void {
+    this.zoom = this.homeZoom();
+    this.cx = MAP_W / 2 + this.padRight / 2 / this.zoom;
+    this.cy = MAP_H / 2;
+    this.clamp();
+  }
+
+  public beginGenesis(x: number, y: number): void {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    this.genesis = { x, y, t0: performance.now() };
+  }
+
+  /** Işıma lekesi: beslenme rengine boyanmış, kenara doğru sönen bir disk. */
+  private glowSprite(color: string): HTMLCanvasElement {
+    let sprite = this.glow.get(color);
+    if (!sprite) {
+      sprite = document.createElement("canvas");
+      sprite.width = sprite.height = 64;
+      const g = sprite.getContext("2d")!;
+      const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+      grad.addColorStop(0, color);
+      grad.addColorStop(1, "rgba(0,0,0,0)");
+      g.globalAlpha = 0.9;
+      g.fillStyle = grad;
+      g.fillRect(0, 0, 64, 64);
+      this.glow.set(color, sprite);
+    }
+    return sprite;
+  }
+
+  public zoomBy(factor: number): void {
+    this.zoomAt(this.width / 2, this.height / 2, factor);
+  }
+
+  private zoomAt(sx: number, sy: number, factor: number): void {
+    const before = this.toWorld(sx, sy);
+    this.zoom = Math.min(7, Math.max(this.fitZoom(), this.zoom * factor));
+    const after = this.toWorld(sx, sy);
+    this.cx += before.x - after.x;
+    this.cy += before.y - after.y;
+    this.clamp();
+  }
+
+  private clamp(): void {
+    const hw = this.width / 2 / this.zoom;
+    const hh = this.height / 2 / this.zoom;
+    const pad = this.padRight / this.zoom;
+    this.cx = hw * 2 - pad >= MAP_W ? MAP_W / 2 + pad / 2 : Math.min(MAP_W - hw + pad, Math.max(hw, this.cx));
+    this.cy = hh >= MAP_H / 2 ? MAP_H / 2 : Math.min(MAP_H - hh, Math.max(hh, this.cy));
+  }
+
+  public center(x: number, y: number): void {
+    this.cx = x;
+    this.cy = y;
+    this.clamp();
+  }
+
+  public toWorld(sx: number, sy: number): { x: number; y: number } {
+    return { x: this.cx + (sx - this.width / 2) / this.zoom, y: this.cy + (sy - this.height / 2) / this.zoom };
+  }
+
+  /** Canlıların uzak görünümde seçilebilir kalması için çizim büyütmesi. */
+  private boost(): number {
+    return this.zoom >= 1.4 ? 1 : Math.pow(Math.min(2.4, 1.4 / this.zoom), 0.7);
+  }
+
+  public draw(view: View, state: SceneState): void {
+    const canvas = this.canvas;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (w === 0 || h === 0) return;
+    if (w !== this.width || h !== this.height || canvas.width !== Math.round(w * dpr)) {
+      const wasFit = this.zoom === 0 || Math.abs(this.zoom - this.homeZoom()) < 1e-6;
+      this.width = w;
+      this.height = h;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      if (wasFit) this.fit();
+      else this.clamp();
+    }
+    let genesisT = -1;
+    if (this.genesis) {
+      genesisT = (performance.now() - this.genesis.t0) / 1000;
+      // Hücre yüzdükçe kamera ve halkalar onu izler.
+      if (view.frame.n > 0 && genesisT < 3) {
+        this.genesis.x = view.frame.c[1];
+        this.genesis.y = view.frame.c[2];
+      }
+      if (genesisT > 5) {
+        this.genesis = null;
+        genesisT = -1;
+        this.fit();
+      } else {
+        const k = Math.min(1, Math.max(0, (genesisT - 2.2) / 2.8));
+        const ease = k * k * (3 - 2 * k);
+        const home = this.homeZoom();
+        const near = Math.min(7, home * 7);
+        this.zoom = near * Math.pow(home / near, ease);
+        this.cx = this.genesis.x + (MAP_W / 2 - this.genesis.x) * ease + this.padRight / 2 / this.zoom;
+        this.cy = this.genesis.y + (MAP_H / 2 - this.genesis.y) * ease;
+        this.clamp();
+      }
+    }
+    const theme = this.theme;
+    const key = `${view.epoch}:${view.world.version}:${theme.dark}`;
+    if (!this.terrain || this.terrainKey !== key) {
+      this.terrain = renderTerrain(view.world, theme.dark);
+      this.terrainKey = key;
+    }
+
+    const ctx = this.ctx;
+    const frame = view.frame;
+    const zoom = this.zoom;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.fillStyle = theme.sceneBg;
+    ctx.fillRect(0, 0, w, h);
+    ctx.translate(w / 2 - this.cx * zoom, h / 2 - this.cy * zoom);
+    ctx.scale(zoom, zoom);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(this.terrain, 0, 0, MAP_W, MAP_H);
+
+    const boost = this.boost();
+    const x0 = this.cx - w / 2 / zoom - 30;
+    const x1 = this.cx + w / 2 / zoom + 30;
+    const y0 = this.cy - h / 2 / zoom - 30;
+    const y1 = this.cy + h / 2 / zoom + 30;
+
+    // Bitkiler
+    const plants = frame.plants;
+    const ps = Math.min(1.5 * boost, 5 / zoom);
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.fillStyle = pass === 0 ? theme.plantWater : theme.plantLand;
+      ctx.beginPath();
+      for (let i = 0; i < plants.length; i += 2) {
+        const land = (plants[i + 1] & PLANT_LAND_BIT) !== 0;
+        if (land !== (pass === 1)) continue;
+        const x = plants[i] / PLANT_SCALE;
+        const y = (plants[i + 1] & ~PLANT_LAND_BIT) / PLANT_SCALE;
+        if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+        ctx.moveTo(x + ps, y);
+        ctx.arc(x, y, ps, 0, Math.PI * 2);
+      }
+      ctx.fill();
+    }
+
+    // Cesetler ve yumurtalar
+    const corpses = frame.corpses;
+    ctx.lineWidth = 0.8 * boost;
+    for (let i = 0; i < corpses.length; i += 5) {
+      const r = corpses[i + 2] * boost * 0.8;
+      ctx.globalAlpha = 0.25 + corpses[i + 3] * 0.55;
+      ctx.strokeStyle = theme.ink3;
+      ctx.setLineDash([1.6 * boost, 1.4 * boost]);
+      ctx.beginPath();
+      ctx.arc(corpses[i], corpses[i + 1], r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+    const eggs = frame.eggs;
+    ctx.strokeStyle = theme.ink2;
+    ctx.fillStyle = theme.surface;
+    for (let i = 0; i < eggs.length; i += 2) {
+      ctx.beginPath();
+      ctx.ellipse(eggs[i], eggs[i + 1], 2.4 * boost, 1.8 * boost, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Canlılar: önce ışıma (gece güçlenir), sonra gövdeler.
+    const c = frame.c;
+    ctx.globalCompositeOperation = "lighter";
+    ctx.globalAlpha = 0.2 + (1 - frame.light) * 0.3;
+    for (let i = 0; i < frame.n; i++) {
+      const o = i * STRIDE;
+      const g = view.genomes.get(c[o]);
+      if (!g || c[o + 1] < x0 || c[o + 1] > x1 || c[o + 2] < y0 || c[o + 2] > y1) continue;
+      if (state.highlightSpecies !== 0 && g.speciesId !== state.highlightSpecies) continue;
+      const gr = g.radius * boost * 3.4;
+      ctx.drawImage(this.glowSprite(theme.diet[g.diet]), c[o + 1] - gr, c[o + 2] - gr, gr * 2, gr * 2);
+    }
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = 1;
+    let selX = NaN;
+    let selY = NaN;
+    let selR = 0;
+    for (let i = 0; i < frame.n; i++) {
+      const o = i * STRIDE;
+      const id = c[o];
+      const x = c[o + 1];
+      const y = c[o + 2];
+      const g = view.genomes.get(id);
+      if (!g) continue;
+      if (genesisT >= 0 && genesisT < 1.3) continue;
+      if (id === state.selected) {
+        selX = x;
+        selY = y;
+        selR = g.radius * boost;
+      }
+      if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+      const flags = c[o + 6];
+      const dim = state.highlightSpecies !== 0 && g.speciesId !== state.highlightSpecies;
+      ctx.globalAlpha = dim ? 0.16 : 1;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(c[o + 3]);
+      const born = (flags & FLAG.born) !== 0;
+      ctx.scale(boost * (born ? 0.75 : 1), boost * (born ? 0.75 : 1));
+      drawCreature(ctx, g, theme, g.radius * boost * zoom >= 3.4);
+      ctx.restore();
+      if (dim) continue;
+      const rr = g.radius * boost;
+      if (flags & FLAG.infected) {
+        ctx.strokeStyle = theme.warn;
+        ctx.lineWidth = 0.9 * boost;
+        ctx.setLineDash([1.5 * boost, 1.5 * boost]);
+        ctx.beginPath();
+        ctx.arc(x, y, rr * 1.45 + 1, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+      if (flags & (FLAG.hurt | FLAG.flash)) {
+        ctx.strokeStyle = theme.critical;
+        ctx.lineWidth = 0.8 * boost;
+        ctx.globalAlpha = flags & FLAG.hurt ? 0.9 : 0.45;
+        ctx.beginPath();
+        ctx.arc(x, y, rr * 1.3 + 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      // Enerji azaldıkça kısalan ince bir yay (yalnızca yakın görünümde).
+      if (zoom * boost > 2.2) {
+        ctx.globalAlpha = 0.5;
+        ctx.strokeStyle = theme.ink2;
+        ctx.lineWidth = 1.2 / zoom;
+        ctx.beginPath();
+        ctx.arc(x, y, rr * 1.75 + 1, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.max(0, Math.min(1, c[o + 4])));
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // İlk canlı: daralan halkalar bir noktada toplanır, hücre belirir, ışık yayılır.
+    if (this.genesis && genesisT >= 0) {
+      const gx = this.genesis.x;
+      const gy = this.genesis.y;
+      const px = 1 / zoom;
+      ctx.strokeStyle = theme.accent;
+      if (genesisT < 1.5) {
+        for (let i = 0; i < 3; i++) {
+          const p = (genesisT / 1.5 + i / 3) % 1;
+          ctx.globalAlpha = p * 0.8;
+          ctx.lineWidth = 1.5 * px;
+          ctx.beginPath();
+          ctx.arc(gx, gy, (1 - p) * 90 * px + 4 * px, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      } else if (genesisT < 3) {
+        const p = (genesisT - 1.5) / 1.5;
+        ctx.globalAlpha = (1 - p) * 0.9;
+        ctx.lineWidth = (3 - p * 2) * px;
+        ctx.beginPath();
+        ctx.arc(gx, gy, p * 220 * px + 6 * px, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      const fade = Math.min(1, Math.max(0, (genesisT - 1.3) / 0.6)) * Math.min(1, Math.max(0, (4 - genesisT) / 0.8));
+      if (fade > 0) {
+        ctx.globalAlpha = fade;
+        ctx.fillStyle = theme.ink;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.font = `700 ${18 * px}px "Unbounded", "Onest", sans-serif`;
+        ctx.fillText("İlk canlı", gx, gy + 34 * px);
+        ctx.font = `${12.5 * px}px "Onest", system-ui, sans-serif`;
+        ctx.fillStyle = theme.ink2;
+        ctx.fillText("Bütün yaşam bu hücrenin soyundan gelecek.", gx, gy + 60 * px);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // Gece: haritanın üstüne inen koyu bir örtü.
+    const dark = 1 - frame.light;
+    if (dark > 0.02) {
+      ctx.fillStyle = `rgba(6,10,22,${(dark * 0.3).toFixed(3)})`;
+      ctx.fillRect(0, 0, MAP_W, MAP_H);
+    }
+
+    // Dünya olayları
+    for (const f of frame.flashes) {
+      if (f.kind === "climate") continue;
+      const t = Math.min(1, f.age / 1.6);
+      ctx.globalAlpha = 1 - t;
+      ctx.strokeStyle = f.kind === "meteor" ? theme.critical : theme.ink;
+      ctx.lineWidth = 2 / zoom + 1;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, f.r * (0.3 + t * 0.8), 0, Math.PI * 2);
+      ctx.stroke();
+      if (f.kind === "meteor") {
+        ctx.fillStyle = theme.critical;
+        ctx.globalAlpha = (1 - t) * 0.25;
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Seçim: nişangâh ve algı menzili
+    if (!Number.isNaN(selX)) {
+      const px = 1 / zoom;
+      ctx.strokeStyle = theme.accent;
+      ctx.lineWidth = 1.5 * px;
+      const rr = selR * 1.5 + 5 * px;
+      ctx.beginPath();
+      ctx.arc(selX, selY, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      for (let k = 0; k < 4; k++) {
+        const a = (k * Math.PI) / 2;
+        line(ctx, selX + Math.cos(a) * rr, selY + Math.sin(a) * rr, selX + Math.cos(a) * (rr + 5 * px), selY + Math.sin(a) * (rr + 5 * px));
+      }
+      if (state.senseRadius > 0) {
+        ctx.globalAlpha = 0.55;
+        ctx.lineWidth = px;
+        ctx.setLineDash([4 * px, 4 * px]);
+        ctx.beginPath();
+        ctx.arc(selX, selY, state.senseRadius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
+    }
+
+    // Araç önizlemesi
+    const toolR = TOOL_RADIUS[state.tool];
+    if (this.hover && toolR) {
+      ctx.strokeStyle = state.tool === "meteor" ? theme.critical : theme.accent;
+      ctx.lineWidth = 1.2 / zoom;
+      ctx.setLineDash([5 / zoom, 4 / zoom]);
+      ctx.beginPath();
+      ctx.arc(this.hover.x, this.hover.y, toolR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Ölçek çubuğu
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const units = [10, 20, 50, 100, 200, 500].find((u) => u * zoom >= 56) ?? 500;
+    const bw = units * zoom;
+    const bx = this.padRight > 0 ? 84 : w - bw - 14;
+    const by = h - 22;
+    ctx.strokeStyle = theme.ink2;
+    ctx.fillStyle = theme.ink2;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(bx + 0.5, by - 4);
+    ctx.lineTo(bx + 0.5, by + 0.5);
+    ctx.lineTo(bx + bw + 0.5, by + 0.5);
+    ctx.lineTo(bx + bw + 0.5, by - 4);
+    ctx.stroke();
+    ctx.font = `10px "Onest", system-ui, sans-serif`;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(`${units} birim`, bx, by - 8);
+  }
+
+  /** Verilen dünya noktasına en yakın canlının kimliği (yoksa 0). */
+  public pick(view: View, x: number, y: number, tolerance: number): number {
+    const c = view.frame.c;
+    const boost = this.boost();
+    let best = 0;
+    let bestD = tolerance;
+    for (let i = 0; i < view.frame.n; i++) {
+      const o = i * STRIDE;
+      const g = view.genomes.get(c[o]);
+      if (!g) continue;
+      const d = Math.hypot(c[o + 1] - x, c[o + 2] - y) - g.radius * boost;
+      if (d < bestD) {
+        bestD = d;
+        best = c[o];
+      }
+    }
+    return best;
+  }
+
+  public position(view: View, id: number): { x: number; y: number } | null {
+    const c = view.frame.c;
+    for (let i = 0; i < view.frame.n; i++) if (c[i * STRIDE] === id) return { x: c[i * STRIDE + 1], y: c[i * STRIDE + 2] };
+    return null;
+  }
+}
