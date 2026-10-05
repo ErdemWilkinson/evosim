@@ -55,3 +55,7 @@ npm run preview  # preview the build locally
   that planet.
 - **Save/load + export/import**: automatic localStorage save, plus the
   ability to download/upload as a JSON file.
+
+## License
+
+Code in this repository is released under the [MIT License](LICENSE).
