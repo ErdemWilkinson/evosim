@@ -52,6 +52,36 @@ düzeyini elle düzenleme, tür kartı, organ tablosu, olay günlüğü, soy ağ
 (60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. claude.ai üzerinde yayımlanan sürümde
 tür ve birey kartlarındaki "Claude analizi" ölçülen verileri Claude'a yorumlatır.
 
+## Deneme adresi
+
+https://erdemwilkinson.github.io/evosim-opus/ — `docs/index.html` dosyasından sunulur.
+Yeni sürüm yayımlamak için: `npm run build`, `dist/index.html` dosyasını `docs/` altına
+kopyala, commit + push.
+
+## Bilinen sorunlar
+
+- **Claude analizi ve dosya indirme hiç denenmedi.** İkisi de yalnızca claude.ai üzerindeki
+  artifact sürümünde çalışır; GitHub Pages sürümünde analiz bölümü yerine açıklama notu
+  çıkar, kayıt dosyası ise tarayıcının kendi indirmesiyle iner.
+- **Tıklanarak sınanmayan araçlar:** bitki ekme, canlı yerleştirme, meteor, kaldırma, organ
+  kaldırma, düzey değiştirme, dosyadan/metinden kayıt yükleme. Kodları derleniyor ve
+  simülasyon tarafı başsız koşularda çalışıyor, ama arayüzden elle denenmedi.
+- **Soy ağacı dar ekranda:** tür adları çizginin sağında kalır; telefonda görmek için ağacı
+  yana kaydırmak gerekir.
+- **Yakın görünümde arazi:** harita 1600 px genişliğinde bir kez boyanır; en yakın
+  yakınlaştırmada sıradağ kenarları basamaklı görünür.
+- **Eşeyli üreme nadir kalır:** erkeklerin doğurmaması eşeysiz üremeye karşı dezavantaj
+  yaratır; koşularda nüfusun yalnızca küçük bir kısmı eşeylidir.
+- **Tek atadan başlangıç garanti değildir:** ilk hücrenin soyu erken ölürse ya da nüfus
+  sonradan 8'in altına düşerse dışarıdan ilkel canlılar gelir ve artık herkes tek atadan
+  gelmez (12 tohumluk denemede 1 kez oldu). "Çöküşte dışarıdan göç" ayarı kapatılabilir.
+- **DNA zinciri tam eşitliğe bakar:** bir gen çok küçük bir mutasyon geçirse de "değişti"
+  sayılır; ne kadar değiştiği gösterilmez.
+- **Eski kayıtlar açılmaz:** kayıt biçimi sürüm 2'dir; önceki sürümün kayıtları reddedilir.
+- **Yalnızca koyu görünüm vardır;** açık tema kaldırıldı.
+- **Simülasyon çekirdeği için otomatik test yok:** denge yalnızca `npm run balance`
+  çıktısına bakılarak ayarlandı.
+
 ## Bilinen sınırlar
 
 - Karar ağı tek katmanlıdır; derin bir sinir ağı değildir.

@@ -314,6 +314,53 @@ export function geneticDistance(a: Genome, b: Genome): number {
   return d;
 }
 
+/**
+ * Dışarıdan gelen (kayıt dosyası, yapıştırılan metin) bir genomu güvenli hâle
+ * getirir: her alan beklenen türe ve aralığa zorlanır, tanınmayan değerler atılır.
+ * Kayıtlar güvenilmez girdidir; arayüz bu değerleri sayfaya yazar.
+ */
+export function sanitizeGenome(raw: unknown): Genome {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const num = (v: unknown, min: number, max: number, fallback: number): number => (typeof v === "number" && Number.isFinite(v) ? clamp(v, min, max) : fallback);
+  const int = (v: unknown, max = 2 ** 31): number => Math.floor(num(v, 0, max, 0));
+  const organs: Organ[] = [];
+  if (Array.isArray(r.organs)) {
+    for (const o of r.organs as Record<string, unknown>[]) {
+      const type = o && typeof o.type === "string" && Object.prototype.hasOwnProperty.call(ORGANS, o.type) ? (o.type as OrganType) : null;
+      if (type && !organs.some((x) => x.type === type)) organs.push({ type, power: num(o.power, 0.05, 1, 0.3) });
+    }
+  }
+  const brain = defaultBrain();
+  if (Array.isArray(r.brain)) for (let i = 0; i < brain.length; i++) brain[i] = num(r.brain[i], -8, 8, brain[i]);
+  const parents = Array.isArray(r.parentIds) && r.parentIds.length === 2 ? ([int(r.parentIds[0]), int(r.parentIds[1])] as [number, number]) : null;
+  const g: Genome = {
+    id: int(r.id),
+    parentIds: parents,
+    generation: int(r.generation),
+    speciesId: int(r.speciesId),
+    stage: int(r.stage, 2),
+    radius: num(r.radius, ...GENE_BOUNDS.radius, 5),
+    hue: num(r.hue, 0, 360, 180),
+    saturation: num(r.saturation, ...GENE_BOUNDS.saturation, 60),
+    lightness: num(r.lightness, ...GENE_BOUNDS.lightness, 55),
+    moveSpeed: num(r.moveSpeed, ...GENE_BOUNDS.moveSpeed, 28),
+    senseRadius: num(r.senseRadius, ...GENE_BOUNDS.senseRadius, 65),
+    metabolism: num(r.metabolism, ...GENE_BOUNDS.metabolism, 1),
+    divideEnergyFraction: num(r.divideEnergyFraction, ...GENE_BOUNDS.divideEnergyFraction, 0.9),
+    maxLifespan: num(r.maxLifespan, ...GENE_BOUNDS.maxLifespan, 250),
+    ornament: num(r.ornament, ...GENE_BOUNDS.ornament, 0),
+    organs,
+    brain,
+    reproductionStrategy: r.reproductionStrategy === "sexual" ? "sexual" : "asexual",
+    sex: r.sex === "m" ? "m" : "f",
+    laysEggs: r.laysEggs === true,
+    diet: DIETS.includes(r.diet as Diet) ? (r.diet as Diet) : "herbivore",
+    packHunter: r.packHunter === true,
+  };
+  fitToStage(g);
+  return g;
+}
+
 export function cloneGenome(g: Genome): Genome {
   return { ...g, parentIds: g.parentIds ? [g.parentIds[0], g.parentIds[1]] : null, organs: g.organs.map((organ) => ({ ...organ })), brain: g.brain.slice() };
 }

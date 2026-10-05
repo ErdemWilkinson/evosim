@@ -379,7 +379,7 @@ export function dnaHtml(g: Genome, origin: Genome | null): string {
   const counts = [0, 1, 2].map((k) => genes.filter((gene) => gene.kind === k).length);
   const inherited = genes.length - counts[2];
   return (
-    `<div class="dna-wrap"><svg class="dna" viewBox="0 0 ${width} 46" preserveAspectRatio="none" style="min-width:${Math.round(width * 0.9)}px" role="img" aria-label="DNA zinciri: ${counts[0]} gen ilk canlıyla aynı">` +
+    `<div class="dna-wrap"><svg class="dna" viewBox="0 0 ${width} 46" preserveAspectRatio="none" role="img" aria-label="DNA zinciri: ${counts[0]} gen ilk canlıyla aynı">` +
     `<path class="dna-strand" d="${top}"/><path class="dna-strand" d="${bottom}"/>${rungs}</svg></div>` +
     `<div class="legend"><span><i class="sw dna-sw0"></i>İlk canlıdan kalan<b>${counts[0]}</b></span><span><i class="sw dna-sw1"></i>Değişen<b>${counts[1]}</b></span><span><i class="sw dna-sw2"></i>Yeni organ geni<b>${counts[2]}</b></span></div>` +
     `<p class="foot">Atadan devralınan ${inherited} genin ${counts[0]} tanesi (${pct(counts[0] / inherited)}) hâlâ ilk canlıdaki değeri taşıyor. Bir basamağın üzerine gelince hangi gen olduğu görünür.</p>`

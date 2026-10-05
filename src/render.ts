@@ -846,10 +846,10 @@ export class Scene {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.font = `700 ${18 * px}px "Unbounded", "Onest", sans-serif`;
-        ctx.fillText("İlk canlı", gx, gy + 34 * px);
+        ctx.fillText("İlk canlı", gx, gy + 104 * px);
         ctx.font = `${12.5 * px}px "Onest", system-ui, sans-serif`;
         ctx.fillStyle = theme.ink2;
-        ctx.fillText("Bütün yaşam bu hücrenin soyundan gelecek.", gx, gy + 60 * px);
+        ctx.fillText("Bütün yaşam bu hücrenin soyundan gelecek.", gx, gy + 130 * px);
       }
       ctx.globalAlpha = 1;
     }

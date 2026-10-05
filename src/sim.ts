@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, stressFactor } from "./genome";
+import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, stressFactor } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, World } from "./world";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
@@ -2098,6 +2098,7 @@ export class Sim {
     if (!data || data.version !== SAVE_VERSION || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
       throw new Error("Bu dosya geçerli bir Evosim kaydı değil ya da eski bir sürüme ait.");
     }
+    data = cleanSave(data);
     const sim = new Sim(data.seed, false);
     sim.time = data.time;
     sim.nextId = data.nextId;
@@ -2156,6 +2157,120 @@ export class Sim {
     rng.s = data.rng;
     return sim;
   }
+}
+
+/**
+ * Kayıt verisi güvenilmez girdidir (dosyadan ya da yapıştırılan metinden gelir) ve
+ * içindeki değerler arayüzde sayfaya yazılır. Yüklemeden önce her alan beklenen
+ * türe zorlanır: sayılar sayı, metinler kısaltılmış düz metin, sıralı değerler
+ * (diyet, organ, olay türü, ölüm nedeni) yalnızca bilinen değerlerden biri olur.
+ */
+function cleanSave(raw: SaveData): SaveData {
+  const num = (v: unknown, fallback = 0): number => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
+  const str = (v: unknown): string => (typeof v === "string" ? v.slice(0, 240) : "");
+  const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
+  const organ = (v: unknown): v is OrganType => typeof v === "string" && Object.prototype.hasOwnProperty.call(ORGANS, v);
+  const diet = (v: unknown): Diet => (DIETS.includes(v as Diet) ? (v as Diet) : "herbivore");
+  const KINDS: EventKind[] = ["organ", "diet", "species", "world", "population", "gene", "stage", "disease"];
+  const organRecord = (v: unknown): Partial<Record<OrganType, number>> => {
+    const out: Partial<Record<OrganType, number>> = {};
+    for (const [k, n] of Object.entries((v ?? {}) as Record<string, unknown>)) if (organ(k)) out[k] = num(n);
+    return out;
+  };
+  const deaths = {} as Record<DeathCause, number>;
+  for (const cause of Object.keys(DEATH_LABEL) as DeathCause[]) deaths[cause] = num((raw.deaths as Record<string, unknown> | undefined)?.[cause]);
+  const flags: Record<string, boolean> = {};
+  for (const [k, v] of Object.entries((raw.flags ?? {}) as Record<string, unknown>)) if (v === true && k.length < 60) flags[k] = true;
+  return {
+    version: raw.version,
+    seed: num(raw.seed) >>> 0,
+    time: Math.max(0, num(raw.time)),
+    rng: num(raw.rng) >>> 0,
+    nextId: Math.max(1, Math.floor(num(raw.nextId, 1))),
+    nextSpeciesId: Math.max(1, Math.floor(num(raw.nextSpeciesId, 1))),
+    creatures: list<SaveData["creatures"][number]>(raw.creatures)
+      .slice(0, MAX_CREATURES)
+      .map((e) => ({
+        g: sanitizeGenome(e?.g),
+        x: Math.min(MAP_W - 4, Math.max(4, num(e?.x, MAP_W / 2))),
+        y: Math.min(MAP_H - 4, Math.max(4, num(e?.y, MAP_H / 2))),
+        energy: num(e?.energy, 10),
+        hp: num(e?.hp, 1),
+        age: Math.max(0, num(e?.age)),
+        divideCd: Math.max(0, num(e?.divideCd)),
+        parent: num(e?.parent),
+        host: num(e?.host),
+        infectedT: Math.max(0, num(e?.infectedT)),
+        immuneT: Math.max(0, num(e?.immuneT)),
+      })),
+    nutrients: list<[number, number, number]>(raw.nutrients)
+      .slice(0, 2000)
+      .map((n) => [num(n?.[0]), num(n?.[1]), n?.[2] === 1 ? 1 : 0] as [number, number, number]),
+    eggs: list<Egg>(raw.eggs)
+      .slice(0, MAX_CREATURES)
+      .map((e) => ({
+        x: num(e?.x, MAP_W / 2),
+        y: num(e?.y, MAP_H / 2),
+        g: sanitizeGenome(e?.g),
+        t: num(e?.t, 5),
+        parentIds: [num(e?.parentIds?.[0]), num(e?.parentIds?.[1])] as [number, number],
+        parentGenomes: list<Genome>(e?.parentGenomes).slice(0, 2).map(sanitizeGenome),
+        bonus: Math.min(1, Math.max(0, num(e?.bonus))),
+      }))
+      .filter((e) => e.parentGenomes.length > 0),
+    species: list<Species>(raw.species)
+      .slice(0, 5000)
+      .map((s) => ({
+        id: Math.floor(num(s?.id)),
+        name: str(s?.name),
+        genus: str(s?.genus),
+        parentId: Math.floor(num(s?.parentId)),
+        born: num(s?.born),
+        extinct: num(s?.extinct, -1),
+        count: 0,
+        peak: Math.floor(num(s?.peak)),
+        total: Math.floor(num(s?.total)),
+        established: s?.established === true,
+        type: sanitizeGenome(s?.type),
+        reason: str(s?.reason),
+        series: list<number>(s?.series).slice(0, SERIES_CAP * 2).map((v) => num(v)),
+        infected: 0,
+      })),
+    lineage: list<LineageRec>(raw.lineage)
+      .slice(-LINEAGE_CAP)
+      .map((r) => ({
+        id: Math.floor(num(r?.id)),
+        p1: Math.floor(num(r?.p1)),
+        p2: Math.floor(num(r?.p2)),
+        gen: Math.floor(num(r?.gen)),
+        sp: Math.floor(num(r?.sp)),
+        born: num(r?.born),
+        died: num(r?.died, -1),
+        cause: Object.prototype.hasOwnProperty.call(DEATH_LABEL, r?.cause ?? "") ? r.cause : "",
+        diet: diet(r?.diet),
+        organs: list<unknown>(r?.organs).filter(organ),
+        notes: list<unknown>(r?.notes).slice(0, 12).map(str),
+      })),
+    events: list<SimEvent>(raw.events)
+      .slice(-EVENT_LOG_CAP)
+      .map((e) => ({ seq: Math.floor(num(e?.seq)), t: num(e?.t), kind: KINDS.includes(e?.kind) ? e.kind : "world", text: str(e?.text) })),
+    history: list<HistorySample>(raw.history)
+      .slice(-HISTORY_CAP)
+      .map((h) => ({ t: num(h?.t), diets: DIETS.map((_, i) => Math.floor(num(h?.diets?.[i]))), nutrients: Math.floor(num(h?.nutrients)), species: Math.floor(num(h?.species)), oxygen: num(h?.oxygen, 0.5) })),
+    sampleInterval: Math.max(2, num(raw.sampleInterval, 2)),
+    flags,
+    organPeak: organRecord(raw.organPeak),
+    organMilestone: organRecord(raw.organMilestone),
+    births: Math.floor(num(raw.births)),
+    deaths,
+    maxGeneration: Math.floor(num(raw.maxGeneration)),
+    autoEvents: raw.autoEvents !== false,
+    rescueEnabled: raw.rescueEnabled !== false,
+    immigrants: Math.floor(num(raw.immigrants)),
+    nutrientMultiplier: Math.min(3, Math.max(0.2, num(raw.nutrientMultiplier, 1))),
+    climate: raw.climate ? { warm: raw.climate.warm === true, meta: num(raw.climate.meta, 1), nutrient: num(raw.climate.nutrient, 1), left: num(raw.climate.left) } : null,
+    wind: raw.wind ? { vx: num(raw.wind.vx), vy: num(raw.wind.vy), angle: num(raw.wind.angle), left: num(raw.wind.left) } : null,
+  };
 }
 
 export const SAVE_VERSION = 2;
