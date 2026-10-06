@@ -1,10 +1,11 @@
 import { rng } from "./rng";
 import { ORGANS, ORGAN_SLOTS, Organ, OrganType, pickOrganType } from "./organs";
 
-export type Diet = "phototroph" | "herbivore" | "parasite" | "filter_feeder" | "omnivore" | "scavenger" | "carnivore";
+export type Diet = "phototroph" | "herbivore" | "parasite" | "filter_feeder" | "omnivore" | "scavenger" | "carnivore" | "chemotroph";
 
-/** Grafik/yığın sırası — renk ataması bu sıraya göre doğrulandı, değiştirme. */
-export const DIETS: readonly Diet[] = ["phototroph", "herbivore", "parasite", "filter_feeder", "omnivore", "scavenger", "carnivore"];
+/** Grafik/yığın sırası — renk ataması bu sıraya göre doğrulandı, değiştirme. Yeni biçimler sona
+ *  eklenir: kayıtlardaki ve geçmiş örneklerindeki sayılar bu sıraya göre dizilidir. */
+export const DIETS: readonly Diet[] = ["phototroph", "herbivore", "parasite", "filter_feeder", "omnivore", "scavenger", "carnivore", "chemotroph"];
 
 export const DIET_LABEL: Record<Diet, string> = {
   phototroph: "Fotosentetik",
@@ -14,16 +15,18 @@ export const DIET_LABEL: Record<Diet, string> = {
   omnivore: "Hepçil",
   scavenger: "Çürükçül",
   carnivore: "Etçil",
+  chemotroph: "Kemotrof",
 };
 
 export const DIET_DESCRIPTION: Record<Diet, string> = {
-  phototroph: "Gündüz ışıktan pasif enerji üretir; karada ve sığ suda verimli, kalabalıkta birbirini gölgeler.",
-  herbivore: "Bitki örtüsünü arayıp yer.",
+  phototroph: "Gündüz ışıktan pasif enerji üretir; karada ve sığ suda verimli, kalabalıkta birbirini gölgeler. Çevresine yerleşik üretici öbekleri (bitki örtüsü) bırakır.",
+  herbivore: "Bitki örtüsünü arayıp yer; bitki örtüsü ancak fotosentetik canlılar ortaya çıktıktan sonra var olur.",
   parasite: "Başka türden bir konağa tutunur ve onun enerjisini emer; konak ölünce yenisini arar.",
   filter_feeder: "Suda, çevresindeki bitki yoğunluğuyla orantılı hızda süzerek beslenir; aramak zorunda değildir ama seyrek bitkide aç kalır.",
   omnivore: "Kendinden küçük canlıları avlar, bulamazsa bitki yer; ikisinde de uzmanlardan verimsizdir.",
   scavenger: "Cesetleri bulup yer; ceset yoksa düşük verimle bitki yer.",
   carnivore: "Başka türlerin bireylerini avlar; bitki yiyemez.",
+  chemotroph: "Sıvıda çözünmüş kimyasal besini bulunduğu yerden emer; ilk yaşamın beslenme biçimidir. Besin bulunduğu yerde tükenir ve yavaşça yenilenir, karada yoktur.",
 };
 
 // ---------------------------------------------------------------- karar ağı
@@ -162,7 +165,7 @@ const STRESS_MUTATION_BOOST = 1.0;
  *  ağırlıkları. Gerçek biyolojide karşılığı olan bir mekanizma DEĞİLDİR (mutasyonun
  *  yönü ihtiyaca göre belirlenmez); özgün projedeki bilinçli bir simülasyon tercihinin
  *  devamıdır. Stressiz ebeveynde tüm diyetler eşit olasılıklıdır. */
-const STRESS_DIET_WEIGHT: Record<Diet, number> = { carnivore: 3, omnivore: 3, scavenger: 2, parasite: 2, herbivore: 1, filter_feeder: 1, phototroph: 1 };
+const STRESS_DIET_WEIGHT: Record<Diet, number> = { carnivore: 3, omnivore: 3, scavenger: 2, parasite: 2, herbivore: 1, filter_feeder: 1, phototroph: 1, chemotroph: 1 };
 
 function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
@@ -192,7 +195,7 @@ export function randomGenome(id: number): Genome {
     reproductionStrategy: "asexual",
     sex: rng.chance(0.5) ? "f" : "m",
     laysEggs: false,
-    diet: "herbivore",
+    diet: "chemotroph",
     packHunter: false,
   };
 }

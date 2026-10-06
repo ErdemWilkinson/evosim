@@ -1,4 +1,4 @@
-import { BEHAVIORS, Creature, MAX_CREATURES, STEP, SaveData, Sim } from "./sim";
+import { BEHAVIORS, Creature, MAX_CREATURES, SOUP_CAPACITY, STEP, SaveData, Sim } from "./sim";
 import { Command, CreatureDetail, FLAG, Frame, HostMessage, PLANT_LAND_BIT, PLANT_SCALE, STRIDE, SpeciesInfo, UiPayload } from "./protocol";
 import { EVOLUTION_SPEEDS, Genome, cloneGenome } from "./genome";
 
@@ -280,6 +280,8 @@ export class SimHost {
     }
     const events = sim.events.filter((e) => e.seq > this.lastEventSeq);
     this.lastEventSeq = sim.eventSeq;
+    const soup = new Uint8Array(sim.soup.length);
+    for (let i = 0; i < soup.length; i++) soup[i] = Math.min(255, Math.round((sim.soup[i] / (SOUP_CAPACITY * 3)) * 255));
     const stats = this.speciesId ? sim.speciesStats(this.speciesId) : null;
     const sp = stats ? sim.species.get(this.speciesId) : undefined;
     return {
@@ -312,6 +314,7 @@ export class SimHost {
       speed: this.speed,
       selected: this.detail(sim),
       speciesDetail: stats && sp ? { ...stats, type: sp.type } : null,
+      soup,
       origin: sim.species.get(1)?.type ?? null,
       rate: this.rate,
     };

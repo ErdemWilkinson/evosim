@@ -102,6 +102,8 @@ export interface UiPayload {
   speed: number;
   selected: CreatureDetail | null;
   speciesDetail: (SpeciesStats & { type: Genome }) | null;
+  /** Çözünmüş besin: ızgara hücresi başına 0–255 (255 = en zengin bacanın kapasitesi). */
+  soup: Uint8Array;
   /** İlk canlının genomu: DNA zinciri karşılaştırması bunun üzerinden yapılır. */
   origin: Genome | null;
   /** Son saniyede gerçekleşen simülasyon hızı (sim-sn / gerçek sn). */

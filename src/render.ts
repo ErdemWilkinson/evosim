@@ -4,7 +4,7 @@ import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
 import { View } from "./client";
 import { MAP_H, MAP_W, World } from "./world";
 import { Chemistry } from "./chemistry";
-import { BEHAVIORS, INITIAL_CREATURES } from "./sim";
+import { BEHAVIORS, INITIAL_CREATURES, SOUP_COLS, SOUP_ROWS } from "./sim";
 
 /** Sahne çizimi (Canvas 2D). Simülasyondan gelen kareleri yalnızca okur. */
 
@@ -572,6 +572,9 @@ export class Scene {
   private animSimT = -1;
   private plantKey = "";
   private plantCol: [string, string] = ["", ""];
+  /** Çözünmüş besin katmanı: ızgara hücresi başına bir piksel; haritaya yumuşatılarak gerilir. */
+  private soupLayer: HTMLCanvasElement | null = null;
+  private soupFrom: Uint8Array | null = null;
   private readonly ctx: CanvasRenderingContext2D;
   private terrain: HTMLCanvasElement | null = null;
   private terrainKey = "";
@@ -798,6 +801,26 @@ export class Scene {
     const x1 = this.cx + w / 2 / zoom + 30;
     const y0 = this.cy - h / 2 / zoom - 30;
     const y1 = this.cy + h / 2 / zoom + 30;
+
+    // Çözünmüş besin: zenginliğiyle orantılı soluk bir ışıma (sıvının rengini açar).
+    const soup = view.ui?.soup;
+    if (soup) {
+      if (this.soupFrom !== soup) {
+        this.soupFrom = soup;
+        this.soupLayer ??= Object.assign(document.createElement("canvas"), { width: SOUP_COLS, height: SOUP_ROWS });
+        const sctx = this.soupLayer.getContext("2d")!;
+        const image = sctx.createImageData(SOUP_COLS, SOUP_ROWS);
+        for (let i = 0; i < soup.length; i++) {
+          image.data[i * 4] = 214;
+          image.data[i * 4 + 1] = 236;
+          image.data[i * 4 + 2] = 255;
+          image.data[i * 4 + 3] = Math.round(soup[i] * 0.42);
+        }
+        sctx.putImageData(image, 0, 0);
+      }
+      ctx.imageSmoothingEnabled = true;
+      ctx.drawImage(this.soupLayer!, 0, 0, MAP_W, MAP_H);
+    }
 
     // Bitkiler
     const plants = frame.plants;

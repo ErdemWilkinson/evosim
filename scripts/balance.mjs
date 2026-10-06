@@ -16,7 +16,7 @@ const brief = process.argv.includes("--brief");
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--")).map(Number);
 const seconds = args[0] || 1200;
 const seeds = args.length > 1 ? args.slice(1) : [1, 2, 3, 4];
-const LABELS = ["foto", "otçul", "parazit", "süzücü", "hepçil", "çürükçül", "etçil"];
+const LABELS = ["foto", "otçul", "parazit", "süzücü", "hepçil", "çürükçül", "etçil", "kemo"];
 const noRescue = process.argv.includes("--no-rescue");
 // --summary: her 30 sn'de örnekler; beslenme biçimlerinin ortalama payını, en yüksek payını ve var olduğu süreyi basar.
 const summary = process.argv.includes("--summary");

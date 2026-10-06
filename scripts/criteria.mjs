@@ -2,22 +2,28 @@
 // check.mjs (test) ve noise.mjs (gürültü ölçümü) aynı tanımı kullanır.
 //
 // Eşikler ve gerekçeleri:
-//  1. Baskınlık: otçul dışında hiçbir beslenme biçimi, tohumların yarısından fazlasında
-//     ortalama %60'ı geçmemeli. Otçul hariçtir: ilk hücre otçuldur ve üreticileri yiyen
-//     birincil tüketici besin ağının tabanıdır; onun çoğunlukta olması bir bozukluk değildir.
-//  2. Kalıcılık: otçul dışındaki her biçim, tohumların en az yarısında sürenin en az %30'unda
-//     var olmalı.
+//  1. Baskınlık: taban biçimleri dışında hiçbir beslenme biçimi, tohumların yarısından
+//     fazlasında ortalama %60'ı geçmemeli. Taban biçimleri kemotrof (ilk hücrenin beslenme
+//     biçimi; cansız kaynaktan beslenen birincil üretici) ve otçuldur (üreticileri yiyen
+//     birincil tüketici); besin ağının tabanının çoğunlukta olması bir bozukluk değildir.
+//  2. Kalıcılık: kemotrof dışındaki her biçim, tohumların en az yarısında sürenin en az
+//     %30'unda var olmalı. Otçul artık bu eşiğe dahildir: bitki örtüsü ancak fotosentetik
+//     canlılar evrilince ortaya çıktığı için otçulun var olması kendiliğinden değildir.
+//     (Kemotrof eklenmeden önce ilk hücre otçuldu ve otçul bu eşiğin dışındaydı.)
 //  3. Hiçbir tohumda yaşam tükenmemeli (nüfusun sıfıra indiği ve dışarıdan göçle yeniden
 //     başladığı durum da tükenme sayılır).
 //  4. Tohumların en az yarısında çok hücreli canlı, en az birinde karaya çıkış görülmeli.
-//  5. Patlama: otçul dışındaki bir biçimin payı, nüfus en az 20 iken, tohumların yarısından
+//  5. Patlama: taban biçimleri dışındaki bir biçimin payı, nüfus en az 20 iken, tohumların yarısından
 //     fazlasında %90'ı geçmemeli. İlk ölçümde 1–4. eşiklerin hepsi geçti ama etçiller sekiz
 //     tohumun beşinde bir ara nüfusun tamamını oluşturuyordu: ortalama pay bunu gizliyor.
 //  6. Çöküş: nüfus 8'in altına düşüp dışarıdan göç gerektiren tohumlar yarıyı geçmemeli.
 //     İlk ölçümde sekiz tohumun altısında oldu; "tükenmedi" eşiği bunu göremiyor çünkü
 //     göç yaşamı yeniden başlatıyor.
-export const LABELS = ["foto", "otçul", "parazit", "süzücü", "hepçil", "çürükçül", "etçil"];
+export const LABELS = ["foto", "otçul", "parazit", "süzücü", "hepçil", "çürükçül", "etçil", "kemo"];
 export const HERBIVORE = 1;
+export const CHEMOTROPH = 7;
+/** Besin ağının tabanı: baskınlık ve patlama eşiklerinin dışında tutulur. */
+const BASE = new Set([HERBIVORE, CHEMOTROPH]);
 
 /** "1-12,15,20-24" → [1, …, 12, 15, 20, …, 24] */
 export function parseSeeds(text) {
@@ -36,12 +42,11 @@ export function evaluate(results) {
   const checks = [];
   const add = (name, value, atMost, limit) => checks.push({ name, value, of: n, atMost, limit, pass: atMost ? value <= limit : value >= limit });
   LABELS.forEach((name, i) => {
-    if (i === HERBIVORE) return;
-    add(`baskınlık: ${name} ortalama %60'ı geçen tohum ≤ yarı`, results.filter((r) => r.share[i] > 0.6).length, true, half);
-    add(`kalıcılık: ${name} sürenin ≥%30'unda var olan tohum ≥ yarı`, results.filter((r) => r.present[i] >= 0.3).length, false, half);
+    if (!BASE.has(i)) add(`baskınlık: ${name} ortalama %60'ı geçen tohum ≤ yarı`, results.filter((r) => r.share[i] > 0.6).length, true, half);
+    if (i !== CHEMOTROPH) add(`kalıcılık: ${name} sürenin ≥%30'unda var olan tohum ≥ yarı`, results.filter((r) => r.present[i] >= 0.3).length, false, half);
   });
   LABELS.forEach((name, i) => {
-    if (i === HERBIVORE) return;
+    if (BASE.has(i)) return;
     add(`patlama: ${name} payı %90'ı geçen tohum ≤ yarı`, results.filter((r) => r.peak[i] > 0.9).length, true, half);
   });
   add("çöküş: dışarıdan göç gerektiren tohum ≤ yarı", results.filter((r) => r.immigrants > 0).length, true, half);

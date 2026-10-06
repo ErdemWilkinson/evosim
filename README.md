@@ -24,7 +24,7 @@ npm run test:core                       # çekirdek testleri: belirlenimcilik ve
 | --- | --- |
 | `src/sim.ts` | Simülasyon çekirdeği. DOM'a dokunmaz, sabit adımlı (1/30 sn), tek tohumlu rastgelelik. |
 | `src/genome.ts` | Genom, mutasyon, çaprazlama, genetik uzaklık, karar ağı. |
-| `src/organs.ts` | 37 organ. Her açıklama `sim.ts` içindeki gerçek mekaniği anlatır. |
+| `src/organs.ts` | 38 organ. Her açıklama `sim.ts` içindeki gerçek mekaniği anlatır. |
 | `src/chemistry.ts` | Gezegen kimyası: 22 elementten 10'u, çözücü, zar, duvar, kalıtım, enerji, katalizör, pigment, 20 köken senaryosu. |
 | `src/world.ts`, `src/planet.ts` | Harita (sıvı, kıyı, sıradağlar); engebe, sıvı oranı ve dağ payı kimyadan gelir. |
 | `src/inspect.ts` | Yapı inceleme ekranı (canlı → kabuk kesiti → molekül → atom) ve köken filmi. |
@@ -67,9 +67,16 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
 
 ## Simülasyonda neler var
 
-- **Bitki örtüsü gerçek bir üreticidir:** bitkiler var olanların yanında çoğalır, yer dolunca
-  durur (yerel lojistik büyüme) ve tohum yağmuruyla yayılır; hız mevsime ve iklime bağlıdır.
-- **Yedi beslenme biçimi:** fotosentetik, otçul, parazit, süzücü, hepçil, çürükçül, etçil.
+- **İlk yaşam ot yemez, kimyasal besin emer:** sıvıda çözünmüş kimyasal besin 40×25'lik bir
+  ızgarada tutulur. Sıvı altındaki sırt çizgilerinde (bacalar) üç kata kadar zengindir, karada
+  yoktur; emildiği yerde tükenir ve yavaşça yenilenir. İlk hücreler **kemotroftur** ve besinin
+  en yoğun olduğu yerde belirir. Haritada besin soluk bir ışıma olarak görünür. Çürüyen leşin
+  maddesinin yarısı bulunduğu yerdeki çözeltiye döner.
+- **Bitki örtüsü sonradan evrilir:** başlangıçta hiç bitki yoktur. Fotosentetik bir canlı
+  ortaya çıkıp yerleşik bir üretici öbeği bırakınca örtü başlar; ondan sonra bitkiler var
+  olanların yanında çoğalır, yer dolunca durur ve tohum yağmuruyla yayılır. Otçulluk, süzücülük
+  ve bitki yiyen öbür biçimler ondan önce tutunamaz.
+- **Sekiz beslenme biçimi:** kemotrof, fotosentetik, otçul, parazit, süzücü, hepçil, çürükçül, etçil.
 - **Örgütlenme düzeyi:** tek hücre → koloni → çok hücreli. Düzey organ yuvalarını (3/5/7),
   beden aralığını ve hangi organların mümkün olduğunu belirler; karaya çıkmak bacak ister,
   bacak çok hücrelilik ister.
@@ -91,6 +98,14 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
     alanlar). Örtüdeki canlı ancak dokunacak kadar yaklaşılınca fark edilir; kıyı sığlığı ve
     bitki öbekleri kısmi örtü sağlar. Elektroreseptör örtünün içini görür. Sığınaktaki canlı
     haritada halkayla işaretlenir, üst şeritte "Sığınakta N" yazar.
+  - *Tok canlı otlamaz:* bir bitkinin vereceği enerji sığmayacaksa otçul, hepçil ve çürükçül
+    bitkiye yönelmez; tokken yiyip çevresini boşuna tüketmez.
+  - *Sığınak büyük bedeni yavaşlatır:* sık örtüde en büyük beden hızının %65'ini kaybeder, en
+    küçük beden hiç kaybetmez. Kaçan canlı, kaçış yönünün yakınında sık örtü varsa oraya
+    yönelir. **Örtü biçici** organı (koloni düzeyi) bu yavaşlamayı %50–100 azaltır ve örtüde
+    gizlenen avı o oranda daha uzaktan fark ettirir; bedeli bir organ yuvasıdır.
+  - *Yamyamlık hastalık bulaştırır:* kendi türünü yiyen avcı, av hastaysa kesin, değilse %50
+    olasılıkla türüne özgü hastalığı kapar.
   - *Parazitin ikilemi:* emiş gücü kalıtılan bir gendir. Çok emen konağını tüketir ve konak onu
     o oranda erken atar; az emen aç kalır.
   - *Sindirim yönü:* hepçil ve çürükçülün bitkiden ve etten aldığı verim tek bir gene bağlıdır;
@@ -203,6 +218,17 @@ kopyala, commit + push.
 
 ## Bilinen sorunlar
 
+- **Yeni besin tabanı ve son dört mekanik ölçülmedi:** kemotrof beslenme, sonradan evrilen
+  bitki örtüsü, tok canlının otlamaması, sığınağın büyük bedeni yavaşlatması, örtü biçici
+  organ, örtüye kaçış ve yamyamlık hastalığı 6 Ekim 2026'da eklendi. Besin tabanı için
+  typecheck ve çekirdek testleri geçti, üç tohumda 3000 sn'lik koşuda yaşam tutundu; son dört
+  mekanik eklendikten sonra yalnızca typecheck koştu. Denge testi bu kodda koşmadı, tarayıcıda
+  denenmedi; aşağıdaki denge tabloları eski besin tabanına aittir. Besin alanının sayıları
+  (kapasite, yenilenme, emiş hızı) bir bütçe hesabından seçildi, ölçülerek doğrulanmadı.
+- **Denge testinin eşikleri değişti:** kemotrof artık besin ağının tabanı sayılır ve baskınlık
+  ile patlama eşiklerinin dışındadır; otçul kalıcılık eşiğine dahil edildi (gerekçe
+  `scripts/criteria.mjs` içinde).
+
 - **Kaynaklar:** dergi makalelerinin 65'i de Crossref kaydıyla karşılaştırıldı (yazar, yıl, dergi,
   cilt, ilk sayfa tutuyor). Kitaplar (Schulze-Makuch & Irwin 2008, de Duve 1991, Cairns-Smith
   1982, Oparin 1938, Haldane 1954) bu yolla kontrol edilemedi.
@@ -239,7 +265,8 @@ kopyala, commit + push.
   gelmez (12 tohumluk denemede 1 kez oldu). "Çöküşte dışarıdan göç" ayarı kapatılabilir.
 - **Kalıtım yapısı eşiği:** sayısal bir gen, aralığının %2'sinden az kaydıysa "değişmedi"
   sayılır; eşik keyfîdir.
-- **Eski kayıtlar:** güncel kayıt sürümü 5'tir; sürüm 2, 3 ve 4 kayıtları açılır. Sürüm 2'de
+- **Eski kayıtlar:** güncel kayıt sürümü 6'dır; sürüm 2, 3, 4 ve 5 kayıtları açılır. Sürüm 5 ve
+  öncesinde çözünmüş besin alanı yoktur; dolu başlar, kayıttaki canlılar ve bitkiler aynen yüklenir. Sürüm 2'de
   harita farklıdır (artık kimyadan üretiliyor); yaşayamayacağı yerde kalan canlılar sığ sıvıya
   taşınır. Sürüm 4 ve öncesi canlının anlık durumunu (hedefi, zamanlayıcıları), leşleri ve
   deprem bölgelerini taşımaz; bunlar varsayılanla başlar, yani eski bir kayıttan devam eden

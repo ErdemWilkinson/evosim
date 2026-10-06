@@ -44,6 +44,7 @@ function snapshot(sim) {
     creatures: sim.creatures.map((c) => ({ ...c, d: undefined, tC: ref(c.tC), tN: c.tN ? sim.nutrients.indexOf(c.tN) : -1, tK: c.tK ? sim.corpses.indexOf(c.tK) : -1, host: ref(c.host), parent: ref(c.parent) })),
     nutrients: sim.nutrients,
     corpses: sim.corpses,
+    soup: Array.from(sim.soup),
     eggs: sim.eggs,
     species: Array.from(sim.species.values()),
     births: sim.births,

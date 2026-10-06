@@ -43,6 +43,7 @@ const ORGAN_EPITHET: Partial<Record<OrganType, string>> = {
   brood_pouch: "marsupiata",
   immune_gland: "immunis",
   sprint_muscle: "celeris",
+  thicket_cutter: "falcata",
 };
 
 const DIET_EPITHET: Record<Diet, string[]> = {
@@ -53,6 +54,7 @@ const DIET_EPITHET: Record<Diet, string[]> = {
   omnivore: ["varia", "omnivora", "versatilis"],
   scavenger: ["necrophaga", "saprofaga", "funesta"],
   carnivore: ["rapax", "vorax", "ferox"],
+  chemotroph: ["chemica", "lithotrophica", "primaeva"],
 };
 
 const FALLBACK_EPITHET = ["minor", "major", "nova", "affinis", "dubia", "communis", "gracilis", "robusta", "velox", "tarda"];

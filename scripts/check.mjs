@@ -62,7 +62,7 @@ if (!isMainThread) {
   sim.kill = function (c, cause, ...rest) {
     if (c.alive && cause !== "removed") {
       tally(group(c), c);
-      if (c.g.diet === "herbivore") tally(`${group(c)} (otçul)`, c);
+      if (c.g.diet === "chemotroph") tally(`${group(c)} (kemotrof)`, c);
       const e = life[group(c)];
       if (cause === "starvation") e.starved++;
       if (cause === "predation") e.eaten++;

@@ -177,6 +177,7 @@ function organMaterial(type: OrganType, chem: Chemistry): Material {
     wing: { ...chitin, note: `Kanat, damarlarla gerilmiş çok ince bir zardır. ${chitin.note}` },
     sucker: { ...fibre, note: `Halka biçimli lifler kasılınca içeride basınç düşer ve vantuz yüzeye yapışır. ${fibre.note}` },
     sprint_muscle: from(chem.energy, "Hızlı kas lifleri kısa sürede çok enerji yakar; lifin içi enerji taşıyıcısıyla doludur."),
+    thicket_cutter: disulfide("Keratin benzeri kesici kenar", "Ağzın önündeki sert, keskin kenarlı levhalar sık örtünün saplarını biçer; kükürt köprüleri kenarı körelmeye karşı sert tutar."),
     eyespot: from(chem.pigment, "Tek bir pigment yığını ışığın yönünü algılar."),
     eye: { name: "Saydam kristalin mercek", note: `Çok sıkı ve düzenli istiflenmiş ${silicon ? "siloksan" : "protein"} molekülleri ışığı saçmadan kırar; arkasındaki pigment tabakası görüntüyü algılar.`, needs: [], mol: silicon ? SILOXANE : PEPTIDE },
     bioluminescence: { name: "Lüsiferin benzeri ışık molekülü", note: "Bir enzim bu molekülü yükseltger; açığa çıkan enerji ısı yerine ışık olarak yayılır.", needs: ["C", "N", "O", "S"], mol: LUCIFERIN },

@@ -17,6 +17,7 @@ export type OrganType =
   | "wing"
   | "sucker"
   | "sprint_muscle"
+  | "thicket_cutter"
   | "eyespot"
   | "eye"
   | "bioluminescence"
@@ -76,6 +77,7 @@ export const ORGANS: Record<OrganType, OrganDefinition> = {
   wing: o("movement", "Kanat", 0.3, 2, "Karada hızı %25'e kadar artırır ve sıradağları aşmayı sağlar (kanatsızlar için dağ geçilmezdir)."),
   sucker: o("movement", "Vantuz", 0.4, 0, "Rüzgârın sürüklemesini %60–100 azaltır."),
   sprint_muscle: o("movement", "Hızlı Kas Lifi", 0.4, 1, "Kaçarken ve avlanırken hızı %20–50 artırır; o sırada metabolizma %20 yükselir."),
+  thicket_cutter: o("movement", "Örtü Biçici", 0.35, 1, "Sık örtünün büyük bedeni yavaşlatmasını %50–100 azaltır ve örtüde gizlenen avı o oranda daha uzaktan fark ettirir."),
   eyespot: o("sense", "Işık Noktası", 1, 0, "Algı menzilini 15–35 birim genişletir (gece etkisi yarıya iner)."),
   eye: o("sense", "Göz", 0.5, 2, "Algı menzilini 35–90 birim genişletir (gece etkisi yarıya iner)."),
   bioluminescence: o("sense", "Biyolüminesans", 0.35, 0, "Derin suda ve gece algı menzilini 20–50 birim genişletir."),

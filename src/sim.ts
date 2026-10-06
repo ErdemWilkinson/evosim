@@ -36,6 +36,29 @@ const PLANT_SPREAD: [number, number] = [16, 70];
 const PLANT_CROWD_RADIUS = 40;
 const PLANT_CROWD_LIMIT = 2;
 const DEEP_WATER_PLANT_CHANCE = 0.35;
+/** Fotosentetik canlı, enerjisi azami enerjinin bu oranını aşınca, bu sıklıkla (1/sn) bulunduğu
+ *  yere yerleşik bir üretici öbeği bırakır. Bitki örtüsü başka yoldan ortaya çıkmaz. */
+const PRODUCER_SHED_RATE = 0.05;
+const PRODUCER_SHED_ENERGY = 0.5;
+
+// --- Çözünmüş kimyasal besin: ilk yaşamın besini. Kaba bir ızgarada tutulur; her hücre
+// jeolojik kaynaktan kapasitesine doğru yavaşça dolar, kemotroflar bulundukları hücreden emer.
+export const SOUP_CELL = 40;
+export const SOUP_COLS = MAP_W / SOUP_CELL;
+export const SOUP_ROWS = MAP_H / SOUP_CELL;
+/** Bir ızgara hücresinin taban kapasitesi (enerji). Sıvı altındaki sırt çizgilerinin (bacaların)
+ *  üstünde bunun 1 + SOUP_VENT_BONUS katına çıkar; karada sıfırdır. */
+export const SOUP_CAPACITY = 12;
+const SOUP_VENT_BONUS = 2;
+/** Sırt gürültüsünün değeri bunun altındaysa orası bacaya yakındır (0 tam üstü). */
+const SOUP_VENT_REACH = 0.6;
+/** Hücre, kapasitesiyle arasındaki farkın saniyede bu kadarını kapatır. */
+const SOUP_RENEW = 0.03;
+/** Çürüyen leşin enerjisinin bu kadarı bulunduğu yerdeki çözeltiye döner. */
+const SOUP_RECYCLE = 0.5;
+/** Kemotrofun emiş hızı doygunluğa gider: derişim CHEMO_HALF iken en yüksek hızın yarısı. */
+const CHEMO_UPTAKE = 2.5;
+const CHEMO_HALF = 4;
 
 // --- Üreme ---
 const DIVIDE_COOLDOWN: [number, number] = [4, 8];
@@ -50,8 +73,8 @@ const ORNAMENT_METABOLISM = 0.15;
 const ORNAMENT_VISIBILITY = 0.4;
 const EGG_INCUBATION: [number, number] = [14, 24];
 /** r/K: avcılar daha yüksek eşikte ve daha seyrek ürer. */
-const DIET_DIVIDE_THRESHOLD: Record<Diet, number> = { carnivore: 1.15, omnivore: 1.05, scavenger: 1.05, parasite: 1, herbivore: 1, filter_feeder: 1, phototroph: 1 };
-const DIET_DIVIDE_COOLDOWN: Record<Diet, number> = { carnivore: 2.5, omnivore: 1.2, scavenger: 1.1, parasite: 1.4, herbivore: 1, filter_feeder: 1, phototroph: 1.3 };
+const DIET_DIVIDE_THRESHOLD: Record<Diet, number> = { carnivore: 1.15, omnivore: 1.05, scavenger: 1.05, parasite: 1, herbivore: 1, filter_feeder: 1, phototroph: 1, chemotroph: 1 };
+const DIET_DIVIDE_COOLDOWN: Record<Diet, number> = { carnivore: 2.5, omnivore: 1.2, scavenger: 1.1, parasite: 1.4, herbivore: 1, filter_feeder: 1, phototroph: 1.3, chemotroph: 1 };
 const STAGE_COOLDOWN = 0.25;
 const STAGE_METABOLISM = 0.05;
 const PARENTAL_CARE_RADIUS = 50;
@@ -105,6 +128,13 @@ const SHORE_COVER_CELLS = 2;
 const SHORE_COVER = 0.6;
 /** Örtü görüşü keser: tam örtüdeki canlı ancak dokunacak kadar yaklaşılınca fark edilir. */
 const COVER_TOUCH = 4;
+/** Sık örtü büyük bedeni yavaşlatır: en büyük beden bu kadar hız kaybeder, en küçük beden kaybetmez. */
+const THICKET_DRAG = 0.65;
+/** Kaçan canlı, kaçış yönünün bu kadar yanında (radyan) ve bu uzaklıklarda sık örtü arar. */
+const COVER_SEEK_ANGLES = [0, 0.45, -0.45, 0.9, -0.9];
+const COVER_SEEK_REACH = [40, 80];
+/** Kendi türünü yiyen avcıya o türe özgü hastalığın bulaşma olasılığı (av hastaysa kesin). */
+const CANNIBAL_INFECTION = 0.5;
 const ALARM_DISTANCE = 30;
 const PREY_SIZE_LIMIT: Record<"carnivore" | "omnivore", number> = { carnivore: 1.35, omnivore: 0.9 };
 const CANNIBALISM_ENERGY = 0.2;
@@ -133,7 +163,6 @@ const IMMUNITY_DURATION = 90;
 const SENESCENCE_START = 0.8;
 const SENESCENCE_MAX_RATE = 0.002;
 const CORPSE_LIFETIME = 30;
-const CORPSE_PLANT_CHANCE = 0.4;
 const HGT_RADIUS = 18;
 const HGT_INTERVAL = 1;
 const HGT_CHANCE = 0.01;
@@ -159,12 +188,12 @@ const LINEAGE_CAP = 9000;
 const EVENT_LOG_CAP = 240;
 const SERIES_CAP = 240;
 
-export type Behavior = "wander" | "seek" | "flee" | "hunt" | "scavenge" | "graze" | "bask" | "escape" | "rest" | "attached";
+export type Behavior = "wander" | "seek" | "flee" | "hunt" | "scavenge" | "graze" | "bask" | "escape" | "rest" | "attached" | "absorb";
 export type DeathCause = "starvation" | "old_age" | "predation" | "venom" | "meteor" | "disease" | "removed";
 export type WorldEventKind = "meteor" | "climate" | "wind" | "quake";
 export type EventKind = "organ" | "diet" | "species" | "world" | "population" | "gene" | "stage" | "disease";
 
-export const BEHAVIORS: readonly Behavior[] = ["wander", "seek", "flee", "hunt", "scavenge", "graze", "bask", "escape", "rest", "attached"];
+export const BEHAVIORS: readonly Behavior[] = ["wander", "seek", "flee", "hunt", "scavenge", "graze", "bask", "escape", "rest", "attached", "absorb"];
 
 export const BEHAVIOR_LABEL: Record<Behavior, string> = {
   wander: "keşfediyor",
@@ -177,6 +206,7 @@ export const BEHAVIOR_LABEL: Record<Behavior, string> = {
   escape: "elverişsiz araziden çıkıyor",
   rest: "dinleniyor",
   attached: "konağa tutunmuş",
+  absorb: "çözünmüş besin emiyor",
 };
 
 export const DEATH_LABEL: Record<DeathCause, string> = {
@@ -218,6 +248,10 @@ export interface Derived {
   immune: number;
   bladder: number;
   brood: number;
+  /** Örtü biçici: sık örtünün yavaşlatmasını ve gizlemesini bu oranda azaltır (0–1). */
+  cutter: number;
+  /** Sık örtüdeki hız çarpanı (bkz. THICKET_DRAG). */
+  thicket: number;
   canLand: boolean;
   canDeep: boolean;
   wing: boolean;
@@ -239,6 +273,7 @@ export function derive(g: Genome): Derived {
   const gut = p("symbiotic_gut_flora");
   const regen = p("regeneration");
   const val = (v: number | undefined, a: number, b: number): number => (v === undefined ? 0 : a + v * b);
+  const cutter = val(p("thicket_cutter"), 0.5, 0.5);
 
   // Pleiotropi: büyük beden yavaştır (üs −0,2) ama Kleiber yasasıyla birim kütle
   // başına daha az harcar (üs −0,25). İkisi aynı referans yarıçapı (5,5) kullanır.
@@ -282,6 +317,8 @@ export function derive(g: Genome): Derived {
     immune: val(p("immune_gland"), 0.4, 0.4),
     bladder: val(p("swim_bladder"), 0.1, 0.15),
     brood: val(p("brood_pouch"), 0.2, 0.3),
+    cutter,
+    thicket: 1 - THICKET_DRAG * Math.min(1, Math.max(0, (g.radius - 3) / 9)) * (1 - cutter),
     canLand: leg !== undefined,
     canDeep: leg === undefined || fin !== undefined || p("gill") !== undefined,
     wing: wing !== undefined,
@@ -513,6 +550,9 @@ export class Sim {
   public corpses: Corpse[] = [];
   public eggs: Egg[] = [];
   public flashes: Flash[] = [];
+  /** Çözünmüş kimyasal besin: ızgara hücresi başına derişim ve kapasite (bkz. SOUP_*). */
+  public soup = new Float32Array(SOUP_COLS * SOUP_ROWS);
+  public readonly soupCap = new Float32Array(SOUP_COLS * SOUP_ROWS);
 
   public readonly species = new Map<number, Species>();
   public readonly lineage = new Map<number, LineageRec>();
@@ -563,6 +603,7 @@ export class Sim {
     chemMods = this.world.chem.mods;
     setMutationScale(this.evolutionSpeed, chemMods.mutation);
     rng.seed(this.world.seed ^ 0x51ed270b);
+    this.buildSoup();
     this.updateEnv();
     if (populate) this.populate();
   }
@@ -601,6 +642,36 @@ export class Sim {
     setMutationScale(speed, chemMods.mutation);
   }
 
+  // ------------------------------------------------------------------ çözünmüş besin
+
+  /** Kapasite haritası araziden gelir: yalnızca sıvıda besin vardır, sıvı altındaki sırt
+   *  çizgileri (bacalar) en zengin yerlerdir. Başlangıçta her hücre doludur. */
+  private buildSoup(): void {
+    for (let gy = 0; gy < SOUP_ROWS; gy++) {
+      for (let gx = 0; gx < SOUP_COLS; gx++) {
+        const x = (gx + 0.5) * SOUP_CELL;
+        const y = (gy + 0.5) * SOUP_CELL;
+        if (!this.world.isWater(x, y)) continue;
+        const vent = Math.max(0, 1 - this.world.sample(this.world.ridge, x, y) / SOUP_VENT_REACH);
+        this.soupCap[gy * SOUP_COLS + gx] = SOUP_CAPACITY * (1 + SOUP_VENT_BONUS * vent);
+      }
+    }
+    this.soup.set(this.soupCap);
+  }
+
+  private soupIndex(x: number, y: number): number {
+    const gx = Math.min(SOUP_COLS - 1, Math.max(0, (x / SOUP_CELL) | 0));
+    const gy = Math.min(SOUP_ROWS - 1, Math.max(0, (y / SOUP_CELL) | 0));
+    return gy * SOUP_COLS + gx;
+  }
+
+  private stepSoup(dt: number): void {
+    const supply = this.nutrientMultiplier * chemMods.plant;
+    const soup = this.soup;
+    const cap = this.soupCap;
+    for (let i = 0; i < soup.length; i++) if (cap[i] > 0) soup[i] += SOUP_RENEW * (cap[i] * supply - soup[i]) * dt;
+  }
+
   // ------------------------------------------------------------------ kurulum
 
   private populate(): void {
@@ -621,23 +692,34 @@ export class Sim {
     for (const g of founders) {
       g.speciesId = sp.id;
       const first = this.creatures[0];
-      const pos = first
-        ? this.offspringSpot(first)
-        : this.randomPoint((x, y) => this.world.band(x, y) === Band.ShallowWater) ?? this.randomPoint((x, y) => this.world.isWater(x, y)) ?? { x: MAP_W / 2, y: MAP_H / 2 };
+      const pos = first ? this.offspringSpot(first) : this.richestWater();
       // Kardeşler yeni bölünmüş hücrelerdir: her biri yeni doğan enerjisiyle (azami enerjinin
       // yarısı) başlar; ikisinin toplamı, bölünmeden önceki tek dolu hücrenin enerjisidir.
       const c = this.makeCreature(g, pos.x, pos.y, null);
       this.creatures.push(c);
       this.record(c, ["ilk canlı"]);
-      if (!first) this.addPlants(pos.x, pos.y, 14, 70);
       sp.count++;
       sp.total++;
     }
     sp.peak = sp.count;
-    for (let i = 0; i < 130; i++) this.seedPlant(false);
-    for (let i = 0; i < 60; i++) this.seedPlant(true);
-    this.pushEvent("population", `İlk canlı sığ suda belirdi ve ikiye bölündü: organsız, özdeş iki kardeş hücre (${sp.name}). Bundan sonraki bütün yaşam onların soyundan gelecek.`);
+    this.pushEvent("population", `İlk canlı çözünmüş besinin en yoğun olduğu yerde belirdi ve ikiye bölündü: organsız, özdeş iki kardeş hücre (${sp.name}). Sıvıdaki kimyasal besini emerek yaşıyorlar; henüz bitki örtüsü yok. Bundan sonraki bütün yaşam onların soyundan gelecek.`);
     this.sample();
+  }
+
+  /** Yaşam besinin bulunduğu yerde başlar: rastgele sıvı noktaları arasında çözeltinin en zengin olduğu yer. */
+  private richestWater(): { x: number; y: number } {
+    let best: { x: number; y: number } | null = null;
+    let bestSoup = -1;
+    for (let i = 0; i < 40; i++) {
+      const pos = this.randomPoint((x, y) => this.world.isWater(x, y), 20);
+      if (!pos) continue;
+      const here = this.soup[this.soupIndex(pos.x, pos.y)];
+      if (here > bestSoup) {
+        bestSoup = here;
+        best = pos;
+      }
+    }
+    return best ?? { x: MAP_W / 2, y: MAP_H / 2 };
   }
 
   private randomPoint(ok: (x: number, y: number) => boolean, tries = 60): { x: number; y: number } | null {
@@ -841,7 +923,7 @@ export class Sim {
     }
     if (g.stage === 1) this.once("stage1", "stage", () => `İlk koloni: hücreler bölündükten sonra bir arada kaldı (#${g.id}). Yüzgeç, solungaç, kalp gibi organlar artık mümkün.`);
     if (g.stage === 2) this.once("stage2", "stage", () => `İlk çok hücreli canlı (#${g.id}). Göz, akciğer, bacak ve kanat artık mümkün: kara ulaşılabilir.`);
-    if (g.diet !== "herbivore") this.once(`diet:${g.diet}`, "diet", () => `İlk ${lower(DIET_LABEL[g.diet])} birey doğdu (#${g.id}, ${g.generation}. nesil).`);
+    if (g.diet !== "chemotroph") this.once(`diet:${g.diet}`, "diet", () => `İlk ${lower(DIET_LABEL[g.diet])} birey doğdu (#${g.id}, ${g.generation}. nesil).`);
     if (g.reproductionStrategy === "sexual") this.once("sexual", "gene", () => `Eşeyli üreme ilk kez ortaya çıktı (#${g.id}): bu soyda artık dişiler ve erkekler var.`);
     if (g.laysEggs) this.once("eggs", "gene", () => `Yumurtlama ilk kez ortaya çıktı (#${g.id}).`);
   }
@@ -1061,7 +1143,7 @@ export class Sim {
       const dy = o.y - c.y;
       const d = dx * dx + dy * dy;
       // Kamuflaj menzili kısaltır; süslü erkek daha uzaktan görülür.
-      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - o.cover));
+      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - o.cover * (1 - c.d.cutter)));
       if (o.g.reproductionStrategy === "sexual" && o.g.sex === "m") reach *= 1 + ORNAMENT_VISIBILITY * o.g.ornament;
       if (d > reach * reach || d >= bestD || !this.passable(c, o.x, o.y)) return;
       bestD = d;
@@ -1199,6 +1281,21 @@ export class Sim {
       }
     } else if (g.diet === "phototroph") {
       c.passive += (PHOTO_RATE * d.photo * this.lightAt(c.x, c.y) * env.light * (1 + 0.2 * env.warmth)) / (1 + PHOTO_SHADE_PER_NEIGHBOR * shaders);
+      // Yerleşik üretici: enerjisi yeten fotosentetik canlı bulunduğu yere bir üretici öbeği bırakır.
+      // Bitki örtüsü yalnızca buradan başlar, sonra kendi kendine yayılır.
+      if (c.energy >= c.maxEnergy * PRODUCER_SHED_ENERGY && rng.chance(PRODUCER_SHED_RATE * c.thinkT) && this.plantOk(c.onLand, c.x, c.y) && !this.plantCrowded(c.x, c.y)) {
+        c.energy -= PLANT_ENERGY;
+        this.nutrients.push({ x: c.x, y: c.y, land: c.onLand, age: 0, dead: false });
+        this.once("producer", "diet", () => `İlk yerleşik üretici: fotosentetik #${c.id} zemine tutunan bir üretici öbeği bıraktı. Bitki örtüsü buradan yayılacak; otçulluk artık mümkün.`);
+      }
+    } else if (g.diet === "chemotroph" && !c.onLand) {
+      // Emilen besin bulunulan ızgara hücresinden düşer: aynı yerdeki kemotroflar aynı kaynağı
+      // paylaşır. `thinkT` bir sonraki karara kadar geçecek süredir.
+      const cell = this.soupIndex(c.x, c.y);
+      const conc = this.soup[cell];
+      const take = c.energy < c.maxEnergy ? Math.min(conc, ((CHEMO_UPTAKE * conc) / (conc + CHEMO_HALF)) * c.thinkT) : 0;
+      this.soup[cell] = conc - take;
+      c.passive += take / c.thinkT;
     }
 
     // --- duyusal girdiler ---
@@ -1209,10 +1306,12 @@ export class Sim {
     let nutrient: Nutrient | null = null;
     let corpse: Corpse | null = null;
     let host: Creature | null = null;
-    if (g.diet === "herbivore" || g.diet === "omnivore") nutrient = this.findNutrient(c, sense * d.smell);
+    // Tok canlı otlamaz: bir bitkinin vereceği enerji sığmayacaksa bitkiye yönelmez.
+    const sated = c.energy > c.maxEnergy - PLANT_ENERGY * 0.5;
+    if (g.diet === "herbivore" || g.diet === "omnivore") nutrient = sated ? null : this.findNutrient(c, sense * d.smell);
     else if (g.diet === "scavenger") {
       corpse = this.findCorpse(c, sense * 1.3 * d.smell);
-      if (!corpse) nutrient = this.findNutrient(c, sense * d.smell);
+      if (!corpse && !sated) nutrient = this.findNutrient(c, sense * d.smell);
     } else if (g.diet === "parasite" && c.attackCd <= 0) host = this.findHost(c, sense);
     const food: { x: number; y: number } | null = corpse ?? nutrient ?? host;
     const near = (t: { x: number; y: number } | null, range: number): number => (t ? 0.5 + 0.5 * Math.max(0, 1 - Math.hypot(t.x - c.x, t.y - c.y) / range) : 0);
@@ -1220,7 +1319,7 @@ export class Sim {
       1,
       1 - c.energy / c.maxEnergy,
       near(threat, threatRange),
-      g.diet === "filter_feeder" || g.diet === "phototroph" ? Math.min(1, c.passive / 2) : near(food, sense * 1.3),
+      g.diet === "filter_feeder" || g.diet === "phototroph" || g.diet === "chemotroph" ? Math.min(1, c.passive / 2) : near(food, sense * 1.3),
       near(prey, sense),
       Math.min(1, kin / 6),
       env.light,
@@ -1265,7 +1364,26 @@ export class Sim {
           c.tC = host;
           c.state = "seek";
         } else if (g.diet === "filter_feeder") c.state = "graze";
-        else if (g.diet === "phototroph") {
+        else if (g.diet === "chemotroph") {
+          c.state = "absorb";
+          // Emdiği besin harcadığını karşılamıyorsa çözeltinin daha zengin olduğu yöne döner (kemotaksi).
+          if (c.passive < g.metabolism * d.meta) {
+            let richest = this.soup[this.soupIndex(c.x, c.y)];
+            const start = rng.range(0, Math.PI * 2);
+            for (let i = 0; i < 8; i++) {
+              const a = start + (i / 8) * Math.PI * 2;
+              const x = c.x + Math.cos(a) * SOUP_CELL;
+              const y = c.y + Math.sin(a) * SOUP_CELL;
+              if (!this.passable(c, x, y)) continue;
+              const there = this.soup[this.soupIndex(x, y)];
+              if (there > richest) {
+                richest = there;
+                c.heading = a;
+              }
+            }
+            c.wanderT = 1.5;
+          }
+        } else if (g.diet === "phototroph") {
           c.state = "bask";
           // Loş yerdeyse daha aydınlık bir yöne döner (fototaksi).
           if (this.lightAt(c.x, c.y) < PHOTO_LIGHT.shallow) {
@@ -1328,6 +1446,11 @@ export class Sim {
       pred.energy = Math.min(pred.maxEnergy, pred.energy + eaten * gain);
       // Doyma: yenen miktar sindirilene kadar yeniden avlanılmaz.
       pred.digestT = (eaten * gain) / DIGEST_RATE;
+      // Kendi türünü yemek o türe özgü hastalığı bulaştırır (av hastaysa kesin).
+      if (prey.g.speciesId === pred.g.speciesId && pred.infectedT <= 0 && pred.immuneT <= 0 && (prey.infectedT > 0 || rng.chance(CANNIBAL_INFECTION * (1 - pred.d.immune)))) {
+        pred.infectedT = INFECTION_DURATION;
+        this.once("cannibalDisease", "disease", () => `Kendi türünü yiyen bir avcı (#${pred.id}) türüne özgü hastalığı kaptı.`);
+      }
       this.kill(prey, "predation", mass - eaten);
       pred.attackCd = HANDLING_TIME;
       pred.thinkT = 0;
@@ -1401,6 +1524,8 @@ export class Sim {
     // --- hareket ve eylem ---
     let speed = c.onLand ? (d.walk > 0 ? d.walk : d.base * 0.35) : d.swim;
     if (active) speed *= 1 + d.sprint;
+    // Sık örtü büyük bedeni yavaşlatır; küçük beden aralardan geçer.
+    if (d.thicket < 1 && this.world.inThicket(c.x, c.y)) speed *= d.thicket;
     let heading = c.heading;
     const reach = g.radius + 5;
 
@@ -1454,6 +1579,19 @@ export class Sim {
           break;
         }
         heading = Math.atan2(c.y - t.y, c.x - t.x);
+        // Örtüye kaçış: kaçış yönünün yakınında sık örtü varsa oraya yönelir.
+        if (!this.world.inThicket(c.x, c.y)) {
+          seek: for (const reach of COVER_SEEK_REACH) {
+            for (const turn of COVER_SEEK_ANGLES) {
+              const x = c.x + Math.cos(heading + turn) * reach;
+              const y = c.y + Math.sin(heading + turn) * reach;
+              if (this.world.inThicket(x, y) && this.passable(c, x, y)) {
+                heading += turn;
+                break seek;
+              }
+            }
+          }
+        }
         break;
       }
       case "seek": {
@@ -1531,7 +1669,7 @@ export class Sim {
           c.wanderT = rng.range(0.5, 2);
         }
         heading = c.heading;
-        speed *= c.state === "bask" ? 0.3 : c.state === "graze" ? (c.passive >= FILTER_RATE * 0.75 ? 0.15 : 0.9) : 0.6;
+        speed *= c.state === "bask" ? 0.3 : c.state === "graze" ? (c.passive >= FILTER_RATE * 0.75 ? 0.15 : 0.9) : c.state === "absorb" ? (c.passive >= g.metabolism * d.meta ? 0.15 : 0.9) : 0.6;
       }
     }
 
@@ -1596,6 +1734,8 @@ export class Sim {
       n.age += dt;
       (n.land ? land : water).push(n);
     }
+    // Bitki yoksa tohum da yoktur: örtü ancak bir fotosentetik canlı üretici öbeği bırakınca başlar.
+    if (this.nutrients.length === 0) return;
     const factor = (1 + SEASON_GROWTH_SWING * this.env.warmth) * (this.climate ? this.climate.nutrient : 1) * this.nutrientMultiplier * chemMods.plant;
     for (const kind of ["water", "land"] as const) {
       const list = kind === "water" ? water : land;
@@ -1626,11 +1766,14 @@ export class Sim {
   private stepCorpses(dt: number): void {
     for (const k of this.corpses) {
       k.age += dt;
+      // Çürüyen madde bulunduğu yerdeki çözeltiye karışır (karada kaybolur).
+      const cell = this.soupIndex(k.x, k.y);
+      const decayed = Math.min(Math.max(0, k.energy), (k.energy0 / k.life) * dt);
       k.energy -= (k.energy0 / k.life) * dt;
+      if (this.soupCap[cell] > 0) this.soup[cell] += decayed * SOUP_RECYCLE;
       if (k.energy <= 0.5 || k.age >= k.life) {
+        if (this.soupCap[cell] > 0) this.soup[cell] += Math.max(0, k.energy) * SOUP_RECYCLE;
         k.energy = 0;
-        // Ayrıştırıcılar işini bitirdi: maddenin bir kısmı bitki olarak döner.
-        if (rng.chance(CORPSE_PLANT_CHANCE)) this.nutrients.push({ x: k.x, y: k.y, land: !this.world.isWater(k.x, k.y), age: 0, dead: false });
       }
     }
     this.corpses = this.corpses.filter((k) => k.energy > 0);
@@ -2002,6 +2145,7 @@ export class Sim {
     for (const n of this.nutrients) this.nHash.add(n);
 
     this.stepWorldEvents(dt);
+    this.stepSoup(dt);
     for (const c of this.creatures) if (c.alive) this.stepCreature(c, dt);
 
     this.hgtT -= dt;
@@ -2179,6 +2323,7 @@ export class Sim {
       })),
       nutrients: this.nutrients.map((n) => [n.x, n.y, n.land ? 1 : 0, n.age] as [number, number, number, number]),
       corpses: this.corpses,
+      soup: Array.from(this.soup),
       eggs: this.eggs,
       species: Array.from(this.species.values()),
       lineage: this.lineageOrder
@@ -2220,7 +2365,8 @@ export class Sim {
   public static load(data: SaveData): Sim {
     // Eski sürümlerden geçiş: sürüm 2'de arazi farklıdır (aşağıda uyarlanır); sürüm 3'te yeni
     // genler yoktur (sanitizeGenome varsayılan değerle doldurur); sürüm 4 ve öncesinde canlının
-    // adım içi durumu, leşler, deprem bölgeleri ve zamanlayıcılar yoktur (varsayılanla başlar).
+    // adım içi durumu, leşler, deprem bölgeleri ve zamanlayıcılar yoktur (varsayılanla başlar);
+    // sürüm 5 ve öncesinde çözünmüş besin alanı yoktur (dolu başlar; canlıları ve bitkileri aynen yüklenir).
     const legacy = data?.version === 2;
     if (!data || !SUPPORTED_SAVE_VERSIONS.includes(data.version) || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
       throw new Error("Bu dosya geçerli bir Evosim kaydı değil ya da eski bir sürüme ait.");
@@ -2258,6 +2404,7 @@ export class Sim {
     }
     sim.nutrients = data.nutrients.map(([x, y, land, age]) => ({ x, y, land: land === 1, age: age ?? 10, dead: false }));
     sim.corpses = data.corpses ?? [];
+    if (data.soup) sim.soup.set(data.soup);
     data.creatures.forEach((e, i) => {
       const c = sim.creatures[i];
       const parent = e.parent ? byId.get(e.parent) : undefined;
@@ -2402,6 +2549,7 @@ function cleanSave(raw: SaveData): SaveData {
         stage: Math.min(2, Math.max(0, Math.floor(num(k?.stage)))),
       }))
       .filter((k) => k.energy > 0),
+    soup: Array.isArray(raw.soup) && raw.soup.length === SOUP_COLS * SOUP_ROWS ? raw.soup.map((v) => Math.min(1000, Math.max(0, num(v)))) : undefined,
     eggs: list<Egg>(raw.eggs)
       .slice(0, MAX_CREATURES)
       .map((e) => ({
@@ -2486,9 +2634,10 @@ function cleanSave(raw: SaveData): SaveData {
   };
 }
 
-/** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar). */
-export const SAVE_VERSION = 5;
-const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, SAVE_VERSION];
+/** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar).
+ *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi. */
+export const SAVE_VERSION = 6;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
 const CREATURE_REST = ["heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
@@ -2504,6 +2653,8 @@ export interface SaveData {
   /** x, y, karada mı, yaş (yaş sürüm 5 ile geldi). */
   nutrients: [number, number, number, number?][];
   corpses?: Corpse[];
+  /** Çözünmüş besin: ızgara hücresi başına derişim (sürüm 6). */
+  soup?: number[];
   eggs: Egg[];
   species: Species[];
   lineage: LineageRec[];
