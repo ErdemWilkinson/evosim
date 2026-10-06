@@ -13,7 +13,8 @@ npm run dev        # http://localhost:5180, kaynak değişince yeniden derler
 npm run typecheck
 npm run balance -- 6000 1 2 3 --brief   # başsız denge koşusu: [saniye] [tohumlar…] [--no-rescue]
 npm run balance -- 4000 1 2 3 --summary # beslenme biçimlerinin ortalama/tepe payı ve var olduğu süre
-npm run balance:check                   # denge testi: geçti/kaldı (8 tohum × 6000 sn, yaklaşık 6 dk)
+npm run balance:check                   # denge testi: geçti/kaldı (24 tohum × 6000 sn; 1–12 geliştirme, 13–24 doğrulama)
+node scripts/noise.mjs sonuc.json       # gürültü: balance:check -- --json=sonuc.json çıktısında eşiklerin tohum kümeleri arasında oynaması
 npm run test:core                       # çekirdek testleri: belirlenimcilik ve kayıt gidiş-dönüşü (yaklaşık 3 dk)
 ```
 
@@ -128,7 +129,7 @@ başlıyordu (245 canlılık bir kayıtta yüklemeden sonra yaşayan tür sayıs
 artık yüklenen canlılardan sayılıyor.
 
 **Denge testi** (`npm run balance:check`, `scripts/check.mjs`) bir termometredir, ayar düğmesi
-değil: 8 tohumu 6000 sn koşturur ve şu eşiklere bakar (otçul hepsinde hariçtir; ilk hücre
+değil: 24 tohumu (1–12 geliştirme, 13–24 doğrulama; eşikler iki küme için ayrı sütunlarda) 6000 sn koşturur ve şu eşiklere bakar (otçul hepsinde hariçtir; ilk hücre
 otçuldur ve birincil tüketici besin ağının tabanıdır):
 
 1. Baskınlık: hiçbir beslenme biçimi tohumların yarısından fazlasında ortalama %60'ı geçmez.
@@ -142,6 +143,11 @@ otçuldur ve birincil tüketici besin ağının tabanıdır):
    ölçümden sonra eklendi: göç yaşamı yeniden başlattığı için 3. eşik çöküşü göremiyordu.
 
 ### Taban ölçümü ve güncel durum
+
+> Aşağıdaki tablo eski 8 tohumluk ölçümdür ve iki kardeş hücreli başlangıçtan (680829e) öncesine
+> aittir; 24 tohumluk koşucuyla yenilenmedi. O koddaki 96 tohumluk ölçümde (Hızlı, 6000 sn)
+> 24 tohumluk kümeler arasında "göç gereken tohum" 8–13, "yaşamın tükendiği tohum" 1–3 arasında
+> oynadı; 96 tohumun 8'inde soy ilk 300 saniyede tükendi. Güncel kod için tam ölçüm sürüyor.
 
 Taban ölçümü 6 Ekim 2026'da, evrim hızı ayarı girdikten sonra ve dengeleyici mekaniklerden
 ("fren" commit'leri) önce alındı; `scripts/balance-log.json` içinde `taban-fast`,
