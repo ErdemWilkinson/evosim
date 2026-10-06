@@ -10,7 +10,8 @@ import { DAY_LENGTH, EventKind, SEASON_LABEL, SaveData, WorldEventKind, YEAR_LEN
 import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
 import { World } from "./world";
 
-const SAVE_KEY = "evosim-opus-save-v2";
+const SAVE_KEY = "evosim-save-v2";
+const LEGACY_SAVE_KEY = "evosim-opus-save-v2";
 const AUTOSAVE_MS = 20000;
 
 type Tab = "overview" | "species" | "organs" | "log" | "creature";
@@ -689,7 +690,12 @@ window.setInterval(() => {
 setTool("select");
 let restored = false;
 try {
-  localStorage.removeItem("evosim-opus-save-v1");
+  // Eski anahtarla tutulan otomatik kayıt yeni anahtara taşınır.
+  const legacy = localStorage.getItem(LEGACY_SAVE_KEY);
+  if (legacy) {
+    if (!localStorage.getItem(SAVE_KEY)) localStorage.setItem(SAVE_KEY, legacy);
+    localStorage.removeItem(LEGACY_SAVE_KEY);
+  }
   const saved = localStorage.getItem(SAVE_KEY);
   if (saved) {
     client.send({ type: "load", data: JSON.parse(saved) as SaveData });

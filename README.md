@@ -54,7 +54,7 @@ tür ve birey kartlarındaki "Claude analizi" ölçülen verileri Claude'a yorum
 
 ## Deneme adresi
 
-https://erdemwilkinson.github.io/evosim-opus/ — `docs/index.html` dosyasından sunulur.
+https://erdemwilkinson.github.io/evosim/ — `docs/index.html` dosyasından sunulur.
 Yeni sürüm yayımlamak için: `npm run build`, `dist/index.html` dosyasını `docs/` altına
 kopyala, commit + push.
 
