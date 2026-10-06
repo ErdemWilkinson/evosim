@@ -1249,6 +1249,10 @@ textarea {
   color: var(--accent);
 }
 
+:root:not([data-game]) .game-only {
+  display: none !important;
+}
+
 .dna-wrap {
   overflow-x: auto;
   padding: 6px 0;

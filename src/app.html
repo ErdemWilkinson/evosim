@@ -40,26 +40,26 @@
       <button type="button" class="tool" data-tool="select" title="Seç ve incele" aria-label="Seç ve incele">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 2l9 5-4 1.2L6.6 13z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
       </button>
-      <button type="button" class="tool" data-tool="plants" title="Bitki ek" aria-label="Bitki ek">
+      <button type="button" class="tool game-only" data-tool="plants" title="Bitki ek" aria-label="Bitki ek">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M8 14V7M8 9C5 9 3.5 7.5 3.5 4.5 6.5 4.5 8 6 8 9zM8 7c0-2.5 1.5-4 4.5-4 0 3-1.5 4.5-4.5 4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
       </button>
-      <button type="button" class="tool" data-tool="place" title="Canlı yerleştir" aria-label="Canlı yerleştir">
+      <button type="button" class="tool game-only" data-tool="place" title="Canlı yerleştir" aria-label="Canlı yerleştir">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="7" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="1.3"/><circle cx="7" cy="9" r="1.3" fill="currentColor"/><path d="M13 1.5v4M11 3.5h4" stroke="currentColor" stroke-width="1.3"/></svg>
       </button>
-      <button type="button" class="tool" data-tool="meteor" title="Meteor düşür" aria-label="Meteor düşür">
+      <button type="button" class="tool game-only" data-tool="meteor" title="Meteor düşür" aria-label="Meteor düşür">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="5.5" cy="10.5" r="3" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 8l5.5-5.5M10 10.5l4-4M5.5 6l3.5-3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
-      <button type="button" class="tool" data-tool="remove" title="Canlıyı kaldır" aria-label="Canlıyı kaldır">
+      <button type="button" class="tool game-only" data-tool="remove" title="Canlıyı kaldır" aria-label="Canlıyı kaldır">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
-      <span class="rail-sep"></span>
-      <button type="button" class="tool" data-event="climate" title="İklim dalgası başlat" aria-label="İklim dalgası başlat">
+      <span class="rail-sep game-only"></span>
+      <button type="button" class="tool game-only" data-event="climate" title="İklim dalgası başlat" aria-label="İklim dalgası başlat">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M6.5 9.2V3a1.5 1.5 0 0 1 3 0v6.2a3 3 0 1 1-3 0z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 6v5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
-      <button type="button" class="tool" data-event="wind" title="Rüzgâr estir" aria-label="Rüzgâr estir">
+      <button type="button" class="tool game-only" data-event="wind" title="Rüzgâr estir" aria-label="Rüzgâr estir">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 6h8a2 2 0 1 0-2-2M2 9.5h10.5a2 2 0 1 1-2 2M2 13h5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
       </button>
-      <button type="button" class="tool" data-event="quake" title="Deprem tetikle" aria-label="Deprem tetikle">
+      <button type="button" class="tool game-only" data-event="quake" title="Deprem tetikle" aria-label="Deprem tetikle">
         <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M1.5 8h2.5l1.5-4 2.5 8 2-6 1.2 2h3.3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round"/></svg>
       </button>
       <span class="rail-sep"></span>
@@ -135,9 +135,10 @@
 
         <section class="block">
           <h3>Dünya ayarları</h3>
+          <label class="check"><input type="checkbox" id="set-game"><span>Oyun modu <small>elle müdahale araçlarını açar: bitki ekme, canlı yerleştirme, meteor, olay tetikleme, organ düzenleme</small></span></label>
           <label class="check"><input type="checkbox" id="set-events" checked><span>Kendiliğinden dünya olayları <small>meteor, iklim dalgası, rüzgâr, deprem</small></span></label>
           <label class="check"><input type="checkbox" id="set-rescue" checked><span>Çöküşte dışarıdan göç <small>nüfus 8'in altına inerse ilkel mikroorganizmalar gelir</small></span></label>
-          <label class="slider"><span>Bitki verimi <b class="mono" id="set-plants-value">×1,0</b></span><input type="range" id="set-plants" min="0.3" max="2.5" step="0.1" value="1"></label>
+          <label class="slider game-only"><span>Bitki verimi <b class="mono" id="set-plants-value">×1,0</b></span><input type="range" id="set-plants" min="0.3" max="2.5" step="0.1" value="1"></label>
         </section>
 
         <p class="foot" id="engine-note"></p>
@@ -162,7 +163,7 @@
       </div>
 
       <div class="tab-body" id="tab-creature" hidden>
-        <p class="note" id="creature-empty">Haritada bir canlıya tıklayın. Seçilen bireyin genomu, organları, karar ağı ve soy geçmişi burada görünür; organlarını elle de düzenleyebilirsiniz.</p>
+        <p class="note" id="creature-empty">Haritada bir canlıya tıklayın. Seçilen bireyin genomu, organları, karar ağı ve soy geçmişi burada görünür.<span class="game-only"> Oyun modunda organlarını elle de düzenleyebilirsiniz.</span></p>
         <div id="creature-card" hidden></div>
       </div>
     </aside>

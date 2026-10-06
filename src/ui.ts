@@ -348,6 +348,30 @@ const TRAIT_GENES: [keyof Genome, string][] = [
   ["packHunter", "Sürü avcılığı"],
 ];
 
+const DNA_STEP = 7;
+const dnaY = (i: number, phase: number): number => 23 + Math.sin(i * 0.52 + phase) * 15;
+
+/** Görünen sarmalları kendi ekseni çevresinde döndürür: faz kaydıkça iplikler yer değiştirir. */
+export function spinDna(phase: number): void {
+  for (const svg of document.querySelectorAll<SVGSVGElement>("svg.dna")) {
+    if (svg.getClientRects().length === 0) continue;
+    const paths = svg.querySelectorAll("path");
+    let top = "";
+    let bottom = "";
+    svg.querySelectorAll("line").forEach((line, i) => {
+      const x = 3 + i * DNA_STEP + DNA_STEP / 2;
+      const a = dnaY(i, phase).toFixed(1);
+      const b = dnaY(i, phase + Math.PI).toFixed(1);
+      top += `${i === 0 ? "M" : "L"}${x} ${a}`;
+      bottom += `${i === 0 ? "M" : "L"}${x} ${b}`;
+      line.setAttribute("y1", a);
+      line.setAttribute("y2", b);
+    });
+    paths[0]?.setAttribute("d", top);
+    paths[1]?.setAttribute("d", bottom);
+  }
+}
+
 /**
  * Genomu bir çift sarmal olarak çizer: her basamak bir gen. Değeri ilk canlıdakiyle
  * birebir aynı kalan genler parlak, mutasyonla değişenler mor, sonradan kazanılan
@@ -363,10 +387,10 @@ export function dnaHtml(g: Genome, origin: Genome | null): string {
     genes.push({ name: `Karar ağı: ${BRAIN_INPUTS[i % IN]} → ${BRAIN_ACTIONS[Math.floor(i / IN)]}`, kind: Math.abs((g.brain[i] ?? 0) - origin.brain[i]) < 1e-9 ? 0 : 1 });
   }
   for (const organ of g.organs) genes.push({ name: `Organ: ${ORGANS[organ.type].label}`, kind: 2 });
-  const step = 7;
+  const step = DNA_STEP;
   const width = genes.length * step + 6;
   const KIND = ["ilk canlıdan beri değişmedi", "mutasyonla değişti", "sonradan kazanıldı"];
-  const y = (i: number, phase: number): number => 23 + Math.sin(i * 0.52 + phase) * 15;
+  const y = dnaY;
   let top = "";
   let bottom = "";
   let rungs = "";
@@ -578,8 +602,8 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
     $("cr-actions"),
     d.alive
       ? `<button type="button" class="btn btn-small" data-action="follow" aria-pressed="${state.following}">Takip et</button>` +
-          `<button type="button" class="btn btn-small" data-action="clone" aria-pressed="${state.placing}">Kopyasını yerleştir</button>` +
-          `<button type="button" class="btn btn-small btn-danger" data-action="remove">Kaldır</button>`
+          `<button type="button" class="btn btn-small game-only" data-action="clone" aria-pressed="${state.placing}">Kopyasını yerleştir</button>` +
+          `<button type="button" class="btn btn-small btn-danger game-only" data-action="remove">Kaldır</button>`
       : `<span class="foot">Bu birey artık yaşamıyor; genomu son hâliyle gösteriliyor.</span>`
   );
   setHtml(
@@ -618,7 +642,7 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
           .map(
             (o) =>
               `<div class="organ-row"><span>${ORGANS[o.type].label}<small>${esc(ORGANS[o.type].description)}</small></span><i><i style="display:block;height:100%;width:${o.power * 100}%"></i></i><b>${nf(o.power, 2)}</b>` +
-              (d.alive ? `<button type="button" class="x" data-action="organ-remove" data-organ="${o.type}" aria-label="${ORGANS[o.type].label} organını kaldır" title="Organı kaldır">✕</button>` : `<span></span>`) +
+              (d.alive ? `<button type="button" class="x game-only" data-action="organ-remove" data-organ="${o.type}" aria-label="${ORGANS[o.type].label} organını kaldır" title="Organı kaldır">✕</button>` : `<span></span>`) +
               `</div>`
           )
           .join("")
@@ -628,7 +652,7 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
     const full = g.organs.length >= slots;
     setHtml(
       $("cr-edit"),
-      `<div class="inline-form" style="margin-top:9px">` +
+      `<div class="inline-form game-only" style="margin-top:9px">` +
         (full
           ? `<span class="foot" style="flex:1 1 160px">Boş yuva yok. Bir organı kaldırın ya da düzeyi yükseltin.</span>`
           : `<select id="organ-add" aria-label="Eklenecek organ">${options.map((t) => `<option value="${t}">${ORGANS[t].label} — ${CATEGORY_LABEL[ORGANS[t].category]}</option>`).join("")}</select>` +

@@ -47,8 +47,9 @@ npm run balance -- 6000 1 2 3 --brief   # başsız denge koşusu: [saniye] [tohu
 
 ## Arayüz
 
-Araç çubuğu (seç, bitki ek, canlı yerleştir, meteor, kaldır), seçili bireyin organlarını ve
-düzeyini elle düzenleme, tür kartı, organ tablosu, olay günlüğü, soy ağacı, zaman yolculuğu
+Varsayılan görünüm yalnızca gözlem içindir. Elle müdahale araçları (bitki ek, canlı yerleştir,
+meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve düzeyini düzenleme)
+"Dünya ayarları" altındaki **Oyun modu** açılınca görünür. Bunların dışında: dönen DNA zinciri, tür kartı, organ tablosu, olay günlüğü, soy ağacı, zaman yolculuğu
 (60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. claude.ai üzerinde yayımlanan sürümde
 tür ve birey kartlarındaki "Claude analizi" ölçülen verileri Claude'a yorumlatır.
 

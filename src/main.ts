@@ -7,7 +7,7 @@ import { UiPayload } from "./protocol";
 import { Scene, Tool, isDark, readTheme, renderTerrain } from "./render";
 import { randomSeed } from "./rng";
 import { DAY_LENGTH, EventKind, SEASON_LABEL, SaveData, WorldEventKind, YEAR_LENGTH } from "./sim";
-import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
+import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, spinDna, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
 import { World } from "./world";
 
 const SAVE_KEY = "evosim-save-v2";
@@ -262,7 +262,10 @@ function refreshTab(v: View, ui: UiPayload): void {
   }
 }
 
-function frame(): void {
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function frame(now: number): void {
+  if (!reducedMotion) spinDna(now * 0.0011);
   if (view) {
     if (following && selected) {
       const p = scene.position(view, selected);
@@ -360,6 +363,18 @@ document.querySelector(".panel")!.addEventListener("change", (event) => {
   if (target.id === "stage-set") client.send({ type: "stage", id: selected, stage: Number((target as HTMLSelectElement).value) });
 });
 
+const GAME_KEY = "evosim-game-mode";
+function setGameMode(on: boolean): void {
+  document.documentElement.toggleAttribute("data-game", on);
+  $<HTMLInputElement>("set-game").checked = on;
+  if (!on && tool !== "select") setTool("select");
+  try {
+    localStorage.setItem(GAME_KEY, on ? "1" : "0");
+  } catch {
+    // depolama kapalıysa seçim yalnızca bu oturumda geçerli olur
+  }
+}
+$<HTMLInputElement>("set-game").addEventListener("change", (e) => setGameMode((e.target as HTMLInputElement).checked));
 $<HTMLInputElement>("set-events").addEventListener("change", (e) => client.send({ type: "set", autoEvents: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("set-rescue").addEventListener("change", (e) => client.send({ type: "set", rescueEnabled: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("set-plants").addEventListener("input", (e) => client.send({ type: "set", nutrientMultiplier: Number((e.target as HTMLInputElement).value) }));
@@ -688,6 +703,11 @@ window.setInterval(() => {
 }, AUTOSAVE_MS);
 
 setTool("select");
+try {
+  setGameMode(localStorage.getItem(GAME_KEY) === "1");
+} catch {
+  setGameMode(false);
+}
 let restored = false;
 try {
   // Eski anahtarla tutulan otomatik kayıt yeni anahtara taşınır.
