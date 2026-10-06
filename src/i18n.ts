@@ -230,7 +230,7 @@ export function setLang(next: Lang): void {
   window.dispatchEvent(new Event("evosim-lang"));
 }
 
-/** Dili belirler (kayıtlı seçim, yoksa tarayıcı dili), sayfayı çevirir ve değişiklikleri izlemeye başlar. */
+/** Dili belirler (kayıtlı seçim, yoksa İngilizce), sayfayı çevirir ve değişiklikleri izlemeye başlar. */
 export function initI18n(): void {
   let saved: string | null = null;
   try {
@@ -238,7 +238,7 @@ export function initI18n(): void {
   } catch {
     saved = null;
   }
-  lang = saved === "tr" || saved === "en" ? saved : (navigator.language || "tr").toLowerCase().startsWith("tr") ? "tr" : "en";
+  lang = saved === "tr" || saved === "en" ? saved : "en";
   document.documentElement.lang = lang;
   observer = new MutationObserver((records) => {
     if (lang === "tr") return;

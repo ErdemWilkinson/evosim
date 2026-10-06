@@ -129,7 +129,7 @@ meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve 
 (60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. "Dünya ayarları"ndaki **Evrim hızı** üç kademelidir
 (Hızlı, Orta, Gerçekçi); simülasyon sürerken değiştirilebilir ve kayıtla birlikte saklanır.
 
-**Dil:** Türkçe ve İngilizce. Yeni gezegen penceresinin sağ üstündeki düğmelerden ya da "Dünya ayarları"ndan seçilir; seçim tarayıcıda saklanır, ilk açılışta tarayıcı dili kullanılır. Kaynak metinler Türkçedir ve simülasyon çekirdeği dili bilmez; çeviri yalnızca gösterimde yapılır (`src/i18n.ts`, sözlükler `src/i18n.auto.ts` ve `src/i18n.manual.ts`), bu yüzden kayıtlar ve olay günlüğü dilden bağımsızdır ve dil değişince eski günlük satırları da çevrilir. Sözlükte olmayan metin Türkçe kalır.
+**Dil:** Türkçe ve İngilizce. Yeni gezegen penceresinin sağ üstündeki düğmelerden ya da "Dünya ayarları"ndan seçilir; seçim tarayıcıda saklanır; ilk açılışta oyun İngilizce başlar. Kaynak metinler Türkçedir ve simülasyon çekirdeği dili bilmez; çeviri yalnızca gösterimde yapılır (`src/i18n.ts`, sözlükler `src/i18n.auto.ts` ve `src/i18n.manual.ts`), bu yüzden kayıtlar ve olay günlüğü dilden bağımsızdır ve dil değişince eski günlük satırları da çevrilir. Sözlükte olmayan metin Türkçe kalır.
 
 ## Testler ve ölçüm
 
