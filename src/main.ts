@@ -2,6 +2,7 @@ import { Client, View } from "./client";
 import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, Genome, IN } from "./genome";
 import { ORGANS, OrganType, STAGE_LABEL } from "./organs";
 import { PhyloTree } from "./phylo";
+import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
 import { UiPayload } from "./protocol";
 import { Scene, Tool, isDark, readTheme, renderTerrain } from "./render";
@@ -135,7 +136,16 @@ function onEpoch(v: View): void {
   timelinePinned = true;
   setTool("select");
   scene.fit();
-  if (v.frame.time < 1 && v.frame.n === 1) scene.beginGenesis(v.frame.c[1], v.frame.c[2]);
+  if (v.frame.time < 1 && v.frame.n === 1) {
+    // Yeni gezegen: önce köken filmi oynar (simülasyon bekler), sonra haritadaki ilk hücreye inilir.
+    const x = v.frame.c[1];
+    const y = v.frame.c[2];
+    client.send({ type: "speed", value: 0 });
+    playFilm(v, () => {
+      client.send({ type: "speed", value: lastSpeed });
+      scene.beginGenesis(x, y);
+    });
+  }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;
   setHtml($("planet-facts"), planetHtml(v.planet));
   for (const id of ["dlg-planet", "dlg-save"]) {
@@ -305,6 +315,14 @@ $("zoom-fit").addEventListener("click", () => {
   scene.fit();
 });
 
+// ------------------------------------------------------------------ yapı inceleme ve köken filmi
+
+const viewer = new StructureViewer($<HTMLDialogElement>("dlg-inspect"), $<HTMLCanvasElement>("inspect-canvas"), $("inspect-levels"), $("inspect-list"), $("inspect-info"), $("inspect-caption"), () => theme);
+const film = new OriginFilm($("film"), $<HTMLCanvasElement>("film-canvas"), $("film-title"), $("film-caption"), $("film-source"), $("film-dots"), $("film-skip"));
+function playFilm(v: View, done: () => void): void {
+  film.play(v.world.chem, renderTerrain(v.world, true, 480), done);
+}
+
 // ------------------------------------------------------------------ panel olayları
 
 document.querySelector(".panel")!.addEventListener("click", (event) => {
@@ -329,6 +347,21 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
       break;
     case "follow":
       following = !following;
+      break;
+    case "inspect": {
+      const d = view?.ui?.selected;
+      if (view && d) viewer.open(view.world.chem, d.genome);
+      break;
+    }
+    case "inspect-planet":
+      if (view) viewer.open(view.world.chem, null);
+      break;
+    case "origin-film":
+      if (view) {
+        const resume = view.ui && view.ui.speed > 0 ? view.ui.speed : 0;
+        client.send({ type: "speed", value: 0 });
+        playFilm(view, () => client.send({ type: "speed", value: resume }));
+      }
       break;
     case "clone":
       if (tool === "place" && placeTemplate === selected) setTool("select");
@@ -416,7 +449,7 @@ function worldContext(v: View, ui: UiPayload): Record<string, unknown> {
     bitki_sayisi: v.frame.plants.length / 2,
     beslenme_dagilimi: Object.fromEntries(DIETS.map((d, i) => [DIET_LABEL[d], ui.diets[i]])),
     yasayan_tur_sayisi: ui.species.filter((s) => s.count > 0).length,
-    gezegen: { su_yuzdesi: Math.round(v.planet.waterPercent), kukurt_zengin: v.planet.sulfurRich },
+    gezegen: { sivi: v.planet.chem.solvent.name, sivi_yuzdesi: Math.round(v.planet.liquidPercent), sicaklik_K: v.planet.chem.temperature, elementler: v.planet.chem.elements.map((e) => e.sym), zar: v.planet.chem.membrane.name, hucre_duvari: v.planet.chem.wall.name },
   };
 }
 
@@ -534,7 +567,7 @@ function previewPlanet(): void {
   canvas.width = terrain.width;
   canvas.height = terrain.height;
   canvas.getContext("2d")!.drawImage(terrain, 0, 0);
-  $("planet-preview-facts").innerHTML = planetHtml(generatePlanetProfile(world));
+  $("planet-preview-facts").innerHTML = planetHtml(generatePlanetProfile(world), false);
 }
 
 function openPlanet(): void {

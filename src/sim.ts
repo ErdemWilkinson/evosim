@@ -50,7 +50,7 @@ const ORNAMENT_VISIBILITY = 0.4;
 const EGG_INCUBATION: [number, number] = [8, 15];
 /** r/K: avcılar daha yüksek eşikte ve daha seyrek ürer. */
 const DIET_DIVIDE_THRESHOLD: Record<Diet, number> = { carnivore: 1.15, omnivore: 1.05, scavenger: 1.05, parasite: 1, herbivore: 1, filter_feeder: 1, phototroph: 1 };
-const DIET_DIVIDE_COOLDOWN: Record<Diet, number> = { carnivore: 2.5, omnivore: 1.2, scavenger: 1.2, parasite: 1.4, herbivore: 1, filter_feeder: 1, phototroph: 1.3 };
+const DIET_DIVIDE_COOLDOWN: Record<Diet, number> = { carnivore: 2.5, omnivore: 1.2, scavenger: 1.1, parasite: 1.4, herbivore: 1, filter_feeder: 1, phototroph: 1.3 };
 const STAGE_COOLDOWN = 0.25;
 const STAGE_METABOLISM = 0.05;
 const PARENTAL_CARE_RADIUS = 50;
@@ -59,23 +59,28 @@ const PARENTAL_CARE_DISCOUNT = 0.3;
 
 // --- Beslenme biçimleri ---
 const FILTER_RADIUS = 70;
-const FILTER_RATE = 3.5;
+const FILTER_RATE = 3;
 const FILTER_SATURATION = 4;
 /** Süzücü, kazandığı her bu kadar enerji için çevresinden bir bitki tüketir. */
-const FILTER_ENERGY_PER_PLANT = 18;
+const FILTER_ENERGY_PER_PLANT = 13;
 const PHOTO_RATE = 3;
 const PHOTO_SHADE_RADIUS = 110;
 const PHOTO_SHADE_PER_NEIGHBOR = 0.6;
 const PHOTO_LIGHT = { land: 1, shallow: 0.75, deep: 0.2 };
 const SCAVENGE_RATE = 14;
-const SCAVENGE_EFFICIENCY = 0.5;
-const SCAVENGER_PLANT_EFFICIENCY = 0.4;
+const SCAVENGE_EFFICIENCY = 0.7;
+const SCAVENGER_PLANT_EFFICIENCY = 0.45;
 const OMNIVORE_PLANT_EFFICIENCY = 0.65;
 const OMNIVORE_ATTACK = 0.7;
 const CHEMO_RATE = [0.25, 0.35];
 const PARASITE_DRAIN = 1.5;
 const PARASITE_EFFICIENCY = 0.7;
 const PARASITES_PER_HOST = 3;
+/** Konak, tutunan paraziti bu kadar saniye sonra atar; bağışıklık organı süreyi kısaltır. */
+const PARASITE_HOLD = 60;
+/** Parazitini atan konak bu süre boyunca yeniden tutunmaya dirençlidir. */
+const PARASITE_RESISTANCE = 45;
+const PARASITE_REATTACH_DELAY = 3;
 const REST_METABOLISM = 0.85;
 
 // --- Avlanma ---
@@ -109,7 +114,7 @@ const IMMUNITY_DURATION = 90;
 // --- Ölüm, ceset, yatay gen transferi ---
 const SENESCENCE_START = 0.8;
 const SENESCENCE_MAX_RATE = 0.002;
-const CORPSE_LIFETIME = 22;
+const CORPSE_LIFETIME = 30;
 const CORPSE_PLANT_CHANCE = 0.4;
 const HGT_RADIUS = 18;
 const HGT_INTERVAL = 1;
@@ -200,6 +205,9 @@ export interface Derived {
   wing: boolean;
 }
 
+/** Gezegen kimyasının çarpanları (bkz. chemistry.ts); simülasyon kurulurken atanır. */
+let chemMods = { metabolism: 1, speed: 1, hp: 1, plant: 1 };
+
 export function derive(g: Genome): Derived {
   const p = (t: OrganType): number | undefined => organPower(g.organs, t);
   const fin = p("fin");
@@ -216,8 +224,8 @@ export function derive(g: Genome): Derived {
 
   // Pleiotropi: büyük beden yavaştır (üs −0,2) ama Kleiber yasasıyla birim kütle
   // başına daha az harcar (üs −0,25). İkisi aynı referans yarıçapı (5,5) kullanır.
-  const base = g.moveSpeed * Math.pow(g.radius / 5.5, -0.2);
-  let meta = Math.pow(g.radius / 5.5, -0.25) * (1 + STAGE_METABOLISM * g.stage);
+  const base = g.moveSpeed * Math.pow(g.radius / 5.5, -0.2) * chemMods.speed;
+  let meta = Math.pow(g.radius / 5.5, -0.25) * (1 + STAGE_METABOLISM * g.stage) * chemMods.metabolism;
   if (shell !== undefined) meta *= 1 + shell * 0.2;
   if (heart !== undefined) meta *= 1 - (0.1 + heart * 0.15);
   if (nitro !== undefined) meta *= 1 - (0.08 + nitro * 0.12);
@@ -268,7 +276,7 @@ export function maxEnergyOf(g: Genome): number {
 }
 
 export function maxHpOf(g: Genome): number {
-  return g.radius * 1.6 + (organPower(g.organs, "shell") ?? 0) * 4;
+  return (g.radius * 1.6 + (organPower(g.organs, "shell") ?? 0) * 4) * chemMods.hp;
 }
 
 export interface Creature {
@@ -294,6 +302,8 @@ export interface Creature {
   host: Creature | null;
   hostAngle: number;
   parasites: number;
+  attachT: number;
+  resistT: number;
   passive: number;
   filterDebt: number;
   crowd: number;
@@ -522,6 +532,7 @@ export class Sim {
     this.world = new World(seed);
     this.planet = generatePlanetProfile(this.world);
     setForbiddenOrgans(this.planet.forbiddenOrgans);
+    chemMods = this.world.chem.mods;
     rng.seed(this.world.seed ^ 0x51ed270b);
     this.updateEnv();
     if (populate) this.populate();
@@ -561,7 +572,15 @@ export class Sim {
   private populate(): void {
     const founders: Genome[] = [];
     for (let i = 0; i < INITIAL_CREATURES; i++) founders.push(randomGenome(this.nextId++));
-    for (const g of founders) g.metabolism = Math.min(g.metabolism, 1);
+    // Köken senaryosu ilk hücrenin genlerine küçük bir iz bırakır (bkz. chemistry.ts).
+    const tweak = this.world.chem.origin.founder;
+    for (const g of founders) {
+      g.radius *= tweak.radius ?? 1;
+      g.moveSpeed *= tweak.moveSpeed ?? 1;
+      g.senseRadius *= tweak.senseRadius ?? 1;
+      g.maxLifespan *= tweak.maxLifespan ?? 1;
+      g.metabolism = Math.min(g.metabolism * (tweak.metabolism ?? 1), 1);
+    }
     const sp = this.createSpecies(founders[0], null, "ilk yaşam");
     sp.established = true;
     for (const g of founders) {
@@ -619,6 +638,8 @@ export class Sim {
       host: null,
       hostAngle: 0,
       parasites: 0,
+      attachT: 0,
+      resistT: 0,
       passive: 0,
       filterDebt: 0,
       crowd: 1,
@@ -1015,7 +1036,7 @@ export class Sim {
     let bestD = sense * sense;
     this.cHash.query(c.x, c.y, sense, (o) => {
       if (!o.alive || o === c || o.g.speciesId === c.g.speciesId || o.g.diet === "parasite") return;
-      if (o.parasites >= PARASITES_PER_HOST || o.g.radius < c.g.radius * 0.9) return;
+      if (o.parasites >= PARASITES_PER_HOST || o.resistT > 0 || o.g.radius < c.g.radius * 0.9) return;
       const dx = o.x - c.x;
       const dy = o.y - c.y;
       const d = dx * dx + dy * dy;
@@ -1276,6 +1297,7 @@ export class Sim {
     if (c.blockedT > 0) c.blockedT -= dt;
     if (c.careT > 0) c.careT -= dt;
     if (c.immuneT > 0) c.immuneT -= dt;
+    if (c.resistT > 0) c.resistT -= dt;
     if (c.infectedT > 0 && (c.infectedT -= dt) <= 0) c.immuneT = IMMUNITY_DURATION;
 
     const wasOnLand = c.onLand;
@@ -1334,9 +1356,19 @@ export class Sim {
           c.thinkT = 0;
           break;
         }
-        // Konağa tutunmuş: onunla taşınır, doyana kadar enerjisini emer.
+        // Konağın bağışıklığı paraziti bir süre sonra atar ve konak bir süre dirençli kalır.
+        c.attachT += dt;
+        if (c.attachT >= PARASITE_HOLD * (1 - host.d.immune * 0.6)) {
+          host.resistT = PARASITE_RESISTANCE;
+          c.host = null;
+          c.attackCd = PARASITE_REATTACH_DELAY;
+          c.thinkT = 0;
+          break;
+        }
+        // Konağa tutunmuş: onunla taşınır, doyana kadar enerjisini emer. Zayıf konaktan daha az emer.
         const yieldRate = PARASITE_EFFICIENCY * Math.sqrt(d.feed);
-        const drain = Math.max(0, Math.min(host.energy, PARASITE_DRAIN * dt, (c.maxEnergy - c.energy) / yieldRate));
+        const vigor = Math.min(1, 0.45 + host.energy / host.maxEnergy);
+        const drain = Math.max(0, Math.min(host.energy, PARASITE_DRAIN * vigor * dt, (c.maxEnergy - c.energy) / yieldRate));
         host.energy -= drain;
         c.energy += drain * yieldRate;
         const a = host.heading + c.hostAngle;
@@ -1383,6 +1415,7 @@ export class Sim {
             if (host.parasites < PARASITES_PER_HOST && !rng.chance(host.d.mucus)) {
               c.host = host;
               c.hostAngle = rng.range(0, Math.PI * 2);
+              c.attachT = 0;
               host.parasites++;
               c.state = "attached";
               this.once("parasite", "diet", () => `İlk parazitlik: #${c.id}, başka türden bir konağa tutundu ve enerjisini emmeye başladı.`);
@@ -1435,7 +1468,7 @@ export class Sim {
           c.wanderT = rng.range(0.5, 2);
         }
         heading = c.heading;
-        speed *= c.state === "bask" ? 0.3 : c.state === "graze" ? 0.45 : 0.6;
+        speed *= c.state === "bask" ? 0.3 : c.state === "graze" ? (c.passive >= FILTER_RATE * 0.75 ? 0.15 : 0.9) : 0.6;
       }
     }
 
@@ -1499,7 +1532,7 @@ export class Sim {
       n.age += dt;
       (n.land ? land : water).push(n);
     }
-    const factor = (1 + SEASON_GROWTH_SWING * this.env.warmth) * (this.climate ? this.climate.nutrient : 1) * this.nutrientMultiplier;
+    const factor = (1 + SEASON_GROWTH_SWING * this.env.warmth) * (this.climate ? this.climate.nutrient : 1) * this.nutrientMultiplier * chemMods.plant;
     for (const kind of ["water", "land"] as const) {
       const list = kind === "water" ? water : land;
       const p = PLANT[kind];
@@ -2273,7 +2306,7 @@ function cleanSave(raw: SaveData): SaveData {
   };
 }
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
 export interface SaveData {
   version: number;

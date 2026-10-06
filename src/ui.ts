@@ -1,6 +1,7 @@
 import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, Genome, IN } from "./genome";
 import { CATEGORY_LABEL, ORGANS, ORGAN_SLOTS, ORGAN_TYPES, OrganCategory, OrganType, STAGE_LABEL } from "./organs";
-import { NITROGEN_LABEL, PlanetProfile } from "./planet";
+import { ELEMENTS } from "./chemistry";
+import { PlanetProfile } from "./planet";
 import { CreatureDetail, SpeciesInfo, UiPayload } from "./protocol";
 import { Theme, drawCreature } from "./render";
 import { BEHAVIOR_LABEL, DEATH_LABEL, DeathCause, EventKind, HistorySample, SimEvent } from "./sim";
@@ -310,19 +311,29 @@ export function brainMatrix(weights: readonly number[]): string {
   return `${html}</table></div>`;
 }
 
-export function planetHtml(planet: PlanetProfile): string {
-  const a = planet.atmosphere;
+export function planetHtml(planet: PlanetProfile, actions = true): string {
+  const c = planet.chem;
   const blocked = planet.forbiddenOrgans.map((t) => ORGANS[t].label);
+  const mult = (v: number): string => `×${nf(v, 2)}`;
+  const refs = [c.solvent, c.scaffold, c.membrane, c.wall, c.genetic, c.energy, c.catalyst, c.pigment];
   return (
-    `<div class="facts">` +
-    fact("Su yüzeyi", pct(planet.waterPercent / 100)) +
-    fact("Azot", `%${nf(a.nitrogen)}`, NITROGEN_LABEL[planet.nitrogenLevel]) +
-    fact("Oksijen", `%${nf(a.oxygen)}`) +
-    fact("Karbondioksit", `%${nf(a.carbonDioxide)}`) +
-    fact("Metan", `%${nf(a.methane)}`) +
-    fact("Kükürt", planet.sulfurRich ? "zengin" : "eser") +
+    `<div class="elements">${c.elements.map((e) => `<span class="el" style="--c:${ELEMENTS[e.sym].color}" title="${ELEMENTS[e.sym].name}"><b>${e.sym}</b><small>${pct(e.share)}</small></span>`).join("")}</div>` +
+    `<div class="facts" style="margin-top:9px">` +
+    fact("Yüzey sıvısı", esc(c.solvent.name), `${c.temperature} K · yüzeyin ${pct(planet.liquidPercent / 100)}`) +
+    fact("İskelet", esc(c.scaffold.name)) +
+    fact("Zar", esc(c.membrane.name)) +
+    fact("Hücre duvarı", esc(c.wall.name)) +
+    fact("Kalıtım", esc(c.genetic.name)) +
+    fact("Enerji", esc(c.energy.name)) +
+    fact("Katalizör", esc(c.catalyst.name)) +
+    fact("Işık pigmenti", esc(c.pigment.name)) +
+    fact("Atmosfer", c.atmosphere.map((g) => `${g.gas} ${pct(g.share)}`).join(" · ")) +
+    fact("Yaşamın kökeni", esc(c.origin.name)) +
     `</div><p class="note" style="margin-top:9px">${esc(planet.narrative)}</p>` +
-    `<p class="foot" style="margin-top:6px">${blocked.length > 0 ? `Bu gezegenin kimyası şu organlara izin vermez: ${blocked.join(", ")}.` : "Bu gezegende tüm organlar ortaya çıkabilir."}</p>`
+    `<p class="foot" style="margin-top:6px">Kimyanın simülasyona etkisi: metabolizma ${mult(c.mods.metabolism)}, hız ${mult(c.mods.speed)}, can ${mult(c.mods.hp)}, üretici büyümesi ${mult(c.mods.plant)}. ` +
+    `${blocked.length > 0 ? `Bu gezegende ortaya çıkamayan organlar: ${blocked.join(", ")}.` : "Bu gezegende tüm organlar ortaya çıkabilir."}</p>` +
+    (actions ? `<div class="card-actions" style="margin-top:9px"><button type="button" class="btn btn-small" data-action="inspect-planet">Hücre yapısını incele</button><button type="button" class="btn btn-small" data-action="origin-film">Köken filmini izle</button></div>` : "") +
+    `<details class="refs"><summary>Kaynaklar</summary><ul>${refs.map((o) => `<li><b>${esc(o.name)}:</b> ${esc(o.note)} <i>${esc(o.ref)}</i></li>`).join("")}<li><b>${esc(c.origin.name)}:</b> <i>${esc(c.origin.ref)}</i></li></ul></details>`
   );
 }
 
@@ -596,15 +607,16 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
   const rec = d.inspection.rec;
   setHtml($("cr-species"), species ? `<button type="button" class="link" data-species="${species.id}">${esc(species.name)}</button>` : "");
   $("cr-sub").textContent = d.alive
-    ? `${BEHAVIOR_LABEL[d.state]}${d.onLand ? " · karada" : " · suda"}`
+    ? `${BEHAVIOR_LABEL[d.state]}${d.onLand ? " · karada" : " · sıvıda"}`
     : `öldü${rec && rec.cause ? ` (${DEATH_LABEL[rec.cause]})` : ""}${rec && rec.died >= 0 ? ` · ${fmtTime(rec.died)}` : ""}`;
   setHtml(
     $("cr-actions"),
     d.alive
       ? `<button type="button" class="btn btn-small" data-action="follow" aria-pressed="${state.following}">Takip et</button>` +
+          `<button type="button" class="btn btn-small" data-action="inspect">Yapıyı incele</button>` +
           `<button type="button" class="btn btn-small game-only" data-action="clone" aria-pressed="${state.placing}">Kopyasını yerleştir</button>` +
           `<button type="button" class="btn btn-small btn-danger game-only" data-action="remove">Kaldır</button>`
-      : `<span class="foot">Bu birey artık yaşamıyor; genomu son hâliyle gösteriliyor.</span>`
+      : `<button type="button" class="btn btn-small" data-action="inspect">Yapıyı incele</button><span class="foot">Bu birey artık yaşamıyor; genomu son hâliyle gösteriliyor.</span>`
   );
   setHtml(
     $("cr-meters"),

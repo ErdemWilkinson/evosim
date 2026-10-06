@@ -1,3 +1,4 @@
+import { Chemistry, generateChemistry } from "./chemistry";
 import { makeRng } from "./rng";
 
 /**
@@ -20,8 +21,6 @@ const CELL = MAP_W / GRID_COLS; // 5 px
 const SHALLOW_CELLS = 14;
 const BEACH_CELLS = 2.2;
 const MOUNTAIN_MIN_COAST_CELLS = 5;
-/** Sıradağ gürültüsünün |değeri| bunun altındaysa orası sırttır. */
-export const RIDGE_WIDTH = 0.11;
 
 export const enum Band {
   DeepWater = 0,
@@ -31,7 +30,7 @@ export const enum Band {
   Mountain = 4,
 }
 
-export const BAND_LABEL = ["Derin su", "Sığ su", "Kumsal", "Ova", "Dağ"] as const;
+export const BAND_LABEL = ["Derin sıvı", "Sığ sıvı", "Kıyı", "Ova", "Dağ"] as const;
 
 interface Quake {
   gx: number;
@@ -42,6 +41,10 @@ interface Quake {
 
 export class World {
   public readonly seed: number;
+  /** Gezegenin kimyası: arazinin engebesini, sıvı oranını ve dağ payını belirler. */
+  public readonly chem: Chemistry;
+  /** Sıradağ gürültüsünün |değeri| bunun altındaysa orası sırttır. */
+  public readonly ridgeWidth: number;
   /** Ham yükseklik alanı; `seaLevel` altı sudur. */
   public readonly height: Float32Array;
   /** Karşı arazi türüne (su için karaya, kara için suya) hücre cinsinden uzaklık. */
@@ -60,6 +63,10 @@ export class World {
     this.seed = seed >>> 0;
     const r = makeRng(this.seed);
     const n = GRID_COLS * GRID_ROWS;
+    this.chem = generateChemistry(this.seed);
+    const terrain = this.chem.terrain;
+    this.ridgeWidth = terrain.ridge;
+    const rough = Math.min(1.6, Math.max(0.75, terrain.roughness));
 
     const waves: { cos: number; sin: number; freq: number; phase: number; amp: number }[] = [];
     for (let i = 0; i < 9; i++) {
@@ -68,7 +75,7 @@ export class World {
       waves.push({
         cos: Math.cos(angle),
         sin: Math.sin(angle),
-        freq: ((octave === 0 ? 1.2 : octave === 1 ? 2.6 : 4.5) + r.next() * 0.8) * Math.PI * 2,
+        freq: ((octave === 0 ? 1.2 : octave === 1 ? 2.6 : 4.5) + r.next() * 0.8) * Math.PI * 2 * rough,
         phase: r.next() * Math.PI * 2,
         amp: octave === 0 ? 1 : octave === 1 ? 0.55 : 0.3,
       });
@@ -94,9 +101,9 @@ export class World {
     }
 
     const sorted = Float32Array.from(this.height).sort();
-    const targetWater = 0.45 + r.next() * 0.22;
+    const targetWater = terrain.liquid[0] + r.next() * (terrain.liquid[1] - terrain.liquid[0]);
     this.seaLevel = sorted[Math.floor(targetWater * (n - 1))];
-    this.mountainLevel = sorted[Math.floor(0.93 * (n - 1))];
+    this.mountainLevel = sorted[Math.floor(terrain.mountain * (n - 1))];
 
     this.coast = new Float32Array(n);
     this.computeCoastDistance();
@@ -154,7 +161,7 @@ export class World {
     if (h < this.seaLevel) return c > SHALLOW_CELLS ? Band.DeepWater : Band.ShallowWater;
     if (c <= BEACH_CELLS) return Band.Beach;
     if (h > this.mountainLevel && c > MOUNTAIN_MIN_COAST_CELLS) return Band.Mountain;
-    if (this.ridge[i] < RIDGE_WIDTH && c > BEACH_CELLS + 1) return Band.Mountain;
+    if (this.ridge[i] < this.ridgeWidth && c > BEACH_CELLS + 1) return Band.Mountain;
     return Band.Plain;
   }
 

@@ -2,7 +2,9 @@ import { Diet, DIETS, Genome } from "./genome";
 import { OrganType } from "./organs";
 import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
 import { View } from "./client";
-import { MAP_H, MAP_W, RIDGE_WIDTH, World } from "./world";
+import { MAP_H, MAP_W, World } from "./world";
+import { Chemistry } from "./chemistry";
+import { BEHAVIORS } from "./sim";
 
 /** Sahne çizimi (Canvas 2D). Simülasyondan gelen kareleri yalnızca okur. */
 
@@ -65,7 +67,38 @@ interface MapPalette {
   contour: number;
 }
 const MAP_LIGHT: MapPalette = { deep: [170, 190, 204], shallow: [212, 224, 231], beach: [233, 230, 219], plainLow: [224, 227, 216], plainHigh: [204, 210, 194], mountain: [178, 181, 176], peak: [136, 140, 139], contour: 0.96 };
-const MAP_DARK: MapPalette = { deep: [4, 8, 24], shallow: [10, 54, 78], beach: [62, 56, 46], plainLow: [24, 30, 30], plainHigh: [40, 46, 38], mountain: [62, 64, 80], peak: [126, 130, 152], contour: 1.22 };
+
+function hsl(h: number, s: number, l: number): RGB {
+  const a = s * Math.min(l, 1 - l);
+  const f = (n: number): number => {
+    const k = (n + (((h % 360) + 360) % 360) / 30) % 12;
+    return (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))) * 255;
+  };
+  return [f(0), f(8), f(4)];
+}
+
+/** Haritanın renkleri gezegenin kimyasından gelir: sıvının tonu çözücüden, zeminin tonu kabuktaki elementlerden. */
+export function mapPalette(chem: Chemistry): MapPalette {
+  const { hue, sat } = chem.solvent;
+  const g = chem.terrain.groundHue;
+  const gs = chem.terrain.groundSat;
+  return {
+    deep: hsl(hue + 12, sat * 0.75, 0.055),
+    shallow: hsl(hue, sat, 0.2),
+    beach: hsl(g, gs + 0.08, 0.23),
+    plainLow: hsl(g, gs, 0.105),
+    plainHigh: hsl(g + 14, gs + 0.04, 0.17),
+    mountain: hsl(g + 190, 0.14, 0.3),
+    peak: hsl(g + 190, 0.12, 0.56),
+    contour: 1.22,
+  };
+}
+
+/** Üreticilerin rengi ışık pigmentinden gelir. */
+export function plantColors(chem: Chemistry): [string, string] {
+  const h = chem.pigment.hue;
+  return [`hsl(${h} 78% 66%)`, `hsl(${(h + 22) % 360} 66% 58%)`];
+}
 
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
@@ -79,7 +112,8 @@ export function renderTerrain(world: World, dark: boolean, width = 1600): HTMLCa
   const ctx = canvas.getContext("2d")!;
   const image = ctx.createImageData(width, height);
   const data = image.data;
-  const pal = dark ? MAP_DARK : MAP_LIGHT;
+  const pal = dark ? mapPalette(world.chem) : MAP_LIGHT;
+  const ridgeWidth = world.ridgeWidth;
   const sx = MAP_W / width;
   const sea = world.seaLevel;
   const mount = world.mountainLevel;
@@ -110,8 +144,8 @@ export function renderTerrain(world: World, dark: boolean, width = 1600): HTMLCa
         if (h > mount && c > 5) base = mix(pal.mountain, pal.peak, Math.min(1, (h - mount) / 1.2));
         else base = mix(pal.plainLow, pal.plainHigh, Math.min(1, Math.max(0, (h - sea) / Math.max(0.01, mount - sea))));
         // Sıradağ: sırta yaklaştıkça koyulaşan bant, tam sırtta ince bir çizgi.
-        if (ridge < RIDGE_WIDTH && c > 3.2) {
-          const t = 1 - ridge / RIDGE_WIDTH;
+        if (ridge < ridgeWidth && c > 3.2) {
+          const t = 1 - ridge / ridgeWidth;
           base = mix(base, ridge < 0.016 ? pal.peak : pal.mountain, Math.min(1, 0.55 + t * 0.45));
         }
         // Kumsal geçişi yükseklikten türetilir (hücre ızgarasının basamakları görünmesin).
@@ -432,13 +466,44 @@ function bodyPath(ctx: CanvasRenderingContext2D, g: Genome, r: number): void {
  * genetiktir; çekirdeğin rengi beslenme biçimini gösterir. `full` kapalıyken
  * (uzak görünüm) yalnızca gövde ve çekirdek çizilir.
  */
-export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Theme, full: boolean): void {
+export interface CreatureAnim {
+  /** Sahne saati (sn); simülasyon duraklayınca durur. */
+  t: number;
+  /** Davranış dizini (BEHAVIORS). */
+  state: number;
+  id: number;
+}
+
+const FAST = new Set(["flee", "escape", "hunt"]);
+const STILL = new Set(["rest", "bask", "attached"]);
+
+export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Theme, full: boolean, anim?: CreatureAnim): void {
   const r = g.radius;
+  // Hareket: gövde yüzme vuruşuyla esneyip büzülür, arkadaki uzantılar (kamçı, yüzgeç,
+  // bacak, dokunaç) sallanır; hız davranışa bağlıdır. Dinlenen canlı yavaşça soluk alır.
+  let wag = 0;
+  if (anim) {
+    const beh = BEHAVIORS[anim.state] ?? "wander";
+    const still = STILL.has(beh);
+    const rate = FAST.has(beh) ? 15 : still ? 1.8 : beh === "graze" || beh === "scavenge" ? 5 : 8.5;
+    const s = Math.sin(anim.t * rate + anim.id * 1.7);
+    const amp = still ? 0.035 : FAST.has(beh) ? 0.09 : 0.06;
+    const stretch = beh === "hunt" ? 1.06 : 1;
+    if (still) ctx.scale(1 + amp * s, 1 + amp * s);
+    else ctx.scale(stretch * (1 + amp * s), (1 - amp * s) / stretch);
+    wag = s * (still ? 0.06 : FAST.has(beh) ? 0.34 : 0.24);
+    if (!still) ctx.rotate(Math.sin(anim.t * rate * 0.5 + anim.id) * 0.07);
+  }
   const pal = bodyPalette(g, theme.dark);
   const fx = g.stage === 2 ? r * 1.25 : r;
   const sy = g.stage === 2 ? r * 0.85 : r;
   if (full) {
+    if (wag !== 0) {
+      ctx.save();
+      ctx.rotate(wag);
+    }
     for (const organ of g.organs) if (BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
+    if (wag !== 0) ctx.restore();
     // Erkek süsü: arkada, süs geninin büyüklüğüyle uzayan parlak iplikler.
     if (g.reproductionStrategy === "sexual" && g.sex === "m" && g.ornament > 0.12) {
       ctx.strokeStyle = `hsl(${(g.hue + 180) % 360} 80% ${theme.dark ? 68 : 48}%)`;
@@ -467,7 +532,8 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
     for (const organ of g.organs) if (!BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
   }
   // Çekirdek: beslenme biçiminin rengi.
-  dot(ctx, g.stage === 2 ? -fx * 0.12 : 0, 0, r * (full ? 0.3 : 0.42), theme.diet[g.diet]);
+  const drift = anim ? Math.sin(anim.t * 1.3 + anim.id * 0.9) * r * 0.08 : 0;
+  dot(ctx, (g.stage === 2 ? -fx * 0.12 : 0) + drift, anim ? Math.cos(anim.t * 1.1 + anim.id) * r * 0.06 : 0, r * (full ? 0.3 : 0.42), theme.diet[g.diet]);
 }
 
 // ------------------------------------------------------------------ sahne
@@ -494,6 +560,11 @@ export class Scene {
   private glow = new Map<string, HTMLCanvasElement>();
   /** İlk canlının belirişi: kamera ona yakın başlar, sonra tüm haritaya açılır. */
   private genesis: { x: number; y: number; t0: number } | null = null;
+  private animT = 0;
+  private animLast = 0;
+  private animSimT = -1;
+  private plantKey = "";
+  private plantCol: [string, string] = ["", ""];
   private readonly ctx: CanvasRenderingContext2D;
   private terrain: HTMLCanvasElement | null = null;
   private terrainKey = "";
@@ -684,6 +755,16 @@ export class Scene {
       this.terrain = renderTerrain(view.world, theme.dark);
       this.terrainKey = key;
     }
+    if (this.plantKey !== String(view.epoch)) {
+      this.plantKey = String(view.epoch);
+      this.plantCol = plantColors(view.world.chem);
+    }
+    // Animasyon saati yalnızca simülasyon ilerlerken akar: duraklatınca canlılar da durur.
+    const nowMs = performance.now();
+    if (view.frame.time !== this.animSimT) this.animT += Math.min(0.1, (nowMs - this.animLast) / 1000);
+    this.animSimT = view.frame.time;
+    this.animLast = nowMs;
+    const anim: CreatureAnim = { t: this.animT, state: 0, id: 0 };
 
     const ctx = this.ctx;
     const frame = view.frame;
@@ -706,7 +787,7 @@ export class Scene {
     const plants = frame.plants;
     const ps = Math.min(1.5 * boost, 5 / zoom);
     for (let pass = 0; pass < 2; pass++) {
-      ctx.fillStyle = pass === 0 ? theme.plantWater : theme.plantLand;
+      ctx.fillStyle = this.plantCol[pass];
       ctx.beginPath();
       for (let i = 0; i < plants.length; i += 2) {
         const land = (plants[i + 1] & PLANT_LAND_BIT) !== 0;
@@ -783,7 +864,9 @@ export class Scene {
       ctx.rotate(c[o + 3]);
       const born = (flags & FLAG.born) !== 0;
       ctx.scale(boost * (born ? 0.75 : 1), boost * (born ? 0.75 : 1));
-      drawCreature(ctx, g, theme, g.radius * boost * zoom >= 3.4);
+      anim.state = c[o + 7];
+      anim.id = id;
+      drawCreature(ctx, g, theme, g.radius * boost * zoom >= 3.4, anim);
       ctx.restore();
       if (dim) continue;
       const rr = g.radius * boost;

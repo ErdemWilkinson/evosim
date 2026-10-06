@@ -170,6 +170,17 @@
   </main>
 </div>
 
+<div class="film" id="film" hidden>
+  <canvas id="film-canvas" aria-label="İlk canlının oluşumu"></canvas>
+  <div class="film-text">
+    <div class="film-dots" id="film-dots"></div>
+    <h2 id="film-title"></h2>
+    <p id="film-caption"></p>
+    <p class="film-source" id="film-source"></p>
+  </div>
+  <button type="button" class="btn" id="film-skip">Geç</button>
+</div>
+
 <dialog class="dialog dialog-hero" id="dlg-planet">
   <form method="dialog" class="dialog-body" id="planet-form">
     <header class="dialog-head">
@@ -177,7 +188,7 @@
       <button type="button" class="btn btn-icon" data-close aria-label="Kapat">✕</button>
     </header>
     <p class="hero-title">Bütün yaşam tek bir hücreyle başlar.</p>
-    <p class="note">İlk canlı sığ suda belirir; gerisi mutasyon ve seçilim. Her tohum başka bir harita ve başka bir gezegen kimyası üretir; aynı tohum hep aynı gezegeni verir.</p>
+    <p class="note">Her tohum başka bir gezegen üretir: 22 elementten 10'u, o elementlerle kurulabilen bir yüzey sıvısı, zar, hücre duvarı ve yaşamın 20 köken senaryosundan biri. Aynı tohum hep aynı gezegeni verir.</p>
     <div class="seed-row">
       <label class="field"><span class="label">Tohum</span><input type="text" id="seed-input" inputmode="numeric" autocomplete="off" maxlength="10"></label>
       <button type="button" class="btn" id="seed-random">Rastgele</button>
@@ -190,6 +201,28 @@
       <button type="submit" class="btn btn-primary" id="planet-start">Simülasyonu başlat</button>
     </footer>
   </form>
+</dialog>
+
+<dialog class="dialog dialog-wide" id="dlg-inspect">
+  <div class="dialog-body dialog-fill">
+    <header class="dialog-head">
+      <h2>Yapı inceleme</h2>
+      <span class="bar-space"></span>
+      <button type="button" class="btn btn-icon" data-close aria-label="Kapat">✕</button>
+    </header>
+    <div class="levels" id="inspect-levels" role="group" aria-label="Büyütme düzeyi"></div>
+    <div class="inspect">
+      <div class="inspect-view">
+        <canvas id="inspect-canvas" aria-label="Seçili yapının çizimi"></canvas>
+        <p class="foot" id="inspect-caption"></p>
+      </div>
+      <div class="inspect-side">
+        <div class="inspect-info" id="inspect-info"></div>
+        <div class="label">Yapılar</div>
+        <div class="inspect-list" id="inspect-list"></div>
+      </div>
+    </div>
+  </div>
 </dialog>
 
 <dialog class="dialog dialog-wide" id="dlg-tree">

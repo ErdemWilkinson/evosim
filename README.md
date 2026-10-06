@@ -1,7 +1,7 @@
 # Evosim
 
-Tarayıcıda çalışan, açık uçlu bir yapay yaşam simülasyonu. Yaşam sığ suda tek bir organsız
-hücreyle başlar ve bütün canlılar onun soyundan gelir; organlar, beslenme biçimi, örgütlenme düzeyi ve davranış mutasyon
+Tarayıcıda çalışan, açık uçlu bir gezegensel evrim simülasyonu. Her tohum kendi kimyasına sahip
+bir gezegen üretir; yaşam o gezegenin yüzey sıvısında tek bir organsız hücreyle başlar ve bütün canlılar onun soyundan gelir; organlar, beslenme biçimi, örgütlenme düzeyi ve davranış mutasyon
 ve seçilimle değişir. Çalışma zamanı bağımlılığı yoktur (TypeScript + Canvas 2D).
 
 ## Çalıştırma
@@ -12,6 +12,7 @@ npm run build      # dist/index.html (çift tıklayınca açılır) ve dist/arti
 npm run dev        # http://localhost:5180, kaynak değişince yeniden derler
 npm run typecheck
 npm run balance -- 6000 1 2 3 --brief   # başsız denge koşusu: [saniye] [tohumlar…] [--no-rescue]
+npm run balance -- 4000 1 2 3 --summary # beslenme biçimlerinin ortalama/tepe payı ve var olduğu süre
 ```
 
 ## Yapı
@@ -21,10 +22,36 @@ npm run balance -- 6000 1 2 3 --brief   # başsız denge koşusu: [saniye] [tohu
 | `src/sim.ts` | Simülasyon çekirdeği. DOM'a dokunmaz, sabit adımlı (1/30 sn), tek tohumlu rastgelelik. |
 | `src/genome.ts` | Genom, mutasyon, çaprazlama, genetik uzaklık, karar ağı. |
 | `src/organs.ts` | 37 organ. Her açıklama `sim.ts` içindeki gerçek mekaniği anlatır. |
-| `src/world.ts`, `src/planet.ts` | Harita (su, kıyı, sıradağlar) ve gezegen kimyası. |
+| `src/chemistry.ts` | Gezegen kimyası: 22 elementten 10'u, çözücü, zar, duvar, kalıtım, enerji, katalizör, pigment, 20 köken senaryosu. |
+| `src/world.ts`, `src/planet.ts` | Harita (sıvı, kıyı, sıradağlar); engebe, sıvı oranı ve dağ payı kimyadan gelir. |
+| `src/inspect.ts` | Yapı inceleme ekranı (canlı → kabuk kesiti → molekül → atom) ve köken filmi. |
 | `src/host.ts`, `src/worker.ts` | Simülasyonun sahibi; Web Worker içinde çalışır. |
 | `src/protocol.ts`, `src/client.ts` | Arayüz ile simülasyon arasındaki mesajlar; Worker yoksa yerel kip. |
 | `src/render.ts`, `src/ui.ts`, `src/phylo.ts`, `src/main.ts` | Harita çizimi, paneller, soy ağacı, etkileşim. |
+
+## Gezegen kimyası
+
+Her gezegen 22 elementlik havuzdan ağırlıklı rastgele 10 element alır. Bu elementlerle
+kurulabilen seçenekler arasından bir yüzey sıvısı (su, amonyak, metan–etan, sülfürik asit,
+formamid, hidrojen florür, hidrojen sülfür, sıvı CO₂, sıvı azot, erimiş kükürt), bir iskelet
+(karbon, silisyum, bor–azot), bir zar, bir hücre duvarı, bir kalıtım polimeri, bir enerji
+taşıyıcısı, bir katalizör metali ve bir ışık pigmenti seçilir; yaşamın 20 köken senaryosundan
+biri de bu kimyaya uygunluğuna göre belirlenir. Her seçeneğin dayandığı yayın arayüzde
+"Kaynaklar" altında ve `src/chemistry.ts` içinde yazılıdır.
+
+Kimyanın simülasyona etkileri:
+
+- Yüzey sıvısının sıcaklığı metabolizmayı, hızı ve üretici büyümesini en çok ±%13 değiştirir.
+- Hücre duvarı canı, hızı ve metabolizmayı değiştirir (ör. demir-sülfür zırh: can ×1,22, hız ×0,90).
+- Köken senaryosu ilk hücrenin genlerine küçük çarpanlar uygular.
+- Azot yoksa azot kesesi, kükürt yoksa kemosentez organı ortaya çıkamaz.
+- Haritanın engebesi, sıvı oranı, dağ payı ve renkleri element paylarından türetilir;
+  üreticilerin rengi ışık pigmentinden gelir.
+
+Yeni gezegen başlarken oynayan **köken filmi** gezegeni, seçilen köken senaryosunu, yapı
+taşlarının zincirlenmesini, zarın kapanmasını ve ilk hücrenin parçalarını altı sahnede anlatır.
+**Yapı inceleme** ekranı (birey kartında "Yapıyı incele", Genel sekmesinde "Hücre yapısını
+incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklarına iner.
 
 ## Simülasyonda neler var
 
@@ -39,7 +66,8 @@ npm run balance -- 6000 1 2 3 --brief   # başsız denge koşusu: [saniye] [tohu
 - **Eşeyler ve eş seçimi:** eşeyli türlerde dişi, menzildeki erkekler arasından süs ×
   kondisyona göre seçer; süs metabolizmayı artırır ve avcılara görünürlüğü yükseltir; yavrunun
   maliyetinin çoğunu dişi öder.
-- **Parazitlik ve hastalık:** parazitler başka türden konağa tutunup enerjisini emer; türe
+- **Parazitlik ve hastalık:** parazitler başka türden konağa tutunup enerjisini emer; konak
+  bir süre sonra paraziti atar ve bir süre dirençli kalır, zayıf konaktan daha az enerji emilir; türe
   özgü salgınlar kalabalıkta başlar ve temasla yayılır, iyileşen bir süre bağışık kalır.
 - **Coğrafi yalıtım:** sıradağlar kanatsızlar için geçilmezdir.
 - **Gün–gece ve mevsimler**, iklim dalgaları, rüzgâr, deprem, meteor.
@@ -61,6 +89,19 @@ kopyala, commit + push.
 
 ## Bilinen sorunlar
 
+- **Kaynak künyeleri elle doğrulanmadı:** kimya seçeneklerindeki yayınlar gerçek çalışmalardır
+  ama yazar, yıl, cilt ve sayfa bilgileri bellekten yazıldı, tek tek kaynağından kontrol edilmedi.
+- **Kimya seçimi basit bir kuraldır:** "gereken elementler varsa aday olur" mantığı kullanılır;
+  basınç, çözünürlük ya da tepkime enerjisi hesaplanmaz. Molekül çizimleri şematiktir.
+- **Organların yapı malzemesi kategoriyle atanır:** her organın ayrı bir molekül modeli yoktur;
+  hareket organları lif, algı organları pigment, beslenme organları katalizör, savunma organları
+  duvar malzemesiyle gösterilir.
+- **Köken filminin altı sahnesi vardır ve ortam çizimi altı türdür** (baca, havuz, gökyüzü, buz,
+  uzay, mineral); 20 senaryo metin ve etkide ayrışır, çizimde bu altı türden birini kullanır.
+- **Beslenme dengesi tohumdan tohuma oynar:** 12 tohum × 4000 sn denemede parazitler ortalama
+  %0–3 (tepe %25), süzücüler %11–35, çürükçüller %2–24 pay aldı; tek tek koşularda bir grubun
+  kısa süreli olarak nüfusun çoğunu oluşturduğu anlar hâlâ görülüyor.
+
 - **Claude analizi ve dosya indirme hiç denenmedi.** İkisi de yalnızca claude.ai üzerindeki
   artifact sürümünde çalışır; GitHub Pages sürümünde analiz bölümü yerine açıklama notu
   çıkar, kayıt dosyası ise tarayıcının kendi indirmesiyle iner.
@@ -78,7 +119,8 @@ kopyala, commit + push.
   gelmez (12 tohumluk denemede 1 kez oldu). "Çöküşte dışarıdan göç" ayarı kapatılabilir.
 - **DNA zinciri tam eşitliğe bakar:** bir gen çok küçük bir mutasyon geçirse de "değişti"
   sayılır; ne kadar değiştiği gösterilmez.
-- **Eski kayıtlar açılmaz:** kayıt biçimi sürüm 2'dir; önceki sürümün kayıtları reddedilir.
+- **Eski kayıtlar açılmaz:** kayıt biçimi sürüm 3'tür (harita artık kimyadan üretiliyor);
+  önceki sürümlerin kayıtları reddedilir.
 - **Yalnızca koyu görünüm vardır;** açık tema kaldırıldı.
 - **Simülasyon çekirdeği için otomatik test yok:** denge yalnızca `npm run balance`
   çıktısına bakılarak ayarlandı.
@@ -86,6 +128,6 @@ kopyala, commit + push.
 ## Bilinen sınırlar
 
 - Karar ağı tek katmanlıdır; derin bir sinir ağı değildir.
-- Gezegen kimyası kurgusaldır; yalnızca iki organın ortaya çıkıp çıkamayacağını belirler.
+- Gezegen kimyasının simülasyona etkisi dengeyi bozmamak için küçük tutulmuştur (bkz. "Gezegen kimyası").
 - Stres altında diyet mutasyonunun yönü ağırlıklıdır; bunun gerçek biyolojide karşılığı yoktur.
 - Nüfus 8'in altına düşerse dışarıdan ilkel canlılar gelir (ayarlardan kapatılabilir).
