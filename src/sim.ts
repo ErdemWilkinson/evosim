@@ -1405,7 +1405,8 @@ export class Sim {
         }
         // Konağın bağışıklığı paraziti bir süre sonra atar ve konak bir süre dirençli kalır.
         c.attachT += dt;
-        if (c.attachT >= PARASITE_HOLD * (1 - host.d.immune * 0.6)) {
+        // Çok emen parazit daha çok hasar verir ve konak onu o oranda erken atar.
+        if (c.attachT >= (PARASITE_HOLD * (1 - host.d.immune * 0.6)) / g.virulence) {
           host.resistT = PARASITE_RESISTANCE;
           c.host = null;
           c.attackCd = PARASITE_REATTACH_DELAY;
@@ -1415,7 +1416,7 @@ export class Sim {
         // Konağa tutunmuş: onunla taşınır, doyana kadar enerjisini emer. Zayıf konaktan daha az emer.
         const yieldRate = PARASITE_EFFICIENCY * Math.sqrt(d.feed);
         const vigor = Math.min(1, 0.45 + host.energy / host.maxEnergy);
-        const drain = c.digestT > 0 ? 0 : Math.max(0, Math.min(host.energy, PARASITE_DRAIN * vigor * dt, (c.maxEnergy - c.energy) / yieldRate));
+        const drain = c.digestT > 0 ? 0 : Math.max(0, Math.min(host.energy, PARASITE_DRAIN * g.virulence * vigor * dt, (c.maxEnergy - c.energy) / yieldRate));
         host.energy -= drain;
         c.energy += drain * yieldRate;
         // Öğün dolunca emme durur ve öğün sindirilir.
@@ -2183,8 +2184,9 @@ export class Sim {
 
   /** Kayıttan simülasyon kurar. Geçersiz veride hata fırlatır (çağıran yakalar). */
   public static load(data: SaveData): Sim {
+    // Sürüm 3 kayıtlarında yeni genler yoktur; sanitizeGenome varsayılan değerle doldurur.
     const legacy = data?.version === 2;
-    if (!data || (data.version !== SAVE_VERSION && !legacy) || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
+    if (!data || (data.version !== SAVE_VERSION && data.version !== 3 && !legacy) || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
       throw new Error("Bu dosya geçerli bir Evosim kaydı değil ya da eski bir sürüme ait.");
     }
     data = cleanSave(data);
@@ -2381,7 +2383,7 @@ function cleanSave(raw: SaveData): SaveData {
   };
 }
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface SaveData {
   version: number;

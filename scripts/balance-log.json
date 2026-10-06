@@ -520,5 +520,71 @@
   "extinctSeeds": 0,
   "rescuedSeeds": 3,
   "failed": []
+ },
+ {
+  "label": "d-emis-gucu",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.031,
+    "peak": 0.224,
+    "present": 0.777
+   },
+   {
+    "name": "otçul",
+    "share": 0.512,
+    "peak": 1,
+    "present": 0.976
+   },
+   {
+    "name": "parazit",
+    "share": 0.038,
+    "peak": 0.703,
+    "present": 0.631
+   },
+   {
+    "name": "süzücü",
+    "share": 0.132,
+    "peak": 0.907,
+    "present": 0.817
+   },
+   {
+    "name": "hepçil",
+    "share": 0.047,
+    "peak": 0.911,
+    "present": 0.648
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.133,
+    "peak": 0.619,
+    "present": 0.815
+   },
+   {
+    "name": "etçil",
+    "share": 0.107,
+    "peak": 1,
+    "present": 0.766
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 5,
+  "failed": [
+   "çöküş: dışarıdan göç gerektiren tohum ≤ yarı"
+  ]
  }
 ]

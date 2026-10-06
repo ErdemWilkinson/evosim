@@ -350,6 +350,7 @@ const NUMERIC_GENES: [keyof Genome, string][] = [
   ["divideEnergyFraction", "Bölünme eşiği"],
   ["maxLifespan", "Ömür"],
   ["ornament", "Süs"],
+  ["virulence", "Emiş gücü"],
 ];
 const TRAIT_GENES: [keyof Genome, string][] = [
   ["stage", "Örgütlenme düzeyi"],
@@ -649,6 +650,11 @@ function versus(value: number, mean: number | undefined): string {
   return Math.abs(diff) < 0.03 ? "nüfus ortalamasında" : `ortalamadan ${pct(Math.abs(diff))} ${diff > 0 ? "yüksek" : "düşük"}`;
 }
 
+/** Beslenme biçimine özgü kalıtılan özellik (varsa). */
+function dietTrait(g: Genome): string {
+  return g.diet === "parasite" ? `emiş gücü ×${nf(g.virulence, 2)}` : "";
+}
+
 export interface CreatureCardState {
   following: boolean;
   placing: boolean;
@@ -683,7 +689,7 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
   const health = d.infected > 0 ? `hasta (${nf(d.infected, 0)} sn)` : d.immune > 0 ? `bağışık (${nf(d.immune, 0)} sn)` : "sağlıklı";
   setHtml(
     $("cr-facts"),
-    fact("Beslenme", DIET_LABEL[g.diet]) +
+    fact("Beslenme", DIET_LABEL[g.diet], dietTrait(g)) +
       fact("Düzey", STAGE_LABEL[g.stage]) +
       fact("Nesil", String(g.generation)) +
       fact("Üreme", sexual ? `eşeyli · ${g.sex === "f" ? "dişi" : "erkek"}` : "eşeysiz", `${g.laysEggs ? "yumurtlar" : "canlı doğurur"}${sexual && g.sex === "m" ? ` · süs ${nf(g.ornament, 2)}` : ""}`) +
