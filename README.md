@@ -58,6 +58,9 @@ sıklığını ölçekler (×0,8 – ×1,8) ve kartlardaki kalıtım çizimi o y
 Yeni gezegen başlarken oynayan **köken filmi** gezegeni, seçilen köken senaryosunu (20
 senaryonun her birinin kendi ortam çizimi vardır), yapı taşlarının zincirlenmesini, zarın
 kapanmasını ve ilk hücrenin parçalarını altı sahnede anlatır.
+Son sahnede hücre ikiye bölünür ve film o anda haritaya erir: simülasyon, ilk bölünmenin
+hemen sonrasından, özdeş iki kardeş hücreyle başlar. İkisi de yeni bölünmüş hücre enerjisiyle
+(azami enerjinin yarısı) başlar; toplamları bölünmeden önceki tek dolu hücrenin enerjisidir.
 **Yapı inceleme** ekranı (birey kartında "Yapıyı incele", Genel sekmesinde "Hücre yapısını
 incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklarına iner.
 

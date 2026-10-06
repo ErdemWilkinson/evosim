@@ -4,7 +4,7 @@ import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
 import { View } from "./client";
 import { MAP_H, MAP_W, World } from "./world";
 import { Chemistry } from "./chemistry";
-import { BEHAVIORS } from "./sim";
+import { BEHAVIORS, INITIAL_CREATURES } from "./sim";
 
 /** Sahne çizimi (Canvas 2D). Simülasyondan gelen kareleri yalnızca okur. */
 
@@ -566,7 +566,7 @@ export class Scene {
   public padRight = 0;
   private glow = new Map<string, HTMLCanvasElement>();
   /** İlk canlının belirişi: kamera ona yakın başlar, sonra tüm haritaya açılır. */
-  private genesis: { x: number; y: number; t0: number } | null = null;
+  private genesis: { x: number; y: number; t0: number; hold: boolean } | null = null;
   private animT = 0;
   private animLast = 0;
   private animSimT = -1;
@@ -659,9 +659,11 @@ export class Scene {
     this.clamp();
   }
 
-  public beginGenesis(x: number, y: number): void {
+  /** İlk hücrelere yakınlaşır. `hold` ile kamera orada bekler (köken filmi oynarken);
+   *  `hold` olmadan çağrılınca ışık halkası yayılır ve kamera bütün haritaya açılır. */
+  public beginGenesis(hold = false): void {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    this.genesis = { x, y, t0: performance.now() };
+    this.genesis = { x: this.genesis?.x ?? MAP_W / 2, y: this.genesis?.y ?? MAP_H / 2, t0: performance.now(), hold };
   }
 
   /** Işıma lekesi: beslenme rengine boyanmış, kenara doğru sönen bir disk. */
@@ -735,11 +737,18 @@ export class Scene {
     }
     let genesisT = -1;
     if (this.genesis) {
-      genesisT = (performance.now() - this.genesis.t0) / 1000;
-      // Hücre yüzdükçe kamera ve halkalar onu izler.
-      if (view.frame.n > 0 && genesisT < 3) {
-        this.genesis.x = view.frame.c[1];
-        this.genesis.y = view.frame.c[2];
+      genesisT = this.genesis.hold ? 0 : (performance.now() - this.genesis.t0) / 1000;
+      // Hücreler yüzdükçe kamera ve halka onların ortasını izler.
+      const founders = Math.min(view.frame.n, INITIAL_CREATURES);
+      if (founders > 0 && genesisT < 3) {
+        let x = 0;
+        let y = 0;
+        for (let i = 0; i < founders; i++) {
+          x += view.frame.c[i * STRIDE + 1];
+          y += view.frame.c[i * STRIDE + 2];
+        }
+        this.genesis.x = x / founders;
+        this.genesis.y = y / founders;
       }
       if (genesisT > 5) {
         this.genesis = null;
@@ -856,7 +865,6 @@ export class Scene {
       const y = c[o + 2];
       const g = view.genomes.get(id);
       if (!g) continue;
-      if (genesisT >= 0 && genesisT < 1.3) continue;
       if (id === state.selected) {
         selX = x;
         selY = y;
@@ -918,22 +926,13 @@ export class Scene {
     }
     ctx.globalAlpha = 1;
 
-    // İlk canlı: daralan halkalar bir noktada toplanır, hücre belirir, ışık yayılır.
+    // İlk canlı: film haritaya erirken iki kardeş hücrenin çevresinden bir ışık halkası yayılır.
     if (this.genesis && genesisT >= 0) {
       const gx = this.genesis.x;
       const gy = this.genesis.y;
       const px = 1 / zoom;
       ctx.strokeStyle = theme.accent;
-      if (genesisT < 1.5) {
-        for (let i = 0; i < 3; i++) {
-          const p = (genesisT / 1.5 + i / 3) % 1;
-          ctx.globalAlpha = p * 0.8;
-          ctx.lineWidth = 1.5 * px;
-          ctx.beginPath();
-          ctx.arc(gx, gy, (1 - p) * 90 * px + 4 * px, 0, Math.PI * 2);
-          ctx.stroke();
-        }
-      } else if (genesisT < 3) {
+      if (genesisT >= 1.5 && genesisT < 3) {
         const p = (genesisT - 1.5) / 1.5;
         ctx.globalAlpha = (1 - p) * 0.9;
         ctx.lineWidth = (3 - p * 2) * px;
@@ -941,17 +940,17 @@ export class Scene {
         ctx.arc(gx, gy, p * 220 * px + 6 * px, 0, Math.PI * 2);
         ctx.stroke();
       }
-      const fade = Math.min(1, Math.max(0, (genesisT - 1.3) / 0.6)) * Math.min(1, Math.max(0, (4 - genesisT) / 0.8));
+      const fade = Math.min(1, Math.max(0, (genesisT - 0.6) / 0.6)) * Math.min(1, Math.max(0, (4 - genesisT) / 0.8));
       if (fade > 0) {
         ctx.globalAlpha = fade;
         ctx.fillStyle = theme.ink;
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.font = `700 ${18 * px}px "Unbounded", "Onest", sans-serif`;
-        ctx.fillText("İlk canlı", gx, gy + 104 * px);
+        ctx.fillText("İlk canlılar", gx, gy + 104 * px);
         ctx.font = `${12.5 * px}px "Onest", system-ui, sans-serif`;
         ctx.fillStyle = theme.ink2;
-        ctx.fillText("Bütün yaşam bu hücrenin soyundan gelecek.", gx, gy + 130 * px);
+        ctx.fillText("Bütün yaşam bu iki kardeş hücrenin soyundan gelecek.", gx, gy + 130 * px);
       }
       ctx.globalAlpha = 1;
     }

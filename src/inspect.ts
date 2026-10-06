@@ -1210,6 +1210,8 @@ function drawOriginScene(ctx: CanvasRenderingContext2D, c: Chemistry, w: number,
 
 
 const SCENE_SECONDS = 5.2;
+/** Film, son sahnede hücre ikiye bölünürken bu sürede haritaya erir (styles.css `.film.leaving` ile aynı). */
+const FILM_FADE_SECONDS = 1.1;
 
 export class OriginFilm {
   private raf = 0;
@@ -1219,6 +1221,7 @@ export class OriginFilm {
   private steps: string[] = [];
   private done: () => void = () => {};
   private shown = -1;
+  private leaving = 0;
 
   constructor(
     private readonly root: HTMLElement,
@@ -1242,23 +1245,34 @@ export class OriginFilm {
     this.steps = originSteps(chem);
     this.done = done;
     this.shown = -1;
+    clearTimeout(this.leaving);
+    this.leaving = 0;
+    this.root.classList.remove("leaving");
     this.root.hidden = false;
     this.t0 = performance.now();
     this.source.textContent = `Köken senaryosu: ${chem.origin.name} · ${chem.origin.ref}`;
     cancelAnimationFrame(this.raf);
     const loop = (now: number): void => {
       const t = (now - this.t0) / 1000;
-      if (t >= SCENE_SECONDS * 6) return this.finish();
-      this.draw(t);
+      // Bölünme tamamlanırken erime başlar; erirken sahne çizilmeye devam eder.
+      if (t >= SCENE_SECONDS * 6 - FILM_FADE_SECONDS) this.finish();
+      if (this.root.hidden) return;
+      this.draw(Math.min(t, SCENE_SECONDS * 6 - 0.001));
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
   }
 
+  /** Filmi bitirir: simülasyon hemen başlar (`done`), film üstünde eriyerek kaybolur. */
   private finish(): void {
-    if (this.root.hidden) return;
-    cancelAnimationFrame(this.raf);
-    this.root.hidden = true;
+    if (this.root.hidden || this.leaving) return;
+    this.root.classList.add("leaving");
+    this.leaving = window.setTimeout(() => {
+      cancelAnimationFrame(this.raf);
+      this.root.hidden = true;
+      this.root.classList.remove("leaving");
+      this.leaving = 0;
+    }, FILM_FADE_SECONDS * 1000);
     this.done();
   }
 

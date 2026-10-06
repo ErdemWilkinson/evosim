@@ -1754,6 +1754,19 @@ textarea {
   background: #05070f;
   display: flex;
   flex-direction: column;
+  transition: opacity 1.1s ease-in-out;
+}
+
+/* Son sahnede film haritaya erir; alttaki harita iki kardeş hücreye yakınlaşmış durur. */
+.film.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .film {
+    transition: none;
+  }
 }
 
 .film canvas {

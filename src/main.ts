@@ -7,7 +7,7 @@ import { generatePlanetProfile } from "./planet";
 import { FLAG, STRIDE, UiPayload } from "./protocol";
 import { Scene, Tool, isDark, readTheme, renderTerrain } from "./render";
 import { randomSeed } from "./rng";
-import { DAY_LENGTH, EventKind, SEASON_LABEL, SaveData, WorldEventKind, YEAR_LENGTH } from "./sim";
+import { DAY_LENGTH, EventKind, INITIAL_CREATURES, SEASON_LABEL, SaveData, WorldEventKind, YEAR_LENGTH } from "./sim";
 import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, spinDna, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
 import { World } from "./world";
 
@@ -136,14 +136,14 @@ function onEpoch(v: View): void {
   timelinePinned = true;
   setTool("select");
   scene.fit();
-  if (v.frame.time < 1 && v.frame.n === 1) {
-    // Yeni gezegen: önce köken filmi oynar (simülasyon bekler), sonra haritadaki ilk hücreye inilir.
-    const x = v.frame.c[1];
-    const y = v.frame.c[2];
+  if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES) {
+    // Yeni gezegen: önce köken filmi oynar (simülasyon bekler). Film, hücrenin ikiye bölündüğü
+    // sahnede haritaya erir; alttaki harita o sırada iki kardeş hücreye yakınlaşmış durur.
     client.send({ type: "speed", value: 0 });
+    scene.beginGenesis(true);
     playFilm(v, () => {
       client.send({ type: "speed", value: lastSpeed });
-      scene.beginGenesis(x, y);
+      scene.beginGenesis();
     });
   }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;

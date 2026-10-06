@@ -13,8 +13,9 @@ import { makeEpithet, makeGenus } from "./taxonomy";
 
 export const STEP = 1 / 30;
 export const MAX_CREATURES = 480;
-/** Bütün yaşam tek bir ortak atadan türer. */
-const INITIAL_CREATURES = 1;
+/** Bütün yaşam tek bir ortak atadan türer: simülasyon, ilk hücrenin ilk bölünmesinden hemen
+ *  sonra, özdeş iki kardeş hücreyle başlar (köken filminin son sahnesi). */
+export const INITIAL_CREATURES = 2;
 
 // --- Zaman: gün ve yıl ---
 export const DAY_LENGTH = 90;
@@ -603,8 +604,7 @@ export class Sim {
   // ------------------------------------------------------------------ kurulum
 
   private populate(): void {
-    const founders: Genome[] = [];
-    for (let i = 0; i < INITIAL_CREATURES; i++) founders.push(randomGenome(this.nextId++));
+    const founders: Genome[] = [randomGenome(this.nextId++)];
     // Köken senaryosu ilk hücrenin genlerine küçük bir iz bırakır (bkz. chemistry.ts).
     const tweak = this.world.chem.origin.founder;
     for (const g of founders) {
@@ -614,26 +614,29 @@ export class Sim {
       g.maxLifespan *= tweak.maxLifespan ?? 1;
       g.metabolism = Math.min(g.metabolism * (tweak.metabolism ?? 1), 1);
     }
+    // Kardeş hücreler ilk hücrenin birebir kopyasıdır; ilk bölünmede mutasyon olmamıştır.
+    while (founders.length < INITIAL_CREATURES) founders.push({ ...cloneGenome(founders[0]), id: this.nextId++ });
     const sp = this.createSpecies(founders[0], null, "ilk yaşam");
     sp.established = true;
     for (const g of founders) {
       g.speciesId = sp.id;
-      const pos = this.randomPoint((x, y) => this.world.band(x, y) === Band.ShallowWater) ?? this.randomPoint((x, y) => this.world.isWater(x, y)) ?? { x: MAP_W / 2, y: MAP_H / 2 };
+      const first = this.creatures[0];
+      const pos = first
+        ? this.offspringSpot(first)
+        : this.randomPoint((x, y) => this.world.band(x, y) === Band.ShallowWater) ?? this.randomPoint((x, y) => this.world.isWater(x, y)) ?? { x: MAP_W / 2, y: MAP_H / 2 };
+      // Kardeşler yeni bölünmüş hücrelerdir: her biri yeni doğan enerjisiyle (azami enerjinin
+      // yarısı) başlar; ikisinin toplamı, bölünmeden önceki tek dolu hücrenin enerjisidir.
       const c = this.makeCreature(g, pos.x, pos.y, null);
-      // İlk hücre dolu enerjiyle, besince zengin bir köşede ve ölçülü bir
-      // metabolizmayla başlar: soyun ilk bölünmeye ulaşması şansa kalmasın.
-      c.energy = c.maxEnergy;
-      c.divideCd = 3;
       this.creatures.push(c);
       this.record(c, ["ilk canlı"]);
-      this.addPlants(pos.x, pos.y, 14, 70);
+      if (!first) this.addPlants(pos.x, pos.y, 14, 70);
       sp.count++;
       sp.total++;
     }
     sp.peak = sp.count;
     for (let i = 0; i < 130; i++) this.seedPlant(false);
     for (let i = 0; i < 60; i++) this.seedPlant(true);
-    this.pushEvent("population", `İlk canlı sığ suda belirdi: organsız tek bir hücre (${sp.name}). Bundan sonraki bütün yaşam onun soyundan gelecek.`);
+    this.pushEvent("population", `İlk canlı sığ suda belirdi ve ikiye bölündü: organsız, özdeş iki kardeş hücre (${sp.name}). Bundan sonraki bütün yaşam onların soyundan gelecek.`);
     this.sample();
   }
 
