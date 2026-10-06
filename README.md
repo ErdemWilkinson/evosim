@@ -233,6 +233,10 @@ kopyala, commit + push.
   (masaüstü ve telefon genişliği) film gezinmesi, meteor ve deprem canlandırması ve gen kartı
   denendi; yeni mekaniklerin oyundaki etkisi (sığınak, örtü biçici, yamyamlık hastalığı) izlenmedi. Besin alanının sayıları
   (kapasite, yenilenme, emiş hızı) bir bütçe hesabından seçildi, ölçülerek doğrulanmadı.
+- **Beden büyür ve küçülür (yalnızca görsel):** yavru erişkinin yarısı boyunda doğar ve olgunlaşma
+  süresince büyür; tokken dolgunlaşır, açken büzülür, bölününce küçülür. Simülasyondaki yarıçap ve
+  çarpışma değişmez; yalnızca çizim ölçeklenir. Typecheck ve çekirdek testleri geçti, iki
+  genişlikte konsol hatası ve yatay taşma yok; 500 canlıda kare hızı ölçülmedi.
 - **Denge testinin eşikleri değişti:** kemotrof artık besin ağının tabanı sayılır ve baskınlık
   ile patlama eşiklerinin dışındadır; otçul kalıcılık eşiğine dahil edildi (gerekçe
   `scripts/criteria.mjs` içinde).

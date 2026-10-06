@@ -716,6 +716,8 @@ export class Scene {
   /** Çözünmüş besin katmanı: ızgara hücresi başına bir piksel; haritaya yumuşatılarak gerilir. */
   private soupLayer: HTMLCanvasElement | null = null;
   private soupFrom: Uint8Array | null = null;
+  /** Her canlının çizim ölçeği: hedefe yumuşakça yaklaşır, böylece büyüme ve küçülme sıçramaz. */
+  private sizes = new Map<number, number>();
   /** Dünya olaylarının canlandırması gerçek zamanla akar: simülasyon hızlıyken de izlenebilir. */
   private effects: { key: string; x: number; y: number; r: number; kind: string; t0: number; warm: boolean }[] = [];
   private effectKeys = new Set<string>();
@@ -1010,6 +1012,7 @@ export class Scene {
 
     // Canlılar: önce ışıma (gece güçlenir), sonra gövdeler.
     const c = frame.c;
+    if (this.sizes.size > frame.n * 2 + 64) this.sizes.clear();
     ctx.globalCompositeOperation = "lighter";
     ctx.globalAlpha = 0.2 + (1 - frame.light) * 0.3;
     for (let i = 0; i < frame.n; i++) {
@@ -1017,7 +1020,7 @@ export class Scene {
       const g = view.genomes.get(c[o]);
       if (!g || c[o + 1] < x0 || c[o + 1] > x1 || c[o + 2] < y0 || c[o + 2] > y1) continue;
       if (state.highlightSpecies !== 0 && g.speciesId !== state.highlightSpecies) continue;
-      const gr = g.radius * boost * 3.4;
+      const gr = g.radius * boost * 3.4 * (this.sizes.get(c[o]) ?? 1);
       ctx.drawImage(this.glowSprite(theme.diet[g.diet]), c[o + 1] - gr, c[o + 2] - gr, gr * 2, gr * 2);
     }
     ctx.globalCompositeOperation = "source-over";
@@ -1032,10 +1035,16 @@ export class Scene {
       const y = c[o + 2];
       const g = view.genomes.get(id);
       if (!g) continue;
+      // Beden yaşla büyür (yavru erişkinin yarısı kadardır), tokken dolgunlaşır, açken büzülür.
+      const mature = c[o + 8];
+      const want = (0.5 + 0.5 * mature * (2 - mature)) * (0.86 + 0.2 * Math.min(1, c[o + 4]));
+      const had = this.sizes.get(id) ?? want;
+      const size = had + (want - had) * 0.08;
+      this.sizes.set(id, size);
       if (id === state.selected) {
         selX = x;
         selY = y;
-        selR = g.radius * boost;
+        selR = g.radius * boost * size;
       }
       if (x < x0 || x > x1 || y < y0 || y > y1) continue;
       const flags = c[o + 6];
@@ -1044,14 +1053,13 @@ export class Scene {
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(c[o + 3]);
-      const born = (flags & FLAG.born) !== 0;
-      ctx.scale(boost * (born ? 0.75 : 1), boost * (born ? 0.75 : 1));
+      ctx.scale(boost * size, boost * size);
       anim.state = c[o + 7];
       anim.id = id;
-      drawCreature(ctx, g, theme, g.radius * boost * zoom >= 3.4, anim);
+      drawCreature(ctx, g, theme, g.radius * boost * size * zoom >= 3.4, anim);
       ctx.restore();
       if (dim) continue;
-      const rr = g.radius * boost;
+      const rr = g.radius * boost * size;
       if (flags & FLAG.hidden) {
         // Sığınakta: bitki örtüsünün renginde, yaprak gibi kesik bir halka.
         ctx.strokeStyle = this.plantCol[flags & FLAG.land ? 1 : 0];
