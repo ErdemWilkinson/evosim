@@ -1,6 +1,8 @@
 {
   "name": "evosim",
   "private": true,
+  "license": "UNLICENSED",
+  "author": "ErdemWilkinson",
   "version": "1.0.0",
   "type": "module",
   "description": "Evosim — mikroorganizmadan başlayan açık uçlu evrim simülasyonu (sıfırdan yeniden yazım, bağımlılıksız Canvas 2D).",

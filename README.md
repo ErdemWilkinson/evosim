@@ -310,3 +310,11 @@ kopyala, commit + push.
 - Gezegen kimyasının simülasyona etkisi dengeyi bozmamak için küçük tutulmuştur (bkz. "Gezegen kimyası").
 - Stres altında diyet mutasyonunun yönü ağırlıklıdır; bunun gerçek biyolojide karşılığı yoktur.
 - Nüfus 8'in altına düşerse dışarıdan ilkel canlılar gelir (ayarlardan kapatılabilir).
+
+## Telif ve kullanım
+
+© 2026 ErdemWilkinson. Tüm hakları saklıdır. Depo yalnızca oyunun barındırılması ve okunabilmesi için
+herkese açıktır; izinsiz kopyalama, yeniden yükleme, satma ya da dağıtma yasaktır (ayrıntı için
+`LICENSE`). Oyunu tarayıcıda oynayabilir ve bağlantısını paylaşabilirsiniz. Bu bir kopyalama
+engeli değil, hukuki bir bildirimdir: tarayıcıda çalışan bir oyunun kodu oyuncunun bilgisayarına
+inmek zorundadır, teknik olarak tamamen gizlenemez.

@@ -12,6 +12,7 @@ const dist = join(root, "dist");
 const serve = process.argv.includes("--serve");
 mkdirSync(dist, { recursive: true });
 
+const BANNER = "/* Evosim (c) 2026 ErdemWilkinson. All rights reserved. Copying, re-uploading or redistributing this game or its code without written permission is prohibited. */";
 const FONTS = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;700&family=Onest:wght@400;500;600&display=swap">`;
 
 function fragment(js) {
@@ -38,6 +39,7 @@ function writePage(js) {
 <html lang="tr">
 <head>
 <meta charset="utf-8">
+<meta name="copyright" content="(c) 2026 ErdemWilkinson. All rights reserved.">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <style>body{margin:0}[hidden]{display:none!important}</style>
 </head>
@@ -59,6 +61,8 @@ const options = (artifact) => ({
   format: "iife",
   target: "es2020",
   minify: !serve,
+  legalComments: "none",
+  banner: { js: BANNER },
   write: false,
 });
 
