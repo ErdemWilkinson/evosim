@@ -256,10 +256,14 @@ p {
   justify-content: center;
   gap: 3px;
   padding: 0 18px;
+  /* Sabit genişlik: rakam genişlikleri değişse de çubuktaki komşular yerinden oynamaz. */
+  box-sizing: border-box;
+  width: 148px;
 }
 
 .clock-main {
   font: 500 15px/1 var(--display);
+  font-feature-settings: "tnum" 1;
 }
 
 .clock-sub {
