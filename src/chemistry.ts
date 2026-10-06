@@ -122,13 +122,24 @@ export const WALLS: WallOption[] = [
   { id: "manganese", name: "Manganez oksit kın", needs: ["Mn", "O"], hp: 1.14, speed: 0.94, meta: 1.03, weight: 1.5, note: "Hücre çevresinde çöken koyu MnO₂ kabuk; oksitleyicilere ve ışınıma karşı kalkan olur.", ref: "Tebo ve ark. 2004, Annu. Rev. Earth Planet. Sci. 32:287" },
 ];
 
-export const GENETICS: Option[] = [
-  { id: "phosphodiester", name: "Fosfodiester polimer (RNA benzeri)", needs: ["C", "N", "O", "P"], weight: 5, note: "Şeker–fosfat omurga üzerine dizili bazlar; omurgadaki tekrar eden yük, dizilim ne olursa olsun polimeri çözünür ve kopyalanabilir tutar.", ref: "Benner 2004, Acc. Chem. Res. 37:784" },
-  { id: "pna", name: "Peptit nükleik asit", needs: ["C", "N", "O"], weight: 3, note: "Omurga fosfatsızdır: amit bağlarıyla kurulur, bazlar yine eşleşir. Fosforun az olduğu dünyalar için önerilir.", ref: "Nelson, Levy & Miller 2000, PNAS 97:3868" },
-  { id: "pahstack", name: "Halkalı karbon istif şablonu", needs: ["C", "H"], weight: 1, note: "Düz halkalar para gibi üst üste dizilir; kenarlarına tutunan yan grupların sırası bilgiyi taşır.", ref: "Ehrenfreund, Rasmussen, Cleaves & Chen 2006, Astrobiology 6:490" },
-  { id: "clay", name: "Kil kristal geni", needs: ["Si", "O", "Al"], weight: 2, note: "Kil tabakalarındaki yük ve kusur deseni, kristal büyürken alttaki tabakadan üsttekine kopyalanır.", ref: "Cairns-Smith 1982, Genetic Takeover and the Mineral Origins of Life" },
-  { id: "polysilane", name: "Yan zincirli siloksan şerit", needs: ["Si", "O"], weight: 2, note: "Bilgi, Si–O omurgaya bağlı yan grupların sırasında tutulur; kuramsaldır.", ref: "Petkowski, Bains & Seager 2020, Life 10:84" },
-  { id: "compositional", name: "Bileşimsel kalıtım", needs: [], weight: 0.5, note: "Dizi yoktur; kesenin içindeki molekül karışımının oranları bölünmeyle yavruya geçer.", ref: "Segré, Ben-Eli & Lancet 2000, PNAS 97:4112" },
+export interface GeneticOption extends Option {
+  /** Kopyalama hatası çarpanı: büyüdükçe mutasyonlar sıklaşır. */
+  error: number;
+  /** Arayüzdeki çizim biçimi. */
+  shape: "helix" | "ladder" | "stack" | "sheet" | "ribbon" | "cloud";
+}
+
+export const GENETICS: GeneticOption[] = [
+  { id: "hachimoji", name: "Sekiz harfli fosfodiester polimer", needs: ["C", "N", "O", "P"], error: 0.8, shape: "helix", weight: 1.5, note: "Dört yerine sekiz baz, dört eşleşen çift: aynı uzunlukta daha çok bilgi taşır ve çift sarmal kararlı kalır.", ref: "Hoshika ve ark. 2019, Science 363:884" },
+  { id: "tna", name: "Treoz nükleik asit", needs: ["C", "N", "O", "P"], error: 0.95, shape: "helix", weight: 1.5, note: "Omurgadaki şeker beş değil dört karbonludur; yapımı daha basittir, yine de bazlar eşleşip sarmal kurar.", ref: "Schöning ve ark. 2000, Science 290:1347" },
+  { id: "gna", name: "Glikol nükleik asit", needs: ["C", "N", "O", "P"], error: 1, shape: "helix", weight: 1, note: "Omurga halkasızdır: üç karbonlu glikol birimleri fosfatla bağlanır; bilinen en yalın eşleşen polimerlerden biridir.", ref: "Zhang, Peritz & Meggers 2005, J. Am. Chem. Soc. 127:4174" },
+  { id: "amyloid", name: "Amiloid peptit şablonu", needs: ["C", "N", "O"], error: 1.5, shape: "sheet", weight: 1.5, note: "Kısa peptitler üst üste dizilip lif kurar; lifin ucundaki dizilim, eklenen yeni peptidin dizilimini belirler.", ref: "Maury 2009, Orig. Life Evol. Biosph. 39:141" },
+  { id: "phosphodiester", name: "Fosfodiester polimer (RNA benzeri)", needs: ["C", "N", "O", "P"], error: 0.9, shape: "helix", weight: 4, note: "Şeker–fosfat omurga üzerine dizili bazlar; omurgadaki tekrar eden yük, dizilim ne olursa olsun polimeri çözünür ve kopyalanabilir tutar.", ref: "Benner 2004, Acc. Chem. Res. 37:784" },
+  { id: "pna", name: "Peptit nükleik asit", needs: ["C", "N", "O"], error: 1.05, shape: "ladder", weight: 3, note: "Omurga fosfatsızdır: amit bağlarıyla kurulur, bazlar yine eşleşir. Fosforun az olduğu dünyalar için önerilir.", ref: "Nelson, Levy & Miller 2000, PNAS 97:3868" },
+  { id: "pahstack", name: "Halkalı karbon istif şablonu", needs: ["C", "H"], error: 1.3, shape: "stack", weight: 1, note: "Düz halkalar para gibi üst üste dizilir; kenarlarına tutunan yan grupların sırası bilgiyi taşır.", ref: "Ehrenfreund, Rasmussen, Cleaves & Chen 2006, Astrobiology 6:490" },
+  { id: "clay", name: "Kil kristal geni", needs: ["Si", "O", "Al"], error: 1.4, shape: "sheet", weight: 2, note: "Kil tabakalarındaki yük ve kusur deseni, kristal büyürken alttaki tabakadan üsttekine kopyalanır.", ref: "Cairns-Smith 1982, Genetic Takeover and the Mineral Origins of Life" },
+  { id: "polysilane", name: "Yan zincirli siloksan şerit", needs: ["Si", "O"], error: 1.2, shape: "ribbon", weight: 2, note: "Bilgi, Si–O omurgaya bağlı yan grupların sırasında tutulur; kuramsaldır.", ref: "Petkowski, Bains & Seager 2020, Life 10:84" },
+  { id: "compositional", name: "Bileşimsel kalıtım", needs: [], error: 1.8, shape: "cloud", weight: 0.5, note: "Dizi yoktur; kesenin içindeki molekül karışımının oranları bölünmeyle yavruya geçer.", ref: "Segré, Ben-Eli & Lancet 2000, PNAS 97:4112" },
 ];
 
 export const ENERGIES: Option[] = [
@@ -193,7 +204,7 @@ export const ORIGINS: Origin[] = [
     steps: ["Volkanik karada sığ {sıvı} havuzları ısınıp soğuyor, kuruyup yeniden doluyor.", "Her kuruyuşta moleküller havuz kenarında katman katman sıkışıp zincirlere eklenir; her ıslanışta zincirler keselerin içine hapsolur.", "Binlerce döngüde yalnızca içindekini koruyabilen keseler ({zar}) dağılmadan kalıyor.", "En dayanıklı kese havuzdan denize taşınıyor ve orada bölünmeye başlıyor." ] },
   { id: "primordial_soup", name: "İlkel çorba ve yıldırım", ref: "Miller 1953, Science 117:528", scene: "sky", fit: (c) => (has(c, "H") ? 2.5 : 0.5), founder: {},
     steps: ["Genç atmosferde fırtınalar dinmiyor; yıldırımlar gaz moleküllerini parçalıyor.", "Parçalar yeniden birleşip amino asit benzeri yapı taşlarına dönüşüyor ve yağışla {sıvı} denizine iniyor.", "Yapı taşları sığ kıyılarda birikiyor; yağımsı olanlar kendiliğinden {zar} kuruyor.", "İçine kopyalanabilen bir polimer ({genetik}) hapseden kese, ilk hücre oluyor." ] },
-  { id: "rna_world", name: "Kendini kopyalayan polimer", ref: "Gilbert 1986, Nature 319:618", scene: "pool", fit: (c) => (c.genetic.id === "phosphodiester" || c.genetic.id === "pna" ? 3 : 0), founder: { maxLifespan: 1.06 },
+  { id: "rna_world", name: "Kendini kopyalayan polimer", ref: "Gilbert 1986, Nature 319:618", scene: "pool", fit: (c) => (c.genetic.shape === "helix" || c.genetic.shape === "ladder" ? 3 : 0), founder: { maxLifespan: 1.06 },
     steps: ["Sığ {sıvı} içinde kısa polimer zincirleri rastgele oluşup dağılıyor.", "Zincirlerden biri hem bilgi taşıyor hem de kendi kopyasının yapımını hızlandırıyor: {genetik}.", "Kopyalayıcı zincirler bir kesenin ({zar}) içine girince ürettiklerini rakiplerle paylaşmaz oluyor.", "İyi kopyalayan keseler çoğalıyor; seçilim başlıyor." ] },
   { id: "clay", name: "Kil şablonu", ref: "Cairns-Smith 1982; Ferris 2006, Phil. Trans. R. Soc. B 361:1777", scene: "mineral", fit: (c) => (has(c, "Si", "Al") ? 3 : has(c, "Si") ? 1 : 0), founder: { moveSpeed: 0.94, maxLifespan: 1.08 },
     steps: ["Kıyı çamurunda kil mineralleri tabaka tabaka büyüyor.", "Yüklü kil yüzeyleri yapı taşlarını sıraya dizip zincirlere bağlıyor; kilin kendi kusur deseni de tabakadan tabakaya kopyalanıyor.", "Kil taneleri {zar} oluşumunu da hızlandırıyor; keseler tanelerin çevresinde kuruluyor.", "Organik polimerler kilin işini devralıyor; kil iskele gibi geride kalıyor." ] },
@@ -237,7 +248,7 @@ export interface ChemistryBase {
   scaffold: Option;
   membrane: Option;
   wall: WallOption;
-  genetic: Option;
+  genetic: GeneticOption;
   energy: Option;
   catalyst: Option;
   pigment: Pigment;
@@ -246,7 +257,7 @@ export interface ChemistryBase {
 export interface Chemistry extends ChemistryBase {
   origin: Origin;
   /** Simülasyona etkiler: çözücünün sıcaklığı tepkime hızını, duvar bedeni belirler. */
-  mods: { metabolism: number; speed: number; hp: number; plant: number };
+  mods: { metabolism: number; speed: number; hp: number; plant: number; mutation: number };
   /** Arazi üretimi: dalga sıklığı, sıvı oranı aralığı, dağ payı, sırt genişliği. */
   terrain: { roughness: number; liquid: [number, number]; mountain: number; ridge: number; groundHue: number; groundSat: number };
   atmosphere: { gas: string; share: number }[];
@@ -305,7 +316,7 @@ export function generateChemistry(seedRaw: number): Chemistry {
   };
   const membrane = pick(MEMBRANES, (m) => (m.polar === null || m.polar === solvent.polar) && (m.scaffold === undefined || m.scaffold === scaffold.id || (scaffold.id === "boron" && m.scaffold === "carbon" && has.has("C"))));
   const wall = pick(WALLS);
-  const genetic = pick(GENETICS, (g) => (scaffold.id === "silicon" ? g.id !== "phosphodiester" && g.id !== "pna" && g.id !== "pahstack" : g.id !== "polysilane"));
+  const genetic = pick(GENETICS, (g) => (scaffold.id === "silicon" ? g.id === "polysilane" || g.id === "clay" || g.id === "compositional" : g.id !== "polysilane"));
   const energy = pick(ENERGIES);
   const catalyst = pick(CATALYSTS);
   const pigment = pick(PIGMENTS);
@@ -321,6 +332,7 @@ export function generateChemistry(seedRaw: number): Chemistry {
     speed: (1 + heat * 0.1) * wall.speed,
     hp: wall.hp,
     plant: 1 + heat * 0.13,
+    mutation: genetic.error,
   };
 
   const share = (sym: string): number => elements.find((e) => e.sym === sym)?.share ?? 0;

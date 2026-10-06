@@ -48,8 +48,14 @@ Kimyanın simülasyona etkileri:
 - Haritanın engebesi, sıvı oranı, dağ payı ve renkleri element paylarından türetilir;
   üreticilerin rengi ışık pigmentinden gelir.
 
-Yeni gezegen başlarken oynayan **köken filmi** gezegeni, seçilen köken senaryosunu, yapı
-taşlarının zincirlenmesini, zarın kapanmasını ve ilk hücrenin parçalarını altı sahnede anlatır.
+Kalıtım yapısı DNA olmak zorunda değildir: on seçenek vardır (RNA benzeri, sekiz harfli, treoz
+ve glikol nükleik asitleri, peptit nükleik asit, amiloid şablonu, halkalı karbon istifi, kil
+kristali, siloksan şerit, bileşimsel kalıtım). Her birinin kopyalama hatası çarpanı mutasyon
+sıklığını ölçekler (×0,8 – ×1,8) ve kartlardaki kalıtım çizimi o yapının biçimini alır.
+
+Yeni gezegen başlarken oynayan **köken filmi** gezegeni, seçilen köken senaryosunu (20
+senaryonun her birinin kendi ortam çizimi vardır), yapı taşlarının zincirlenmesini, zarın
+kapanmasını ve ilk hücrenin parçalarını altı sahnede anlatır.
 **Yapı inceleme** ekranı (birey kartında "Yapıyı incele", Genel sekmesinde "Hücre yapısını
 incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklarına iner.
 
@@ -89,15 +95,14 @@ kopyala, commit + push.
 
 ## Bilinen sorunlar
 
-- **Kaynak künyeleri elle doğrulanmadı:** kimya seçeneklerindeki yayınlar gerçek çalışmalardır
-  ama yazar, yıl, cilt ve sayfa bilgileri bellekten yazıldı, tek tek kaynağından kontrol edilmedi.
+- **Kaynaklar:** dergi makalelerinin 65'i de Crossref kaydıyla karşılaştırıldı (yazar, yıl, dergi,
+  cilt, ilk sayfa tutuyor). Kitaplar (Schulze-Makuch & Irwin 2008, de Duve 1991, Cairns-Smith
+  1982, Oparin 1938, Haldane 1954) bu yolla kontrol edilemedi.
 - **Kimya seçimi basit bir kuraldır:** "gereken elementler varsa aday olur" mantığı kullanılır;
   basınç, çözünürlük ya da tepkime enerjisi hesaplanmaz. Molekül çizimleri şematiktir.
-- **Organların yapı malzemesi kategoriyle atanır:** her organın ayrı bir molekül modeli yoktur;
-  hareket organları lif, algı organları pigment, beslenme organları katalizör, savunma organları
-  duvar malzemesiyle gösterilir.
-- **Köken filminin altı sahnesi vardır ve ortam çizimi altı türdür** (baca, havuz, gökyüzü, buz,
-  uzay, mineral); 20 senaryo metin ve etkide ayrışır, çizimde bu altı türden birini kullanır.
+- **Organ malzemeleri şematiktir:** 37 organın her birinin kendi malzemesi ve molekül çizimi
+  var, ama bunlar Dünya'daki karşılıklarından uyarlanmış yalın modellerdir ve organ malzemelerinin
+  kaynak künyesi yoktur. Gezegende gereken element yoksa organ genel liften yapılmış gösterilir.
 - **Beslenme dengesi tohumdan tohuma oynar:** 12 tohum × 4000 sn denemede parazitler ortalama
   %0–3 (tepe %25), süzücüler %11–35, çürükçüller %2–24 pay aldı; tek tek koşularda bir grubun
   kısa süreli olarak nüfusun çoğunu oluşturduğu anlar hâlâ görülüyor.
@@ -105,9 +110,9 @@ kopyala, commit + push.
 - **Claude analizi ve dosya indirme hiç denenmedi.** İkisi de yalnızca claude.ai üzerindeki
   artifact sürümünde çalışır; GitHub Pages sürümünde analiz bölümü yerine açıklama notu
   çıkar, kayıt dosyası ise tarayıcının kendi indirmesiyle iner.
-- **Tıklanarak sınanmayan araçlar:** bitki ekme, canlı yerleştirme, meteor, kaldırma, organ
-  kaldırma, düzey değiştirme, dosyadan/metinden kayıt yükleme. Kodları derleniyor ve
-  simülasyon tarafı başsız koşularda çalışıyor, ama arayüzden elle denenmedi.
+- **Elle sınanmayanlar:** araçlar, organ ekleme/kaldırma, düzey değiştirme, kayıt indirme ve
+  yükleme otomatik tarayıcı betiğiyle (masaüstü ve telefon genişliği) sınandı; gerçek bir
+  telefonda dokunarak sınanmadı.
 - **Soy ağacı dar ekranda:** tür adları çizginin sağında kalır; telefonda görmek için ağacı
   yana kaydırmak gerekir.
 - **Yakın görünümde arazi:** harita 1600 px genişliğinde bir kez boyanır; en yakın
@@ -117,10 +122,10 @@ kopyala, commit + push.
 - **Tek atadan başlangıç garanti değildir:** ilk hücrenin soyu erken ölürse ya da nüfus
   sonradan 8'in altına düşerse dışarıdan ilkel canlılar gelir ve artık herkes tek atadan
   gelmez (12 tohumluk denemede 1 kez oldu). "Çöküşte dışarıdan göç" ayarı kapatılabilir.
-- **DNA zinciri tam eşitliğe bakar:** bir gen çok küçük bir mutasyon geçirse de "değişti"
-  sayılır; ne kadar değiştiği gösterilmez.
-- **Eski kayıtlar açılmaz:** kayıt biçimi sürüm 3'tür (harita artık kimyadan üretiliyor);
-  önceki sürümlerin kayıtları reddedilir.
+- **Kalıtım yapısı eşiği:** sayısal bir gen, aralığının %2'sinden az kaydıysa "değişmedi"
+  sayılır; eşik keyfîdir.
+- **Eski kayıtlar:** sürüm 2 kayıtları açılır, ama harita artık kimyadan üretildiği için arazi
+  farklıdır; yaşayamayacağı yerde kalan canlılar sığ sıvıya taşınır. Sürüm 1 kayıtları açılmaz.
 - **Yalnızca koyu görünüm vardır;** açık tema kaldırıldı.
 - **Simülasyon çekirdeği için otomatik test yok:** denge yalnızca `npm run balance`
   çıktısına bakılarak ayarlandı.

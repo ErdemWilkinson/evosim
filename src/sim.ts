@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, stressFactor } from "./genome";
+import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, World } from "./world";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
@@ -47,7 +47,7 @@ const FEMALE_COST = 0.4;
 const MALE_COST = 0.1;
 const ORNAMENT_METABOLISM = 0.15;
 const ORNAMENT_VISIBILITY = 0.4;
-const EGG_INCUBATION: [number, number] = [8, 15];
+const EGG_INCUBATION: [number, number] = [14, 24];
 /** r/K: avcılar daha yüksek eşikte ve daha seyrek ürer. */
 const DIET_DIVIDE_THRESHOLD: Record<Diet, number> = { carnivore: 1.15, omnivore: 1.05, scavenger: 1.05, parasite: 1, herbivore: 1, filter_feeder: 1, phototroph: 1 };
 const DIET_DIVIDE_COOLDOWN: Record<Diet, number> = { carnivore: 2.5, omnivore: 1.2, scavenger: 1.1, parasite: 1.4, herbivore: 1, filter_feeder: 1, phototroph: 1.3 };
@@ -206,7 +206,7 @@ export interface Derived {
 }
 
 /** Gezegen kimyasının çarpanları (bkz. chemistry.ts); simülasyon kurulurken atanır. */
-let chemMods = { metabolism: 1, speed: 1, hp: 1, plant: 1 };
+let chemMods = { metabolism: 1, speed: 1, hp: 1, plant: 1, mutation: 1 };
 
 export function derive(g: Genome): Derived {
   const p = (t: OrganType): number | undefined => organPower(g.organs, t);
@@ -533,6 +533,7 @@ export class Sim {
     this.planet = generatePlanetProfile(this.world);
     setForbiddenOrgans(this.planet.forbiddenOrgans);
     chemMods = this.world.chem.mods;
+    setMutationScale("fast", chemMods.mutation);
     rng.seed(this.world.seed ^ 0x51ed270b);
     this.updateEnv();
     if (populate) this.populate();
@@ -2128,7 +2129,8 @@ export class Sim {
 
   /** Kayıttan simülasyon kurar. Geçersiz veride hata fırlatır (çağıran yakalar). */
   public static load(data: SaveData): Sim {
-    if (!data || data.version !== SAVE_VERSION || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
+    const legacy = data?.version === 2;
+    if (!data || (data.version !== SAVE_VERSION && !legacy) || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
       throw new Error("Bu dosya geçerli bir Evosim kaydı değil ya da eski bir sürüme ait.");
     }
     data = cleanSave(data);
@@ -2168,6 +2170,23 @@ export class Sim {
       }
     });
     sim.nutrients = data.nutrients.map(([x, y, land]) => ({ x, y, land: land === 1, age: 10, dead: false }));
+    if (legacy) {
+      // Sürüm 2 kaydı: harita artık kimyadan üretildiği için arazi değişti. Yeni arazide
+      // yaşayamayacağı yerde kalan canlılar sıvıya taşınır, bitkiler bulundukları zemine uyarlanır.
+      for (const c of sim.creatures) {
+        const land = !sim.world.isWater(c.x, c.y);
+        if (sim.passable(c, c.x, c.y) && (!land || c.d.canLand)) continue;
+        const spot = sim.randomPoint((x, y) => sim.world.band(x, y) === Band.ShallowWater) ?? sim.randomPoint((x, y) => sim.world.isWater(x, y));
+        if (spot) {
+          c.x = spot.x;
+          c.y = spot.y;
+          c.host = null;
+          c.state = "wander";
+        }
+      }
+      for (const n of sim.nutrients) n.land = !sim.world.isWater(n.x, n.y);
+      sim.nutrients = sim.nutrients.filter((n) => sim.world.band(n.x, n.y) !== Band.Mountain);
+    }
     sim.eggs = data.eggs ?? [];
     sim.events = data.events ?? [];
     sim.eventSeq = sim.events.reduce((m, e) => Math.max(m, e.seq), 0);

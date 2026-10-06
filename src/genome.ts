@@ -110,6 +110,9 @@ export const STAGE_RADIUS: readonly [number, number][] = [
   [5.5, 12],
 ];
 
+// Taban oranlar "Hızlı" evrim kademesidir. Sayısal kaymalar (beden, hız, karar ağı) ve
+// yapısal yenilikler (yeni organ, beslenme biçimi, örgütlenme düzeyi, üreme biçimi) ayrı
+// ölçeklenir: yavaş kademeler yapısal değişiklikleri sayısal kaymalardan daha çok kısar.
 const MUTATION_CHANCE = 0.25;
 const MUTATION_STRENGTH = 0.12;
 const NEW_ORGAN_CHANCE = 0.05;
@@ -124,6 +127,27 @@ const STAGE_UP_CHANCE = 0.014;
 const STAGE_DOWN_CHANCE = 0.002;
 const BRAIN_MUTATION_CHANCE = 0.06;
 const BRAIN_MUTATION_STRENGTH = 0.35;
+
+export type EvolutionSpeed = "fast" | "medium" | "slow";
+export const EVOLUTION_SPEEDS: readonly EvolutionSpeed[] = ["fast", "medium", "slow"];
+export const EVOLUTION_LABEL: Record<EvolutionSpeed, string> = { fast: "Hızlı", medium: "Orta", slow: "Gerçekçi (yavaş)" };
+/** Kademe çarpanları: [sayısal kaymanın sıklığı, sayısal kaymanın büyüklüğü, yapısal değişikliğin sıklığı]. */
+const EVOLUTION_SCALE: Record<EvolutionSpeed, [number, number, number]> = { fast: [1, 1, 1], medium: [0.7, 0.75, 0.5], slow: [0.5, 0.5, 0.2] };
+
+/**
+ * Mutasyon ölçeği iki kaynağın çarpımıdır: seçilen evrim kademesi ve gezegenin kalıtım
+ * polimerinin kopyalama hatası (bkz. chemistry.ts). Hata çarpanı sıklıkları ölçekler,
+ * kaymanın büyüklüğünü değiştirmez.
+ */
+let numericScale = 1;
+let strengthScale = 1;
+let structuralScale = 1;
+export function setMutationScale(speed: EvolutionSpeed, copyError: number): void {
+  const [chance, strength, structural] = EVOLUTION_SCALE[speed];
+  numericScale = chance * copyError;
+  strengthScale = strength;
+  structuralScale = structural * copyError;
+}
 
 const STRESS_ENERGY_THRESHOLD = 0.3;
 const STRESS_MUTATION_BOOST = 1.0;
@@ -195,8 +219,9 @@ export function fitToStage(g: Genome): void {
 }
 
 function mutate(g: Genome, stress: number): Genome {
-  const chance = Math.min(1, MUTATION_CHANCE * stress);
-  const strength = MUTATION_STRENGTH * stress;
+  const chance = Math.min(1, MUTATION_CHANCE * stress * numericScale);
+  const strength = MUTATION_STRENGTH * stress * strengthScale;
+  const rare = (p: number): boolean => rng.chance(Math.min(1, p * structuralScale));
 
   for (const key of NUMERIC_GENES) {
     if (rng.next() > chance) continue;
@@ -206,29 +231,36 @@ function mutate(g: Genome, stress: number): Genome {
   if (rng.next() < chance * 1.3) g.hue = (((g.hue + (rng.next() - 0.5) * 50) % 360) + 360) % 360;
 
   for (let i = 0; i < g.brain.length; i++) {
-    if (rng.next() < BRAIN_MUTATION_CHANCE) g.brain[i] = clamp(g.brain[i] + (rng.next() - 0.5) * 2 * BRAIN_MUTATION_STRENGTH, -8, 8);
+    if (rng.next() < BRAIN_MUTATION_CHANCE * numericScale) g.brain[i] = clamp(g.brain[i] + (rng.next() - 0.5) * 2 * BRAIN_MUTATION_STRENGTH * strengthScale, -8, 8);
   }
 
   // Örgütlenme düzeyi: nadir, büyük bir geçiş. Geri dönüş daha da nadirdir.
-  if (g.stage < 2 && rng.chance(STAGE_UP_CHANCE)) g.stage++;
-  else if (g.stage > 0 && rng.chance(STAGE_DOWN_CHANCE)) g.stage--;
+  if (g.stage < 2 && rare(STAGE_UP_CHANCE)) g.stage++;
+  else if (g.stage > 0 && rare(STAGE_DOWN_CHANCE)) g.stage--;
 
   for (const organ of g.organs) {
-    if (rng.next() > ORGAN_POWER_MUTATION_CHANCE) continue;
-    organ.power = clamp(organ.power + (rng.next() - 0.5) * 2 * ORGAN_POWER_MUTATION_STRENGTH, 0.05, 1);
+    if (rng.next() > ORGAN_POWER_MUTATION_CHANCE * numericScale) continue;
+    organ.power = clamp(organ.power + (rng.next() - 0.5) * 2 * ORGAN_POWER_MUTATION_STRENGTH * strengthScale, 0.05, 1);
   }
   // Organ kaybı: kullanılmayan yapıların körelmesi.
-  if (g.organs.length > 0 && rng.chance(ORGAN_LOSS_CHANCE)) g.organs.splice(rng.int(g.organs.length), 1);
+  if (g.organs.length > 0 && rare(ORGAN_LOSS_CHANCE)) g.organs.splice(rng.int(g.organs.length), 1);
   fitToStage(g);
-  if (rng.chance(NEW_ORGAN_CHANCE)) {
+  if (rare(NEW_ORGAN_CHANCE)) {
     const type = pickOrganType(g.organs, g.stage);
     if (type) g.organs.push({ type, power: rng.range(0.25, 0.6) });
   }
 
-  if (rng.chance(STRATEGY_FLIP_CHANCE)) g.reproductionStrategy = g.reproductionStrategy === "asexual" ? "sexual" : "asexual";
-  if (rng.chance(LAYS_EGGS_FLIP_CHANCE)) g.laysEggs = !g.laysEggs;
-  if (rng.chance(DIET_FLIP_CHANCE)) g.diet = pickOtherDiet(g.diet, stress > 1);
-  if (rng.chance(PACK_HUNTER_FLIP_CHANCE)) g.packHunter = !g.packHunter;
+  if (rare(STRATEGY_FLIP_CHANCE)) g.reproductionStrategy = g.reproductionStrategy === "asexual" ? "sexual" : "asexual";
+  // Yumurta, dış kabuklu ve besin depolu çok hücreli bir yapıdır: yalnızca çok hücreli
+  // canlıda ortaya çıkabilir; düzey gerilerse kaybolur. Sürü avcılığı da öyle.
+  if (g.stage < 2) {
+    g.laysEggs = false;
+    g.packHunter = false;
+  } else {
+    if (rare(LAYS_EGGS_FLIP_CHANCE)) g.laysEggs = !g.laysEggs;
+    if (rare(PACK_HUNTER_FLIP_CHANCE)) g.packHunter = !g.packHunter;
+  }
+  if (rare(DIET_FLIP_CHANCE)) g.diet = pickOtherDiet(g.diet, stress > 1);
   g.sex = rng.chance(0.5) ? "f" : "m";
   return g;
 }

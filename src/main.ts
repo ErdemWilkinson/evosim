@@ -240,7 +240,7 @@ function refreshTab(v: View, ui: UiPayload): void {
       speciesPortraitFor = info.id;
     }
     updateSpeciesCard(ui, info, ui.species, v.frame.time);
-    setHtml($("sp-dna"), dnaHtml(detail.type, ui.origin));
+    setHtml($("sp-dna"), dnaHtml(detail.type, ui.origin, v.world.chem.genetic));
     speciesChart?.draw(detail.series, theme.diet[info.diet], theme);
     $("sp-highlight").setAttribute("aria-pressed", String(highlight === info.id));
   } else if (tab === "organs") {
@@ -268,7 +268,7 @@ function refreshTab(v: View, ui: UiPayload): void {
       creaturePortraitKey = key;
     }
     updateCreatureCard(d, ui.species.find((s) => s.id === d.genome.speciesId), v.planet.forbiddenOrgans, { following, placing: tool === "place" && placeTemplate === d.id });
-    setHtml($("cr-dna"), dnaHtml(d.genome, ui.origin));
+    setHtml($("cr-dna"), dnaHtml(d.genome, ui.origin, v.world.chem.genetic));
   }
 }
 

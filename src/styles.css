@@ -1846,3 +1846,17 @@ textarea {
     font-size: 14px;
   }
 }
+
+/* kalıtım yapısının sarmal dışındaki biçimleri */
+.dna-stack line {
+  stroke-width: 4.6;
+}
+
+.dna-sheet line {
+  stroke-width: 5;
+  stroke-linecap: butt;
+}
+
+.dna-cloud line {
+  stroke-width: 6.5;
+}

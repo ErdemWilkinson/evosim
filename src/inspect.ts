@@ -74,6 +74,10 @@ const MOLECULES: Record<string, Mol> = {
   borate: mol("borat diester köprüsü, B(OR)₄⁻", "B 0 0|O -1 -.8|O -1 .8|O 1 -.8|O 1 .8|C -2 -.6|C -2 .6|C 2 -.6|C 2 .6|R -3 -1.1|R 3 1.1", "0-1 0-2 0-3 0-4 1-5 2-6 5-6 3-7 4-8 7-8 5-9 8-10"),
   slayer: mol("kükürtlü yan zincirli peptit", "N 0 .5|C 1 0|C 1 -1.1|S 1 -2.3|C 2 .5|O 2 1.6|N 3 0|C 4 .5|R 4 1.6|C 5 0|O 5 -1.1", "0-1 1-2 2-3 1-4 4=5 4-6 6-7 7-8 7-9 9=10"),
   manganese: mol("MnO₂ zinciri", "Mn 0 0|O 1 -.7|O 1 .7|Mn 2 0|O 3 -.7|O 3 .7|Mn 4 0", "0-1 0-2 1-3 2-3 3-4 3-5 4-6 5-6"),
+  hachimoji: mol("şeker–fosfat omurga, sekiz bazdan biri", "C 0 0|C 1 -.4|C 1.6 .6|C .8 1.3|O -.2 .9|N 2 -1.2|C 3.1 -1.4|N 3.6 -2.4|O 4 -.6|O .8 2.4|P 1.9 2.9|O 1.9 4|O 2.7 2.1|O 3 3.4|R 4.1 3.7", "0-1 1-2 2-3 3-4 4-0 1-5 5-6 6=7 6-8 3-9 9-10 10=11 10-12 10-13 13-14"),
+  tna: mol("dört karbonlu treoz şekeri–fosfat omurga", "C 0 0|C 1 -.4|C 1.6 .6|O .6 1.2|N 2 -1.2|R 3.1 -1.4|O 2.7 .9|P 3.6 1.6|O 3.6 2.7|O 4.6 1|O -.9 -.5|R -1.9 0", "0-1 1-2 2-3 3-0 1-4 4-5 2-6 6-7 7=8 7-9 0-10 10-11"),
+  gna: mol("halkasız glikol–fosfat omurga", "O -1 .5|C 0 0|C 1 .5|C 2 0|N 1 1.6|R 1 2.7|O 3 .5|P 4 0|O 4 -1.1|O 4 1.1|O 5 .5|R 6 0", "0-1 1-2 2-3 2-4 4-5 3-6 6-7 7=8 7-9 7-10 10-11"),
+  amyloid: mol("üst üste dizili iki peptit zinciri (hidrojen bağlı)", "N 0 0|C 1 .5|C 2 0|O 2 -1.1|N 3 .5|C 4 0|C 5 .5|O 5 1.6|N 0 2.6|C 1 3.1|C 2 2.6|O 2 1.6|N 3 3.1|C 4 2.6|C 5 3.1|O 5 4.2", "0-1 1-2 2=3 2-4 4-5 5-6 6=7 8-9 9-10 10=11 10-12 12-13 13-14 14=15 4.11 7.12"),
   phosphodiester: mol("şeker–fosfat omurga, bir baz", "C 0 0|C 1 -.4|C 1.6 .6|C .8 1.3|O -.2 .9|N 2 -1.2|R 3.1 -1.4|O .8 2.4|P 1.9 2.9|O 1.9 4|O 2.7 2.1|O 3 3.4|R 4.1 3.7", "0-1 1-2 2-3 3-4 4-0 1-5 5-6 3-7 7-8 8=9 8-10 8-11 11-12"),
   pna: mol("N-(2-aminoetil)glisin omurga, bir baz", "N 0 .5|C 1 0|C 2 .5|N 3 0|C 4 .5|C 5 0|O 5 -1.1|N 6 .5|C 3 -1.1|O 2 -1.6|C 4 -1.7|R 4 -2.8", "0-1 1-2 2-3 3-4 4-5 5=6 5-7 3-8 8=9 8-10 10-11"),
   clay: mol("alüminosilikat tabaka", "Si 0 0|O 1 .5|Al 2 0|O 3 .5|Si 4 0|O 0 -1.1|O 2 -1.1|O 4 -1.1|O 0 1.2|O 2 1.2|O 4 1.2", "0-1 1-2 2-3 3-4 0-5 2-6 4-7 0-8 2-9 4-10"),
@@ -99,36 +103,137 @@ const MOLECULES: Record<string, Mol> = {
   thermal: FES,
 };
 
+const CHITIN: Mol = { ...mol("x", "C 0 0|C 1 -.5|C 2 0|C 2 1.1|C 1 1.6|O 0 1.1|N 3 -.5|C 4 0|O 4 1.1|C 5 -.5|O 3 1.6|R 4 2.1", "0-1 1-2 2-3 3-4 4-5 5-0 2-6 6-7 7=8 7-9 3-10 10-11"), formula: "(C₈H₁₃NO₅)ₙ (N-asetilglukozamin zinciri)" };
+const DISULFIDE = mol("–CH₂–S–S–CH₂– köprülü iki peptit", "N 0 0|C 1 .5|C 2 0|O 2 -1.1|C 1 1.6|S 1 2.8|S 2.2 3.4|C 2.2 4.6|C 3.2 5.1|N 1.2 5.2|O 3.2 6.2", "0-1 1-2 2=3 1-4 4-5 5-6 6-7 7-8 7-9 8=10");
+const LUCIFERIN = mol("benzotiyazol çekirdekli lüsiferin (yalınlaştırılmış)", "C 0 0|C 1 -.6|C 2 0|C 2 1.2|C 1 1.8|C 0 1.2|N 3 -.5|C 3.8 .6|S 3 1.7|O -1 -.6|C 5 .6|O 5.6 -.4|O 5.6 1.6", "0=1 1-2 2=3 3-4 4=5 5-0 2-6 6=7 7-8 8-3 0-9 7-10 10=11 10-12");
+const MELANIN = mol("indol-5,6-kinon birimi (melanin yapı taşı)", "C 0 0|C 1 -.6|C 2 0|C 2 1.2|C 1 1.8|C 0 1.2|C 3 -.5|C 3.8 .6|N 3 1.7|O -1 -.6|O -1 1.8", "0-1 1=2 2-3 3=4 4-5 5-0 2-6 6=7 7-8 8-3 0=9 5=10");
+const TRIGLY = mol("gliserol + üç yağ asidi (triaçilgliserol)", "C 0 0|C 1 .5|C 2 0|O 0 -1.1|C -.9 -1.8|O -1.9 -1.4|R -.7 -2.9|O 1 1.6|C 2 2.2|O 3 1.8|R 1.8 3.3|O 2 -1.1|C 3 -1.7|O 4 -1.3|R 2.8 -2.8", "0-1 1-2 0-3 3-4 4=5 4-6 1-7 7-8 8=9 8-10 2-11 11-12 12=13 12-14");
+const GLYCEROL = mol("C₃H₈O₃ (gliserol)", "C 0 0|C 1 .5|C 2 0|O 0 -1.1|O 1 1.6|O 2 -1.1", "0-1 1-2 0-3 1-4 2-5");
+const MUCIN = mol("sülfatlı şeker birimi", "C 0 0|C 1 -.5|C 2 0|C 2 1.1|C 1 1.6|O 0 1.1|O 3 -.5|S 4 0|O 4 1.1|O 4 -1.1|O 5 -.5|O 1 -1.6", "0-1 1-2 2-3 3-4 4-5 5-0 2-6 6-7 7=8 7=9 7-10 1-11");
+const APATITE = mol("Ca₅(PO₄)₃OH (hidroksiapatit)", "Ca 0 0|O 1 .6|P 2 0|O 2 -1.1|O 3 .6|Ca 4 0|O 2 1.3|Ca 2 2.4", "0.1 1-2 2=3 2-4 4.5 2-6 6.7");
+const GASES: Record<string, Mol> = {
+  "N₂": mol("N₂", "N 0 0|N 1.2 0", "0#1"),
+  "CO₂": mol("CO₂", "O 0 0|C 1.2 0|O 2.4 0", "0=1 1=2"),
+  "CH₄": mol("CH₄", "C 0 0|H 1 0|H -1 0|H 0 1|H 0 -1", "0-1 0-2 0-3 0-4"),
+  "H₂": mol("H₂", "H 0 0|H 1 0", "0-1"),
+  "NH₃": mol("NH₃", "N 0 0|H 1 .5|H -1 .5|H 0 -1", "0-1 0-2 0-3"),
+  "SO₂": mol("SO₂", "O 0 .6|S 1 0|O 2 .6", "0=1 1=2"),
+  "H₂S": mol("H₂S", "H 0 .6|S 1 0|H 2 .6", "0-1 1-2"),
+  HCl: mol("HCl", "H 0 0|Cl 1.2 0", "0-1"),
+  HF: mol("HF", "H 0 0|F 1.1 0", "0-1"),
+  "O₂": mol("O₂", "O 0 0|O 1.2 0", "0=1"),
+  Ar: mol("Ar", "N 0 0", ""),
+};
+
 interface Part {
   label: string;
   option: Option;
   mol: Mol;
 }
 
+interface Material {
+  name: string;
+  note: string;
+  needs: string[];
+  mol: Mol;
+  ref?: string;
+}
+
+/**
+ * Her organın kendi yapı malzemesi. Malzeme gezegenin elementleriyle kurulamıyorsa
+ * (ya da iskelet silisyumsa ve malzeme karbon kimyası gerektiriyorsa) organ, o
+ * gezegenin genel lifinden yapılır; bu durum açıklamada belirtilir.
+ */
+function organMaterial(type: OrganType, chem: Chemistry): Material {
+  const has = (...syms: string[]): boolean => syms.every((sym) => sym === "H" || chem.has.has(sym));
+  const silicon = chem.scaffold.id === "silicon";
+  const fibre: Material = silicon
+    ? { name: "Siloksan lif demeti", note: "Uzun Si–O zincirleri demetlenir; yan grupların dönmesi lifi kısaltıp uzatır.", needs: [], mol: SILOXANE }
+    : { name: "Peptit lif demeti", note: "Uzun peptit zincirleri demetlenip birbiri üzerinde kayarak kasılır.", needs: [], mol: PEPTIDE };
+  const from = (o: Option, note: string): Material => ({ name: o.name, note: `${note} ${o.note}`, needs: [], mol: MOLECULES[o.id] ?? PEPTIDE, ref: o.ref });
+  const mineral: Material = has("Ca", "P", "O")
+    ? { name: "Hidroksiapatit", note: "Kalsiyum fosfat kristalleri; sert ve aşınmaya dayanıklıdır.", needs: [], mol: APATITE }
+    : has("Ca", "C", "O")
+      ? { name: "Kalsit", note: "Kalsiyum karbonat kristalleri katman katman çöker.", needs: [], mol: MOLECULES.calcite }
+      : has("Si", "O")
+        ? { name: "Biyojenik silika", note: "Camsı SiO₂ çökeltisi; hafif ve serttir.", needs: [], mol: MOLECULES.silica }
+        : has("Fe", "S")
+          ? { name: "Demir sülfür", note: "Greigit ve pirit taneleri dokuya gömülür.", needs: [], mol: MOLECULES.ironsulfide }
+          : { ...fibre, note: `Bu gezegende mineral kabuk kuracak element yok; sertlik sık örülmüş liflerden gelir. ${fibre.note}` };
+  const chitin: Material = { name: "Kitin benzeri polisakkarit", note: "Azotlu şeker zincirleri lif lif örülür; hafif ve sağlamdır.", needs: ["C", "N", "O"], mol: CHITIN };
+  const disulfide = (name: string, note: string): Material => ({ name, note, needs: ["C", "N", "O", "S"], mol: DISULFIDE });
+  const melanin = (note: string): Material => ({ name: "Melanin benzeri koyu boya", note, needs: ["C", "N", "O"], mol: MELANIN });
+  const fat = (note: string): Material => ({ name: "Depo yağı (triaçilgliserol)", note, needs: ["C", "O"], mol: TRIGLY });
+  const gas = chem.atmosphere[0].gas;
+  const oxygenCarrier: Material = has("Fe", "N", "C")
+    ? { name: "Demir porfirinli taşıyıcı (hem benzeri)", note: "Halkanın ortasındaki demir, solunum gazını geri bırakılabilir biçimde bağlar.", needs: [], mol: porphyrin("Fe") }
+    : has("Cu")
+      ? { name: "Bakırlı taşıyıcı (hemosiyanin benzeri)", note: "İki bakır atomu arasına gaz molekülü bağlanır.", needs: [], mol: metalCenter("Cu") }
+      : from(chem.catalyst, "Solunum gazını bu gezegenin katalizör metali taşır.");
+  const table: Record<OrganType, Material> = {
+    tentacle: { ...fibre, note: `Sıvı dolu bir çekirdeği saran çapraz lifler: kemiksiz, her yöne bükülebilen bir kol. ${fibre.note}` },
+    fin: { ...chitin, note: `Yüzgeç ışınları ince, esnek çubuklardır. ${chitin.note}` },
+    leg: { ...chitin, note: `Bacak, eklemli içi boş bir borudur; kaslar içeriden tutunur. ${chitin.note}` },
+    wing: { ...chitin, note: `Kanat, damarlarla gerilmiş çok ince bir zardır. ${chitin.note}` },
+    sucker: { ...fibre, note: `Halka biçimli lifler kasılınca içeride basınç düşer ve vantuz yüzeye yapışır. ${fibre.note}` },
+    sprint_muscle: from(chem.energy, "Hızlı kas lifleri kısa sürede çok enerji yakar; lifin içi enerji taşıyıcısıyla doludur."),
+    eyespot: from(chem.pigment, "Tek bir pigment yığını ışığın yönünü algılar."),
+    eye: { name: "Saydam kristalin mercek", note: `Çok sıkı ve düzenli istiflenmiş ${silicon ? "siloksan" : "protein"} molekülleri ışığı saçmadan kırar; arkasındaki pigment tabakası görüntüyü algılar.`, needs: [], mol: silicon ? SILOXANE : PEPTIDE },
+    bioluminescence: { name: "Lüsiferin benzeri ışık molekülü", note: "Bir enzim bu molekülü yükseltger; açığa çıkan enerji ısı yerine ışık olarak yayılır.", needs: ["C", "N", "O", "S"], mol: LUCIFERIN },
+    olfactory: disulfide("Koku alıcı proteini", "Zara gömülü alıcının cebine uyan molekül bağlanınca alıcı biçim değiştirir ve sinyal başlar; kükürt köprüleri cebin biçimini sabit tutar."),
+    lateral_line: { ...fibre, note: `Jöle bir kubbeye gömülü ince tüyler akıntıyla eğilir ve basınç dalgalarını algılar. ${fibre.note}` },
+    electroreceptor: has("Na") ? { name: "Sodyum iyon kanalı", note: "Çevredeki zayıf elektrik alanı, alıcı hücrenin zarındaki kanalları açıp Na⁺ akışını değiştirir.", needs: [], mol: MOLECULES.sodium } : has("K") ? { name: "Potasyum iyon kanalı", note: "Çevredeki zayıf elektrik alanı, alıcı hücrenin zarındaki kanalları açıp K⁺ akışını değiştirir.", needs: [], mol: mol("K⁺ iyonu", "K 0 0", "") } : from(chem.energy, "İyon kanalı kuracak sodyum ya da potasyum yok; alıcı, enerji gradyanındaki değişimi algılar."),
+    mouth: { ...mineral, note: `Ağız kenarındaki sert kazıyıcı plakalar besini parçalar. ${mineral.note}` },
+    stomach: has("Cl") ? { name: "Hidroklorik asit ve sindirim enzimi", note: "Mide çeperi asit salgılar; asit besini açar, enzimler bağlarını koparır.", needs: [], mol: GASES.HCl } : from(chem.catalyst, "Klor olmadığı için güçlü asit yapılamaz; sindirimi metalli enzimler yürütür."),
+    symbiotic_gut_flora: from(chem.membrane, "Bağırsakta yaşayan ortak mikroplar konağın sindiremediği besini parçalar; her biri kendi zarıyla çevrili ayrı bir hücredir."),
+    sulfur_vent_organ: has("Fe", "S") ? from({ ...chem.catalyst, id: "fes", name: "Demir–kükürt kümeli enzim" } as Option, "Organdaki ortak bakteriler kükürt bileşiklerini yükseltgeyip enerji üretir.") : { name: "Kükürt halkası deposu", note: "Organdaki ortak bakteriler kükürt bileşiklerini yükseltgeyip enerji üretir; ara ürün olan kükürt tanecik olarak depolanır.", needs: ["S"], mol: MOLECULES.sulfurdot },
+    filter_comb: { ...chitin, note: `Sık dişli tarak, sıvıdaki küçük parçacıkları süzer. ${chitin.note}` },
+    pigment: from(chem.pigment, "Işık toplayan boya molekülleri zar katmanlarına dizilir."),
+    shell: { ...mineral, note: `Kabuk, organik bir iskele üzerinde katman katman büyür. ${mineral.note}` },
+    spike: { ...mineral, note: `Diken, kabukla aynı malzemenin sivrilmiş uzantısıdır. ${mineral.note}` },
+    camouflage: melanin("Deri hücrelerindeki boya tanecikleri zemin rengine göre yoğunlaşır."),
+    chromatophore: melanin("Boya dolu kesecikler çevresindeki kaslarla genişleyip daralır; renk saniyeler içinde değişir."),
+    venom: disulfide("Kükürt köprülü toksin peptidi", "Küçük, sıkı katlanmış bir peptit avın sinir ya da kas kanallarını tıkar; kükürt köprüleri onu parçalanmaya karşı korur."),
+    claw: disulfide("Keratin benzeri sert protein", "Zincirler arasındaki çok sayıda kükürt köprüsü proteini sert ve suda çözünmez yapar."),
+    regeneration: from(chem.genetic, "Yaranın çevresindeki hücreler farklılaşmamış hâle döner ve eksik parçayı kalıtım bilgisinden yeniden kurar."),
+    ink_sac: melanin("Kese, yoğun boya taneciklerini mukusla karıştırıp püskürtür."),
+    mucus_coat: { name: "Sülfatlı şeker zincirli mukus", note: "Yoğun yüklü şeker zincirleri çok su tutar ve kaygan bir jel oluşturur.", needs: ["C", "O", "S"], mol: MUCIN },
+    gill: { ...oxygenCarrier, note: `İnce katlı yüzey, çözünmüş gazı kana geçirir. ${oxygenCarrier.note}` },
+    lung: from(chem.membrane, "İç yüzeyi ince bir zar filmi kaplar; bu film yüzey gerilimini düşürür ve keseciklerin kapanmasını önler."),
+    heart: { ...fibre, note: `Kendiliğinden ritimle kasılan kas, dolaşım sıvısını pompalar. ${fibre.note}` },
+    torpor: { name: "Gliserol (donma önleyici)", note: "Hücre içi sıvının donma noktasını düşürür ve soğukta proteinleri korur; metabolizma yavaşlarken hücreler zarar görmez.", needs: ["C", "O"], mol: GLYCEROL },
+    blubber: fat("Deri altındaki kalın yağ tabakası ısı kaybını azaltır."),
+    nitrogen_sac: { name: "Azot gazı kesesi", note: "Kese, dokuda çözünmüş azotu gaz olarak toplar.", needs: ["N"], mol: GASES["N₂"] },
+    fat_store: fat("Enerji, hacim başına en yoğun biçimde yağ damlacıklarında saklanır."),
+    swim_bladder: { name: `Gaz kesesi (${gas})`, note: `Kese, atmosferde en bol bulunan gazla (${gas}) dolup boşalarak canlının yoğunluğunu ayarlar.`, needs: [], mol: GASES[gas] ?? GASES["N₂"] },
+    brood_pouch: { ...chitin, note: `Kese, yavruları dış ortamdan ayıran esnek bir örtüdür. ${chitin.note}` },
+    immune_gland: disulfide("Antikor benzeri tanıma proteini", "Kükürt köprüleriyle bağlı zincirlerin ucundaki değişken bölge yabancı molekülü tanıyıp işaretler."),
+  };
+  const m = table[type];
+  const carbonOnly = m.mol !== SILOXANE && m.needs.includes("C");
+  if (m.needs.every((sym) => has(sym)) && !(silicon && carbonOnly)) return m;
+  const why = silicon && carbonOnly ? "iskelet silisyum olduğu" : `${m.needs.filter((sym) => !has(sym)).join(", ")} bulunmadığı`;
+  return { ...fibre, note: `Başka gezegenlerde bu organ ${m.name.toLocaleLowerCase("tr")} ile kurulur; bu gezegende ${why} için aynı işi lifler görür. ${fibre.note}` };
+}
+
 function partsOf(chem: Chemistry, g: Genome | null): Part[] {
-  const m = (o: Option, fallback: Option): Mol => MOLECULES[o.id] ?? MOLECULES[fallback.id];
   const wallMol = chem.wall.id === "none" ? MOLECULES[chem.membrane.id] : MOLECULES[chem.wall.id];
   const parts: Part[] = [
     { label: "Zar", option: chem.membrane, mol: MOLECULES[chem.membrane.id] },
     { label: "Hücre duvarı", option: chem.wall, mol: wallMol },
-    { label: "Kalıtım polimeri", option: chem.genetic, mol: m(chem.genetic, chem.membrane) },
+    { label: "Kalıtım polimeri", option: chem.genetic, mol: MOLECULES[chem.genetic.id] ?? MOLECULES[chem.membrane.id] },
     { label: "Enerji taşıyıcısı", option: chem.energy, mol: MOLECULES[chem.energy.id] },
-    { label: "Katalizör", option: chem.catalyst, mol: MOLECULES[chem.catalyst.id === "manganese" ? "manganese" : chem.catalyst.id] ?? metalCenter("Mn") },
+    { label: "Katalizör", option: chem.catalyst, mol: MOLECULES[chem.catalyst.id] ?? metalCenter("Mn") },
     { label: "Işık pigmenti", option: chem.pigment, mol: MOLECULES[chem.pigment.id] },
   ];
   if (g) {
-    const fibre: Option = chem.scaffold.id === "silicon" ? { id: "siloxane", name: "Siloksan lif demeti", needs: [], note: "Kasılabilen uzun Si–O zincirleri; yan grupların dönmesi lifi kısaltıp uzatır.", ref: chem.scaffold.ref } : { id: "peptide", name: "Peptit lif demeti", needs: [], note: "Uzun peptit zincirleri demetlenip birbiri üzerinde kayarak kasılır.", ref: "Pollard & Cooper 2009, Science 326:1208" };
     const seen = new Set<OrganType>();
     for (const organ of g.organs) {
       if (seen.has(organ.type)) continue;
       seen.add(organ.type);
       const info = ORGANS[organ.type];
-      const source = info.category === "movement" ? fibre : info.category === "sense" ? chem.pigment : info.category === "feeding" ? chem.catalyst : info.category === "defense" ? (chem.wall.id === "none" ? fibre : chem.wall) : chem.membrane;
-      parts.push({
-        label: info.label,
-        option: { ...source, note: `${info.description} Bu organın yapı malzemesi: ${source.name.toLocaleLowerCase("tr")}. ${source.note}` },
-        mol: MOLECULES[source.id] ?? MOLECULES[chem.membrane.id],
-      });
+      const material = organMaterial(organ.type, chem);
+      parts.push({ label: info.label, option: { id: organ.type, name: material.name, needs: [], note: `${material.note} Simülasyondaki etkisi: ${info.description}`, ref: material.ref ?? "" }, mol: material.mol });
     }
   }
   return parts;
@@ -530,7 +635,7 @@ export class StructureViewer {
         `<b>Duvar: ${esc(chem.wall.name)}</b><p>${esc(chem.wall.note)} Simülasyondaki etkisi: can ×${chem.wall.hp.toFixed(2)}, hız ×${chem.wall.speed.toFixed(2)}, metabolizma ×${chem.wall.meta.toFixed(2)}.</p><p class="ref">${esc(chem.wall.ref)}</p>`;
     } else if (this.level === 2) {
       this.caption.textContent = "Top-çubuk modeli. Hidrojenler çizilmez; R zincirin devamıdır. Bir atoma dokununca o atom açılır.";
-      this.info.innerHTML = `<b>${esc(p.label)}: ${esc(p.option.name)}</b><p class="mono">${esc(p.mol.formula)}</p><p>${esc(p.option.note)}</p><p class="ref">${esc(p.option.ref)}</p>`;
+      this.info.innerHTML = `<b>${esc(p.label)}: ${esc(p.option.name)}</b><p class="mono">${esc(p.mol.formula)}</p><p>${esc(p.option.note)}</p>${p.option.ref ? `<p class="ref">${esc(p.option.ref)}</p>` : ""}`;
     } else {
       const e = ELEMENTS[this.pickedSym()];
       const share = chem.elements.find((x) => x.sym === e.sym);
@@ -560,6 +665,549 @@ export class StructureViewer {
 }
 
 // ------------------------------------------------------------------ köken filmi
+
+interface SceneKit {
+  liquid: (l: number, a?: number) => string;
+  ground: (l: number) => string;
+  rnd: (i: number, k: number) => number;
+  stars: () => void;
+  chip: (sym: string, x: number, y: number, r: number, alpha: number) => void;
+}
+
+/**
+ * Köken senaryosunun ortamı: 20 senaryonun her birinin kendi çizimi vardır. Renkler
+ * gezegenden gelir (sıvı çözücünün, zemin kabuktaki elementlerin tonunda).
+ */
+function drawOriginScene(ctx: CanvasRenderingContext2D, c: Chemistry, w: number, h: number, t: number, p: number, kit: SceneKit): void {
+  const { liquid, ground, rnd, stars, chip } = kit;
+  const cx = w / 2;
+  const disc = (x: number, y: number, r: number, fill: string): void => {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(0, r), 0, Math.PI * 2);
+    ctx.fill();
+  };
+  const sky = (top: string, bottom: string, to: number): void => {
+    const g = ctx.createLinearGradient(0, 0, 0, to);
+    g.addColorStop(0, top);
+    g.addColorStop(1, bottom);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, to);
+  };
+  const hills = (base: number, height: number, light: number): void => {
+    ctx.fillStyle = ground(light);
+    ctx.beginPath();
+    ctx.moveTo(0, base);
+    for (let x = 0; x <= w; x += 20) ctx.lineTo(x, base - 14 - Math.abs(Math.sin(x * 0.006 + c.seed) * height + Math.sin(x * 0.021) * height * 0.35));
+    ctx.lineTo(w, base);
+    ctx.fill();
+  };
+  /** Dalgalı sıvı yüzeyi: `y` çizgisinden aşağısı sıvıdır. */
+  const sea = (y: number, light: number, amp = 5): void => {
+    ctx.fillStyle = liquid(light);
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w; x += 12) ctx.lineTo(x, y + Math.sin(x * 0.025 + t * 1.6) * amp + Math.sin(x * 0.011 - t) * amp);
+    ctx.lineTo(w, h);
+    ctx.fill();
+  };
+  const land = (y: number, light: number): void => {
+    ctx.fillStyle = ground(light);
+    ctx.fillRect(0, y, w, h - y);
+  };
+  const pool = (y: number, rx: number, ry: number): void => {
+    ctx.fillStyle = ground(22);
+    ctx.beginPath();
+    ctx.ellipse(cx, y, rx * 1.08, ry * 1.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = liquid(26);
+    ctx.beginPath();
+    ctx.ellipse(cx, y, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+  };
+  const vents = (floor: number, smoke: string, body: number, mark: (vx: number, top: number) => void): void => {
+    ctx.fillStyle = liquid(9);
+    ctx.fillRect(0, 0, w, h);
+    land(floor, 13);
+    for (let v = 0; v < 3; v++) {
+      const vx = w * (0.22 + v * 0.28);
+      const vh = h * (0.2 + rnd(v, 5) * 0.16);
+      ctx.fillStyle = ground(body);
+      ctx.beginPath();
+      ctx.moveTo(vx - 30, floor);
+      ctx.lineTo(vx - 10, floor - vh);
+      ctx.lineTo(vx + 10, floor - vh);
+      ctx.lineTo(vx + 30, floor);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.22)";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      mark(vx, floor - vh);
+      for (let i = 0; i < 28; i++) {
+        const life = (t * 0.35 + rnd(i, v)) % 1;
+        ctx.globalAlpha = (1 - life) * 0.75;
+        disc(vx + Math.sin(life * 7 + i) * 24 * life, floor - vh - life * h * 0.5, 2 + life * 6, smoke);
+      }
+      ctx.globalAlpha = 1;
+    }
+  };
+  const horizon = h * 0.6;
+  const el = (i: number): string => c.elements[i % c.elements.length].sym;
+
+  switch (c.origin.id) {
+    case "alkaline_vent":
+      // Soluk, gözenekli karbonat bacalar ve berrak ılık akışkan.
+      vents(h * 0.84, "rgba(225, 240, 255, 0.9)", 62, (vx, top) => {
+        for (let i = 0; i < 9; i++) disc(vx + (rnd(i, vx) - 0.5) * 22, top + 14 + rnd(i, 3) * (h * 0.84 - top - 20), 2.4, "rgba(4, 6, 14, 0.45)");
+      });
+      break;
+    case "iron_sulfur":
+      // Kara bacalar: koyu duman, baca gövdesinde parlayan pirit kristalleri.
+      vents(h * 0.84, "rgba(20, 18, 22, 0.95)", 9, (vx, top) => {
+        ctx.fillStyle = "#e7c65a";
+        for (let i = 0; i < 7; i++) {
+          const y = top + 10 + rnd(i, 7) * (h * 0.84 - top - 22);
+          ctx.fillRect(vx + (rnd(i, vx) - 0.5) * 20 - 3, y, 6, 6);
+        }
+        disc(vx, top, 12, "rgba(255, 110, 60, 0.35)");
+      });
+      break;
+    case "thioester": {
+      // Sığ kükürtlü kaynak: sarı çökeltiler ve yükselen kabarcıklar.
+      sky("#151226", "#3a2a2a", horizon);
+      hills(horizon, 50, 8);
+      ctx.fillStyle = "#6b5a1c";
+      ctx.fillRect(0, horizon, w, h - horizon);
+      for (let i = 0; i < 5; i++) {
+        const x = w * (0.12 + i * 0.19);
+        const y = horizon + (h - horizon) * (0.35 + rnd(i, 2) * 0.4);
+        ctx.fillStyle = "#d8c23a";
+        ctx.beginPath();
+        ctx.ellipse(x, y, 58, 20, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = liquid(30);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 44, 13, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let k = 0; k < 6; k++) {
+          const life = (t * 0.6 + rnd(k, i)) % 1;
+          ctx.globalAlpha = 1 - life;
+          disc(x + (rnd(k, i + 4) - 0.5) * 60, y - life * 90, 3 + life * 3, "#f1e27a");
+        }
+        ctx.globalAlpha = 1;
+      }
+      break;
+    }
+    case "hot_spring": {
+      // Islanıp kuruyan havuz, buhar ve bir gayzer.
+      sky("#0d1430", "#33263c", horizon);
+      hills(horizon, 70, 9);
+      land(horizon, 15);
+      const level = 0.5 + Math.sin(t * 1.4) * 0.45;
+      const y = horizon + (h - horizon) * 0.5;
+      pool(y, w * 0.34 * (0.6 + level * 0.4), (h - horizon) * 0.28 * (0.5 + level * 0.5));
+      for (let i = 0; i < 26; i++) chip(el(i), cx + Math.cos(rnd(i, 1) * 6.28) * w * 0.2 * rnd(i, 2), y + Math.sin(rnd(i, 1) * 6.28) * 18 * rnd(i, 3), 7, 0.95);
+      for (let i = 0; i < 18; i++) {
+        const life = (t * 0.3 + rnd(i, 9)) % 1;
+        ctx.globalAlpha = (1 - life) * 0.35;
+        disc(cx + (rnd(i, 4) - 0.5) * w * 0.5 + Math.sin(life * 5 + i) * 20, y - life * h * 0.45, 14 + life * 26, "#dfe6f5");
+      }
+      ctx.globalAlpha = 1;
+      const jet = Math.max(0, Math.sin(t * 1.4));
+      ctx.fillStyle = liquid(70, 0.7);
+      ctx.fillRect(w * 0.82 - 4, horizon + 20 - jet * h * 0.3, 8, jet * h * 0.3);
+      break;
+    }
+    case "primordial_soup": {
+      // Fırtına bulutları, yıldırım ve denize yağan yağmur.
+      sky("#0a0f24", "#272341", horizon);
+      sea(horizon, 16);
+      for (let i = 0; i < 6; i++) {
+        ctx.fillStyle = "rgba(120, 124, 160, 0.55)";
+        ctx.beginPath();
+        ctx.ellipse(((rnd(i, 1) * w + t * 10) % (w + 180)) - 90, h * (0.1 + rnd(i, 2) * 0.16), 110, 26, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const strike = Math.floor(t * 1.6);
+      if ((t * 1.6) % 1 < 0.22) {
+        ctx.strokeStyle = "#f4f1ff";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        let x = w * (0.2 + rnd(strike, 9) * 0.6);
+        let y = h * 0.2;
+        ctx.moveTo(x, y);
+        while (y < horizon) {
+          x += (rnd(strike, y) - 0.5) * 46;
+          y += 22;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+        ctx.fillStyle = "rgba(255,255,255,0.08)";
+        ctx.fillRect(0, 0, w, h);
+      }
+      ctx.fillStyle = liquid(70, 0.5);
+      for (let i = 0; i < 60; i++) ctx.fillRect(rnd(i, 4) * w, (rnd(i, 5) * horizon + t * 170) % horizon, 1.4, 9);
+      break;
+    }
+    case "rna_world": {
+      // Yıldızlı gece, durgun havuz ve içinde kıvrılan kısa zincirler.
+      sky("#05070f", "#131a36", horizon);
+      stars();
+      hills(horizon, 40, 7);
+      land(horizon, 13);
+      const y = horizon + (h - horizon) * 0.5;
+      pool(y, w * 0.4, (h - horizon) * 0.34);
+      for (let k = 0; k < 7; k++) {
+        const x0 = cx + (rnd(k, 1) - 0.5) * w * 0.55;
+        const y0 = y + (rnd(k, 2) - 0.5) * (h - horizon) * 0.34;
+        ctx.strokeStyle = k % 2 ? "#8a7dff" : "#6df0d2";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (let i = 0; i <= 12; i++) ctx.lineTo(x0 + i * 6 - 36, y0 + Math.sin(i * 0.9 + t * 2 + k) * 6);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "clay": {
+      // Kıyı çamuru: üst üste kil tabakaları ve yüzeylerine dizilen yapı taşları.
+      sky("#0d1430", "#2a2440", horizon * 0.7);
+      land(horizon * 0.7, 12);
+      for (let row = 0; row < 7; row++) {
+        const y = h * 0.9 - row * 26;
+        ctx.strokeStyle = ground(30 + row * 4);
+        ctx.lineWidth = 11;
+        ctx.beginPath();
+        ctx.moveTo(w * 0.1 + row * 10, y);
+        ctx.lineTo(w * 0.9 - row * 10, y);
+        ctx.stroke();
+        for (let i = 0; i < 12; i++) {
+          const settle = Math.min(1, p * 2.2);
+          const tx = w * 0.14 + row * 10 + (i * (w * 0.72 - row * 20)) / 12;
+          chip(el(i + row), tx + (rnd(i, row) - 0.5) * w * 0.5 * (1 - settle), y - 11 - (1 - settle) * rnd(i, row + 9) * h * 0.4, 5.5, 0.95);
+        }
+      }
+      break;
+    }
+    case "cyanosulfidic": {
+      // Morötesi ışınlar altında, akarsuların beslediği havuz.
+      sky("#100c2a", "#2d1f4a", horizon);
+      disc(w * 0.78, h * 0.16, 26, "#cdbcff");
+      ctx.strokeStyle = "rgba(170, 130, 255, 0.28)";
+      ctx.lineWidth = 10;
+      for (let i = 0; i < 7; i++) {
+        ctx.beginPath();
+        ctx.moveTo(w * 0.78, h * 0.16);
+        ctx.lineTo(w * (0.1 + i * 0.13) + Math.sin(t + i) * 12, h);
+        ctx.stroke();
+      }
+      hills(horizon, 60, 9);
+      land(horizon, 15);
+      const y = horizon + (h - horizon) * 0.55;
+      ctx.strokeStyle = liquid(34);
+      ctx.lineWidth = 6;
+      for (const side of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + side * w * 0.48, horizon + 6);
+        ctx.quadraticCurveTo(cx + side * w * 0.3, y - 30, cx + side * w * 0.2, y);
+        ctx.stroke();
+        const life = (t * 0.5) % 1;
+        disc(cx + side * w * (0.48 - life * 0.28), horizon + 6 + life * (y - horizon - 6), 5, side < 0 ? "#f1d84a" : "#6f8dfa");
+      }
+      pool(y, w * 0.24, (h - horizon) * 0.26);
+      break;
+    }
+    case "lipid_world": {
+      // Deniz yüzeyinde yanardöner yağ filmi ve filmden kopan keseler.
+      sky("#0d1430", "#2a2440", horizon * 0.8);
+      sea(horizon * 0.8, 17, 7);
+      const film = ctx.createLinearGradient(0, 0, w, 0);
+      for (let i = 0; i <= 6; i++) film.addColorStop(i / 6, `hsl(${(i * 60 + t * 40) % 360} 80% 70% / 0.55)`);
+      ctx.strokeStyle = film;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 12) ctx.lineTo(x, horizon * 0.8 + Math.sin(x * 0.025 + t * 1.6) * 7 + Math.sin(x * 0.011 - t) * 7);
+      ctx.stroke();
+      for (let i = 0; i < 16; i++) {
+        const life = (t * 0.18 + rnd(i, 1)) % 1;
+        ctx.strokeStyle = "rgba(226, 192, 138, 0.9)";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(rnd(i, 2) * w, horizon * 0.8 + 20 + life * (h - horizon * 0.8 - 40), 8 + rnd(i, 3) * 14, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "panspermia": {
+      // Karbonlu göktaşı yağmuru.
+      stars();
+      land(h * 0.72, 14);
+      hills(h * 0.72, 40, 9);
+      for (let i = 0; i < 9; i++) {
+        const life = (t * 0.45 + rnd(i, 1)) % 1;
+        const x = rnd(i, 2) * w * 0.9 + w * 0.2 - life * w * 0.35;
+        const y = life * h * 0.72;
+        ctx.strokeStyle = `rgba(255, 196, 120, ${1 - life * 0.4})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 38, y - 66);
+        ctx.stroke();
+        disc(x, y, 5, "#3a3030");
+        if (life > 0.9) chip(el(i), x, h * 0.72 - (life - 0.9) * 200, 8, 1);
+      }
+      break;
+    }
+    case "ice": {
+      // Buz kristalleri ve aralarındaki sıvı damarları.
+      ctx.fillStyle = "#b9cfe0";
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = liquid(38);
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      for (let v = 0; v < 7; v++) {
+        const points: [number, number][] = [];
+        let x = rnd(v, 1) * w;
+        let y = 0;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        for (let k = 0; k < 8; k++) {
+          x += (rnd(v, k + 2) - 0.5) * w * 0.22;
+          y += h / 7;
+          ctx.lineTo(x, y);
+          points.push([x, y]);
+        }
+        ctx.stroke();
+        points.forEach(([px, py], k) => {
+          if (k % 2 === 0) chip(el(v + k), px, py - Math.sin(t + k) * 6, 6, 0.95);
+        });
+      }
+      for (let i = 0; i < 40; i++) disc(rnd(i, 7) * w, (rnd(i, 8) * h + t * 12) % h, 2, "rgba(255,255,255,0.8)");
+      break;
+    }
+    case "pah_world": {
+      // Yıldızlararası bulutta süzülüp istiflenen altıgen karbon halkaları.
+      stars();
+      const neb = ctx.createRadialGradient(cx, h * 0.45, 10, cx, h * 0.45, Math.max(w, h) * 0.6);
+      neb.addColorStop(0, "rgba(138, 125, 255, 0.28)");
+      neb.addColorStop(1, "rgba(0,0,0,0)");
+      ctx.fillStyle = neb;
+      ctx.fillRect(0, 0, w, h);
+      const join = Math.min(1, p * 1.6);
+      for (let i = 0; i < 14; i++) {
+        const fx = rnd(i, 1) * w;
+        const fy = rnd(i, 2) * h;
+        const x = fx + (cx - fx) * join + Math.sin(t + i) * 6;
+        const y = fy + (h * 0.2 + i * (h * 0.6) / 14 - fy) * join;
+        ctx.strokeStyle = "#b7bed6";
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        for (let k = 0; k <= 6; k++) ctx.lineTo(x + Math.cos((k / 6) * Math.PI * 2 + (1 - join) * (t + i)) * 34, y + Math.sin((k / 6) * Math.PI * 2 + (1 - join) * (t + i)) * 12);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "zinc_world": {
+      // Gözenekli çinko sülfür çökeltisi ve üstüne düşen ışık demetleri.
+      sky("#101733", "#2c3157", h * 0.4);
+      ctx.fillStyle = "#c9cbd8";
+      ctx.fillRect(0, h * 0.4, w, h * 0.6);
+      for (let i = 0; i < 70; i++) disc(rnd(i, 1) * w, h * 0.44 + rnd(i, 2) * h * 0.54, 5 + rnd(i, 3) * 13, liquid(22));
+      for (let i = 0; i < 6; i++) {
+        const x = w * (0.1 + i * 0.16) + Math.sin(t * 0.6 + i) * 14;
+        const beam = ctx.createLinearGradient(0, 0, 0, h);
+        beam.addColorStop(0, "rgba(255, 240, 170, 0.5)");
+        beam.addColorStop(1, "rgba(255, 240, 170, 0)");
+        ctx.fillStyle = beam;
+        ctx.beginPath();
+        ctx.moveTo(x - 8, 0);
+        ctx.lineTo(x + 8, 0);
+        ctx.lineTo(x + 46, h);
+        ctx.lineTo(x - 46, h);
+        ctx.fill();
+      }
+      break;
+    }
+    case "tidal": {
+      // Büyük bir uydu ve kumsalda ileri geri gidip gelen kıyı çizgisi.
+      sky("#070b1c", "#1e2444", horizon);
+      stars();
+      disc(w * 0.74, h * 0.2, Math.min(w, h) * 0.13, "#d7d3c4");
+      disc(w * 0.74 - 14, h * 0.2 - 10, Math.min(w, h) * 0.03, "#bdb8a6");
+      ctx.fillStyle = ground(24);
+      ctx.beginPath();
+      ctx.moveTo(0, horizon + 10);
+      ctx.lineTo(w, h * 0.92);
+      ctx.lineTo(w, h);
+      ctx.lineTo(0, h);
+      ctx.fill();
+      const tide = 0.5 + Math.sin(t * 1.2) * 0.4;
+      ctx.fillStyle = liquid(24, 0.92);
+      ctx.beginPath();
+      ctx.moveTo(w * tide, horizon + 10 + (h * 0.92 - horizon - 10) * tide);
+      ctx.lineTo(w, horizon + 4);
+      ctx.lineTo(w, h * 0.92);
+      ctx.fill();
+      for (let i = 0; i < 14; i++) {
+        const k = 0.2 + rnd(i, 1) * 0.6;
+        chip(el(i), w * k, horizon + 4 + (h * 0.92 - horizon - 10) * k, 6.5, k < tide ? 1 : 0.55);
+      }
+      break;
+    }
+    case "radioactive_beach": {
+      // Kumsalda koyu, ışıyan ağır mineral şeritleri.
+      sky("#0d1430", "#2a2440", horizon);
+      sea(horizon - 20, 16, 4);
+      land(horizon + 16, 24);
+      for (let row = 0; row < 4; row++) {
+        ctx.strokeStyle = "#1c1a22";
+        ctx.lineWidth = 12;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 20) ctx.lineTo(x, horizon + 60 + row * 42 + Math.sin(x * 0.012 + row) * 9);
+        ctx.stroke();
+        for (let i = 0; i < 7; i++) {
+          const x = rnd(i, row) * w;
+          const y = horizon + 60 + row * 42 + Math.sin(x * 0.012 + row) * 9;
+          const life = (t * 0.7 + rnd(i, row + 5)) % 1;
+          ctx.strokeStyle = `rgba(150, 255, 170, ${(1 - life) * 0.8})`;
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(x, y, 4 + life * 30, 0, Math.PI * 2);
+          ctx.stroke();
+          disc(x, y, 4, "#9dffb0");
+        }
+      }
+      break;
+    }
+    case "coacervate": {
+      // Sıvının içinde birleşip büyüyen zarsız damlacıklar.
+      ctx.fillStyle = liquid(9);
+      ctx.fillRect(0, 0, w, h);
+      const merge = Math.min(1, p * 1.3);
+      for (let i = 0; i < 26; i++) {
+        const home = i % 5;
+        const hx = w * (0.14 + home * 0.18);
+        const hy = h * (0.3 + (home % 2) * 0.3);
+        const fx = rnd(i, 1) * w;
+        const fy = rnd(i, 2) * h;
+        const x = fx + (hx - fx) * merge + Math.sin(t * 0.8 + i) * 8;
+        const y = fy + (hy - fy) * merge + Math.cos(t * 0.7 + i) * 8;
+        const g = ctx.createRadialGradient(x, y, 2, x, y, 34 + merge * 26);
+        g.addColorStop(0, "rgba(255, 214, 170, 0.5)");
+        g.addColorStop(1, "rgba(255, 214, 170, 0)");
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, 34 + merge * 26, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case "aerosol": {
+      // Kırılan dalgalardan havaya savrulan, zarla kaplı damlacıklar.
+      sky("#0d1430", "#33304f", horizon);
+      sea(horizon, 17, 12);
+      for (let i = 0; i < 34; i++) {
+        const life = (t * 0.32 + rnd(i, 1)) % 1;
+        const x = rnd(i, 2) * w + life * 60;
+        const y = horizon - Math.sin(life * Math.PI) * h * (0.2 + rnd(i, 3) * 0.3);
+        disc(x, y, 5 + rnd(i, 4) * 5, liquid(60, 0.7));
+        ctx.strokeStyle = "rgba(226, 192, 138, 0.9)";
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.arc(x, y, 6.5 + rnd(i, 4) * 5, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "formamide": {
+      // Kızgın koyu kayaç üzerinde buharlaşıp derişen damlalar.
+      sky("#160d12", "#3a1c18", horizon);
+      ctx.fillStyle = "#1a1416";
+      ctx.fillRect(0, horizon, w, h - horizon);
+      const glow = ctx.createLinearGradient(0, horizon, 0, h);
+      glow.addColorStop(0, "rgba(255, 110, 50, 0)");
+      glow.addColorStop(1, "rgba(255, 110, 50, 0.35)");
+      ctx.fillStyle = glow;
+      ctx.fillRect(0, horizon, w, h - horizon);
+      for (let i = 0; i < 9; i++) {
+        const x = w * (0.08 + i * 0.105);
+        const y = horizon + 30 + rnd(i, 1) * (h - horizon - 60);
+        const shrink = 1 - ((t * 0.25 + rnd(i, 2)) % 1) * 0.7;
+        ctx.fillStyle = liquid(40, 0.9);
+        ctx.beginPath();
+        ctx.ellipse(x, y, 30 * shrink, 10 * shrink, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let k = 0; k < 4; k++) {
+          const life = (t * 0.5 + rnd(k, i)) % 1;
+          ctx.globalAlpha = (1 - life) * 0.4;
+          disc(x + Math.sin(life * 6 + k) * 12, y - life * 120, 6 + life * 10, "#e9dccf");
+        }
+        ctx.globalAlpha = 1;
+      }
+      break;
+    }
+    case "impact_crater": {
+      // Çarpma, ardından sıvıyla dolan ve buharı tüten krater.
+      stars();
+      land(h * 0.7, 13);
+      const hit = Math.min(1, p * 3);
+      if (hit < 1) {
+        ctx.strokeStyle = "#ffd9a0";
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(cx + (1 - hit) * w * 0.3, h * 0.7 * hit - 40);
+        ctx.lineTo(cx + (1 - hit) * w * 0.3 + 40, h * 0.7 * hit - 110);
+        ctx.stroke();
+      } else {
+        const flash = Math.max(0, Math.min(1, 1 - (p - 0.34) * 4));
+        disc(cx, h * 0.7, flash * Math.max(w, h) * 0.5, `rgba(255, 230, 190, ${flash * 0.8})`);
+        ctx.fillStyle = ground(8);
+        ctx.beginPath();
+        ctx.ellipse(cx, h * 0.74, w * 0.3, h * 0.11, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = liquid(26);
+        ctx.beginPath();
+        ctx.ellipse(cx, h * 0.75, w * 0.24 * Math.max(0, Math.min(1, (p - 0.34) * 2)), h * 0.07, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let i = 0; i < 14; i++) {
+          const life = (t * 0.3 + rnd(i, 1)) % 1;
+          ctx.globalAlpha = (1 - life) * 0.3;
+          disc(cx + (rnd(i, 2) - 0.5) * w * 0.4, h * 0.74 - life * h * 0.4, 14 + life * 24, "#dfe6f5");
+        }
+        ctx.globalAlpha = 1;
+      }
+      break;
+    }
+    default: {
+      // Pomza salları: deniz yüzeyinde yüzen gözenekli volkanik taşlar.
+      sky("#0d1430", "#3b2a30", horizon);
+      ctx.fillStyle = ground(7);
+      ctx.beginPath();
+      ctx.moveTo(w * 0.62, horizon);
+      ctx.lineTo(w * 0.78, horizon - h * 0.26);
+      ctx.lineTo(w * 0.86, horizon - h * 0.26);
+      ctx.lineTo(w, horizon);
+      ctx.fill();
+      for (let i = 0; i < 12; i++) {
+        const life = (t * 0.25 + rnd(i, 9)) % 1;
+        ctx.globalAlpha = (1 - life) * 0.4;
+        disc(w * 0.82 + Math.sin(life * 4 + i) * 30, horizon - h * 0.26 - life * h * 0.25, 12 + life * 22, "#8d8690");
+      }
+      ctx.globalAlpha = 1;
+      sea(horizon, 16, 6);
+      for (let i = 0; i < 9; i++) {
+        const x = ((rnd(i, 1) * w + t * 14) % (w + 120)) - 60;
+        const y = horizon + 10 + rnd(i, 2) * (h - horizon) * 0.5 + Math.sin(t * 1.6 + i) * 5;
+        const r = 16 + rnd(i, 3) * 20;
+        ctx.fillStyle = "#b9b0a8";
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r * 0.62, 0, 0, Math.PI * 2);
+        ctx.fill();
+        for (let k = 0; k < 6; k++) disc(x + (rnd(k, i) - 0.5) * r * 1.3, y + (rnd(k, i + 3) - 0.5) * r * 0.7, 2.6, "rgba(4, 6, 14, 0.5)");
+      }
+    }
+  }
+}
+
 
 const SCENE_SECONDS = 5.2;
 
@@ -754,162 +1402,7 @@ export class OriginFilm {
         chip(e.sym, cx + Math.cos(a) * orbit * (w < h ? 0.92 : 1.25), cy + Math.sin(a) * orbit * (w < h ? 1.25 : 0.92), 11 + Math.sqrt(e.share) * (w < 620 ? 16 : 26), appear);
       });
     } else if (scene === 1) {
-      const kind = c.origin.scene;
-      const floor = kind === "vent" ? h * 0.84 : h * 0.6;
-      if (kind === "space") stars();
-      if (kind === "vent") {
-        ctx.fillStyle = liquid(9);
-        ctx.fillRect(0, 0, w, h);
-        ctx.fillStyle = ground(13);
-        ctx.fillRect(0, floor, w, h - floor);
-        for (let v = 0; v < 3; v++) {
-          const vx = w * (0.22 + v * 0.28);
-          const vh = h * (0.16 + rnd(v, 5) * 0.14);
-          ctx.fillStyle = ground(20);
-          ctx.beginPath();
-          ctx.moveTo(vx - 26, floor);
-          ctx.lineTo(vx - 9, floor - vh);
-          ctx.lineTo(vx + 9, floor - vh);
-          ctx.lineTo(vx + 26, floor);
-          ctx.fill();
-          for (let i = 0; i < 26; i++) {
-            const life = (t * 0.35 + rnd(i, v) * 1) % 1;
-            ctx.fillStyle = `rgba(255, 214, 150, ${(1 - life) * 0.7})`;
-            ctx.beginPath();
-            ctx.arc(vx + Math.sin(life * 7 + i) * 22 * life, floor - vh - life * h * 0.5, 2 + life * 5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      } else if (kind === "ice") {
-        ctx.fillStyle = "#b9cfe0";
-        ctx.fillRect(0, 0, w, h);
-        ctx.strokeStyle = liquid(38);
-        ctx.lineWidth = 7;
-        ctx.lineCap = "round";
-        for (let v = 0; v < 7; v++) {
-          ctx.beginPath();
-          let x = rnd(v, 1) * w;
-          let y = 0;
-          ctx.moveTo(x, y);
-          for (let s = 0; s < 8; s++) {
-            x += (rnd(v, s + 2) - 0.5) * w * 0.22;
-            y += h / 7;
-            ctx.lineTo(x, y);
-          }
-          ctx.stroke();
-        }
-        for (let i = 0; i < 40; i++) {
-          ctx.fillStyle = "rgba(255,255,255,0.8)";
-          ctx.beginPath();
-          ctx.arc(rnd(i, 7) * w, (rnd(i, 8) * h + t * 12) % h, 2, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      } else {
-        // gökyüzü, yer ve sıvı: havuz, gökyüzü, uzay ve mineral sahnelerinin ortak zemini
-        const sky = ctx.createLinearGradient(0, 0, 0, floor);
-        sky.addColorStop(0, kind === "space" ? "#05070f" : "#0d1430");
-        sky.addColorStop(1, kind === "space" ? "#0d1430" : "#2a2440");
-        if (kind !== "space") {
-          ctx.fillStyle = sky;
-          ctx.fillRect(0, 0, w, floor);
-        }
-        // ufuktaki tepeler
-        ctx.fillStyle = ground(9);
-        ctx.beginPath();
-        ctx.moveTo(0, floor);
-        for (let x = 0; x <= w; x += 24) ctx.lineTo(x, floor - 18 - Math.abs(Math.sin(x * 0.006 + c.seed) * 60 + Math.sin(x * 0.021) * 22));
-        ctx.lineTo(w, floor);
-        ctx.fill();
-        ctx.fillStyle = ground(15);
-        ctx.fillRect(0, floor, w, h - floor);
-        const level = kind === "pool" ? 0.5 + Math.sin(t * 1.4) * 0.45 : 1;
-        const poolY = floor + (h - floor) * 0.48;
-        const poolRx = w * 0.36 * (0.6 + level * 0.4);
-        const poolRy = (h - floor) * 0.3 * (0.5 + level * 0.5);
-        ctx.fillStyle = ground(22);
-        ctx.beginPath();
-        ctx.ellipse(cx, poolY, w * 0.38, (h - floor) * 0.34, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = liquid(26);
-        ctx.beginPath();
-        ctx.ellipse(cx, poolY, poolRx, poolRy, 0, 0, Math.PI * 2);
-        ctx.fill();
-        if (kind === "pool") {
-          ctx.fillStyle = "rgba(255, 220, 150, 0.9)";
-          ctx.beginPath();
-          ctx.arc(w * 0.8, h * 0.2, 22, 0, Math.PI * 2);
-          ctx.fill();
-          for (let i = 0; i < 30; i++) {
-            const a = rnd(i, 1) * Math.PI * 2;
-            const k = 0.25 + rnd(i, 2) * 0.65;
-            chip(c.elements[i % 10].sym, cx + Math.cos(a) * poolRx * k, poolY + Math.sin(a) * poolRy * k, 8, 0.95);
-          }
-        } else if (kind === "sky") {
-          for (let i = 0; i < 5; i++) {
-            ctx.fillStyle = "rgba(120, 124, 160, 0.55)";
-            ctx.beginPath();
-            ctx.ellipse(((rnd(i, 1) * w + t * 10) % (w + 160)) - 80, h * (0.12 + rnd(i, 2) * 0.16), 90, 22, 0, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          const strike = Math.floor(t * 1.6);
-          if ((t * 1.6) % 1 < 0.22) {
-            ctx.strokeStyle = "#f4f1ff";
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            let x = w * (0.2 + rnd(strike, 9) * 0.6);
-            let y = h * 0.2;
-            ctx.moveTo(x, y);
-            while (y < floor) {
-              x += (rnd(strike, y) - 0.5) * 46;
-              y += 22;
-              ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-            ctx.fillStyle = "rgba(255,255,255,0.08)";
-            ctx.fillRect(0, 0, w, h);
-          }
-          for (let i = 0; i < 50; i++) {
-            ctx.fillStyle = liquid(70, 0.5);
-            ctx.fillRect(rnd(i, 4) * w, (rnd(i, 5) * floor + t * 160) % floor, 1.4, 8);
-          }
-        } else if (kind === "space") {
-          for (let i = 0; i < 6; i++) {
-            const life = (t * 0.45 + rnd(i, 1)) % 1;
-            const sx = rnd(i, 2) * w * 0.8 + w * 0.25;
-            const x = sx - life * w * 0.35;
-            const y = life * floor;
-            ctx.strokeStyle = `rgba(255, 196, 120, ${1 - life * 0.4})`;
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + 34, y - 60);
-            ctx.stroke();
-            if (life > 0.93) {
-              ctx.fillStyle = "rgba(255, 220, 170, 0.8)";
-              ctx.beginPath();
-              ctx.arc(x, floor, 26 * (life - 0.9) * 10, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-        } else {
-          // mineral: tabakalar ve üzerlerinde dizilen parçacıklar
-          for (let row = 0; row < 6; row++) {
-            const y = floor - 12 - row * 22;
-            ctx.strokeStyle = ground(34 + row * 3);
-            ctx.lineWidth = 9;
-            ctx.beginPath();
-            ctx.moveTo(w * 0.12 + row * 8, y);
-            ctx.lineTo(w * 0.88 - row * 8, y);
-            ctx.stroke();
-            for (let i = 0; i < 12; i++) {
-              const settle = Math.min(1, p * 2.2);
-              const tx = w * 0.16 + row * 8 + (i * (w * 0.68 - row * 16)) / 12;
-              const x = tx + (rnd(i, row) - 0.5) * w * 0.5 * (1 - settle);
-              chip(c.elements[(i + row) % 10].sym, x, y - 10 - (1 - settle) * rnd(i, row + 9) * h * 0.4, 5, 0.9);
-            }
-          }
-        }
-      }
+      drawOriginScene(ctx, c, w, h, t, p, { liquid, ground, rnd, stars, chip });
     } else if (scene === 2) {
       ctx.fillStyle = liquid(8);
       ctx.fillRect(0, 0, w, h);

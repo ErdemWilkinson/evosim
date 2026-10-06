@@ -1,6 +1,6 @@
-import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, Genome, IN } from "./genome";
+import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, GENE_BOUNDS, Genome, IN } from "./genome";
 import { CATEGORY_LABEL, ORGANS, ORGAN_SLOTS, ORGAN_TYPES, OrganCategory, OrganType, STAGE_LABEL } from "./organs";
-import { ELEMENTS } from "./chemistry";
+import { ELEMENTS, GeneticOption } from "./chemistry";
 import { PlanetProfile } from "./planet";
 import { CreatureDetail, SpeciesInfo, UiPayload } from "./protocol";
 import { Theme, drawCreature } from "./render";
@@ -323,7 +323,7 @@ export function planetHtml(planet: PlanetProfile, actions = true): string {
     fact("İskelet", esc(c.scaffold.name)) +
     fact("Zar", esc(c.membrane.name)) +
     fact("Hücre duvarı", esc(c.wall.name)) +
-    fact("Kalıtım", esc(c.genetic.name)) +
+    fact("Kalıtım", esc(c.genetic.name), `kopyalama hatası ×${nf(c.genetic.error, 2)}`) +
     fact("Enerji", esc(c.energy.name)) +
     fact("Katalizör", esc(c.catalyst.name)) +
     fact("Işık pigmenti", esc(c.pigment.name)) +
@@ -360,64 +360,116 @@ const TRAIT_GENES: [keyof Genome, string][] = [
 ];
 
 const DNA_STEP = 7;
-const dnaY = (i: number, phase: number): number => 23 + Math.sin(i * 0.52 + phase) * 15;
+type StrandShape = GeneticOption["shape"];
 
-/** Görünen sarmalları kendi ekseni çevresinde döndürür: faz kaydıkça iplikler yer değiştirir. */
+/**
+ * Kalıtım yapısının çizim geometrisi: `i` numaralı genin basamağının iki ucu (y1, y2) ve
+ * varsa iki ipliğin o noktadaki yüksekliği. Biçim gezegenin kalıtım polimerinden gelir:
+ * çift sarmal, bükülmemiş merdiven, üst üste istif, tabaka, tek şerit ya da dizisiz bulut.
+ */
+function strandAt(shape: StrandShape, i: number, phase: number): [number, number, number | null, number | null] {
+  const wave = Math.sin(i * 0.52 + phase);
+  switch (shape) {
+    case "helix": {
+      const a = 23 + wave * 15;
+      const b = 23 - wave * 15;
+      return [a, b, a, b];
+    }
+    case "ladder": {
+      const lift = Math.sin(i * 0.3 + phase) * 3;
+      return [9 + lift, 37 + lift, 9 + lift, 37 + lift];
+    }
+    case "stack": {
+      const tilt = Math.sin(i * 0.9 + phase * 1.5) * 4;
+      return [12 + tilt, 34 + tilt, null, null];
+    }
+    case "sheet": {
+      const lift = Math.sin(i * 0.25 + phase) * 1.5;
+      return i % 2 === 0 ? [6 + lift, 21 + lift, 4, 42] : [25 + lift, 40 + lift, 4, 42];
+    }
+    case "ribbon": {
+      const spine = 23 + (i % 2 === 0 ? -5 : 5) + Math.sin(i * 0.2 + phase) * 4;
+      return [spine, spine + (i % 2 === 0 ? -13 : 13), spine, null];
+    }
+    default: {
+      const y = 23 + Math.sin(i * 2.4 + phase * (0.6 + (i % 5) * 0.2)) * 16;
+      return [y, y + 0.1, null, null];
+    }
+  }
+}
+
+function strandPaths(shape: StrandShape, count: number, phase: number, each: (i: number, y1: string, y2: string) => void): [string, string] {
+  let top = "";
+  let bottom = "";
+  for (let i = 0; i < count; i++) {
+    const x = 3 + i * DNA_STEP + DNA_STEP / 2;
+    const [y1, y2, a, b] = strandAt(shape, i, phase);
+    if (a !== null) top += `${top === "" ? "M" : "L"}${x} ${a.toFixed(1)}`;
+    if (b !== null) bottom += `${bottom === "" ? "M" : "L"}${x} ${b.toFixed(1)}`;
+    each(i, y1.toFixed(1), y2.toFixed(1));
+  }
+  return [top, bottom];
+}
+
+/** Görünen kalıtım çizimlerini canlandırır: sarmal döner, öteki biçimler dalgalanır. */
 export function spinDna(phase: number): void {
   for (const svg of document.querySelectorAll<SVGSVGElement>("svg.dna")) {
     if (svg.getClientRects().length === 0) continue;
+    const lines = svg.querySelectorAll("line");
     const paths = svg.querySelectorAll("path");
-    let top = "";
-    let bottom = "";
-    svg.querySelectorAll("line").forEach((line, i) => {
-      const x = 3 + i * DNA_STEP + DNA_STEP / 2;
-      const a = dnaY(i, phase).toFixed(1);
-      const b = dnaY(i, phase + Math.PI).toFixed(1);
-      top += `${i === 0 ? "M" : "L"}${x} ${a}`;
-      bottom += `${i === 0 ? "M" : "L"}${x} ${b}`;
-      line.setAttribute("y1", a);
-      line.setAttribute("y2", b);
+    const [top, bottom] = strandPaths((svg.dataset.shape ?? "helix") as StrandShape, lines.length, phase, (i, y1, y2) => {
+      lines[i].setAttribute("y1", y1);
+      lines[i].setAttribute("y2", y2);
     });
     paths[0]?.setAttribute("d", top);
     paths[1]?.setAttribute("d", bottom);
   }
 }
 
+const SHAPE_NOTE: Record<StrandShape, string> = {
+  helix: "İki iplik birbirine sarılır; her basamak bir gen.",
+  ladder: "İki iplik bükülmeden yan yana uzanır; her basamak bir gen.",
+  stack: "İplik yoktur: düz halkalar üst üste dizilir, her halka bir gen taşır.",
+  sheet: "Genler kristal tabakadaki tuğlalar gibi iki sıra hâlinde dizilir.",
+  ribbon: "Tek bir omurga; genler omurgadan iki yana sarkan yan gruplardır.",
+  cloud: "Dizili bir zincir yoktur: her nokta bir bileşen oranıdır ve kese bölünürken yavruya geçer.",
+};
+
 /**
- * Genomu bir çift sarmal olarak çizer: her basamak bir gen. Değeri ilk canlıdakiyle
- * birebir aynı kalan genler parlak, mutasyonla değişenler mor, sonradan kazanılan
- * organ genleri turuncu görünür. Karşılaştırma tam eşitlikle yapılır: bir gen hiç
- * mutasyona uğramadıysa nesiller boyunca aynı sayıyı taşır.
+ * Genomu gezegenin kalıtım yapısının biçiminde çizer: her basamak bir gen. Değeri ilk
+ * canlıdakiyle aynı kalan genler parlak, mutasyonla değişenler mor, sonradan kazanılan
+ * organ genleri turuncu görünür. Renk tonu dışındaki sayısal genlerde %2'den küçük
+ * kayma "değişmedi" sayılır; bir genin üzerine gelince ne kadar değiştiği yazar.
  */
-export function dnaHtml(g: Genome, origin: Genome | null): string {
+export function dnaHtml(g: Genome, origin: Genome | null, genetic: GeneticOption): string {
   if (!origin) return `<p class="foot">İlk canlının genomu bu kayıtta yok.</p>`;
-  const genes: { name: string; kind: 0 | 1 | 2 }[] = [];
-  for (const [key, name] of NUMERIC_GENES) genes.push({ name, kind: Math.abs((g[key] as number) - (origin[key] as number)) < 1e-9 ? 0 : 1 });
-  for (const [key, name] of TRAIT_GENES) genes.push({ name, kind: g[key] === origin[key] ? 0 : 1 });
-  for (let i = 0; i < origin.brain.length; i++) {
-    genes.push({ name: `Karar ağı: ${BRAIN_INPUTS[i % IN]} → ${BRAIN_ACTIONS[Math.floor(i / IN)]}`, kind: Math.abs((g.brain[i] ?? 0) - origin.brain[i]) < 1e-9 ? 0 : 1 });
+  const genes: { name: string; kind: 0 | 1 | 2; detail: string }[] = [];
+  const numeric = (name: string, now: number, then: number, span: number): void => {
+    const shift = (now - then) / span;
+    const kind = Math.abs(shift) < 0.02 ? 0 : 1;
+    genes.push({ name, kind, detail: kind === 0 ? "ilk canlıdaki değerde" : `ilk canlıya göre aralığın %${Math.round(Math.abs(shift) * 100)} kadarı ${shift > 0 ? "arttı" : "azaldı"}` });
+  };
+  for (const [key, name] of NUMERIC_GENES) {
+    const bounds = GENE_BOUNDS[key as keyof typeof GENE_BOUNDS];
+    numeric(name, g[key] as number, origin[key] as number, bounds ? bounds[1] - bounds[0] : key === "hue" ? 360 : 100);
   }
-  for (const organ of g.organs) genes.push({ name: `Organ: ${ORGANS[organ.type].label}`, kind: 2 });
-  const step = DNA_STEP;
-  const width = genes.length * step + 6;
-  const KIND = ["ilk canlıdan beri değişmedi", "mutasyonla değişti", "sonradan kazanıldı"];
-  const y = dnaY;
-  let top = "";
-  let bottom = "";
+  for (const [key, name] of TRAIT_GENES) genes.push({ name, kind: g[key] === origin[key] ? 0 : 1, detail: g[key] === origin[key] ? "ilk canlıdaki gibi" : "değişti" });
+  for (let i = 0; i < origin.brain.length; i++) numeric(`Karar ağı: ${BRAIN_INPUTS[i % IN]} → ${BRAIN_ACTIONS[Math.floor(i / IN)]}`, g.brain[i] ?? 0, origin.brain[i], 16);
+  for (const organ of g.organs) genes.push({ name: `Organ: ${ORGANS[organ.type].label}`, kind: 2, detail: "sonradan kazanıldı" });
+  const width = genes.length * DNA_STEP + 6;
   let rungs = "";
-  genes.forEach((gene, i) => {
-    const x = 3 + i * step + step / 2;
-    top += `${i === 0 ? "M" : "L"}${x} ${y(i, 0).toFixed(1)}`;
-    bottom += `${i === 0 ? "M" : "L"}${x} ${y(i, Math.PI).toFixed(1)}`;
-    rungs += `<line class="dna-${gene.kind}" x1="${x}" x2="${x}" y1="${y(i, 0).toFixed(1)}" y2="${y(i, Math.PI).toFixed(1)}"><title>${esc(gene.name)}: ${KIND[gene.kind]}</title></line>`;
+  const [top, bottom] = strandPaths(genetic.shape, genes.length, 0, (i, y1, y2) => {
+    const x = 3 + i * DNA_STEP + DNA_STEP / 2;
+    rungs += `<line class="dna-${genes[i].kind}" x1="${x}" x2="${x}" y1="${y1}" y2="${y2}"><title>${esc(genes[i].name)}: ${genes[i].detail}</title></line>`;
   });
   const counts = [0, 1, 2].map((k) => genes.filter((gene) => gene.kind === k).length);
   const inherited = genes.length - counts[2];
   return (
-    `<div class="dna-wrap"><svg class="dna" viewBox="0 0 ${width} 46" preserveAspectRatio="none" role="img" aria-label="DNA zinciri: ${counts[0]} gen ilk canlıyla aynı">` +
+    `<p class="foot" style="margin-bottom:4px"><b style="color:var(--ink)">${esc(genetic.name)}.</b> ${SHAPE_NOTE[genetic.shape]}</p>` +
+    `<div class="dna-wrap"><svg class="dna dna-${genetic.shape}" data-shape="${genetic.shape}" viewBox="0 0 ${width} 46" preserveAspectRatio="none" role="img" aria-label="Kalıtım yapısı: ${counts[0]} gen ilk canlıyla aynı">` +
     `<path class="dna-strand" d="${top}"/><path class="dna-strand" d="${bottom}"/>${rungs}</svg></div>` +
     `<div class="legend"><span><i class="sw dna-sw0"></i>İlk canlıdan kalan<b>${counts[0]}</b></span><span><i class="sw dna-sw1"></i>Değişen<b>${counts[1]}</b></span><span><i class="sw dna-sw2"></i>Yeni organ geni<b>${counts[2]}</b></span></div>` +
-    `<p class="foot">Atadan devralınan ${inherited} genin ${counts[0]} tanesi (${pct(counts[0] / inherited)}) hâlâ ilk canlıdaki değeri taşıyor. Bir basamağın üzerine gelince hangi gen olduğu görünür.</p>`
+    `<p class="foot">Atadan devralınan ${inherited} genin ${counts[0]} tanesi (${pct(counts[0] / inherited)}) hâlâ ilk canlıdaki değere yakın. Bir genin üzerine gelince adı ve ne kadar değiştiği görünür. Bu polimerin kopyalama hatası çarpanı ×${nf(genetic.error, 2)}.</p>`
   );
 }
 
@@ -474,7 +526,7 @@ export function speciesSkeleton(s: SpeciesInfo, aiAvailable: boolean): string {
     `<div class="facts" id="sp-facts"></div>` +
     `<section class="block"><h3>Popülasyon <span>birey sayısı</span></h3><div class="chart chart-short" id="sp-chart"><canvas></canvas><div class="tip" hidden></div></div></section>` +
     `<section class="block"><h3>Organ dağılımı <span>taşıyan oranı · ort. güç</span></h3><div class="bars" id="sp-organs"></div></section>` +
-    `<section class="block"><h3>DNA zinciri <span>tip örneği, ilk canlıya göre</span></h3><div id="sp-dna"></div></section>` +
+    `<section class="block"><h3>Kalıtım yapısı <span>tip örneği, ilk canlıya göre</span></h3><div id="sp-dna"></div></section>` +
     `<section class="block"><h3>Karar ağı <span>tür ortalaması</span></h3><div id="sp-brain"></div></section>` +
     `<section class="block"><h3>Akrabalık</h3><div class="history" id="sp-kin"></div></section>` +
     aiBlock("species", aiAvailable) +
@@ -578,7 +630,7 @@ export function creatureSkeleton(id: number, aiAvailable: boolean): string {
     `<div class="meters" id="cr-meters"></div>` +
     `<div class="facts" id="cr-facts"></div>` +
     `<section class="block"><h3>Organlar <span id="cr-slots"></span></h3><div id="cr-organs"></div><div id="cr-edit"></div></section>` +
-    `<section class="block"><h3>DNA zinciri <span>ilk canlıya göre</span></h3><div id="cr-dna"></div></section>` +
+    `<section class="block"><h3>Kalıtım yapısı <span>ilk canlıya göre</span></h3><div id="cr-dna"></div></section>` +
     `<section class="block"><h3>Karar ağı <span>girdi → eylem ağırlıkları</span></h3><div id="cr-brain"></div>` +
     `<p class="foot">Her eylemin puanı, o satırdaki ağırlıkların girdilerle çarpımının toplamıdır; en yüksek puanlı eylem seçilir. Ağırlıklar kalıtılır ve mutasyona uğrar.</p></section>` +
     `<section class="block"><h3>Soy geçmişi <span id="cr-chain"></span></h3><div class="history" id="cr-history"></div></section>` +
