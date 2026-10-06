@@ -1,4 +1,4 @@
-import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, GENE_BOUNDS, Genome, IN } from "./genome";
+import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, Diet, GENE_BOUNDS, Genome, IN } from "./genome";
 import { CATEGORY_LABEL, ORGANS, ORGAN_SLOTS, ORGAN_TYPES, OrganCategory, OrganType, STAGE_LABEL } from "./organs";
 import { ELEMENTS, GeneticOption } from "./chemistry";
 import { PlanetProfile } from "./planet";
@@ -361,6 +361,41 @@ const TRAIT_GENES: [keyof Genome, string][] = [
   ["packHunter", "Sürü avcılığı"],
 ];
 
+/** Sayısal genlerin ne işe yaradığı (gen kartında gösterilir). */
+const GENE_NOTE: Partial<Record<keyof Genome, string>> = {
+  radius: "Beden büyüklüğü. Büyük beden yavaştır ama birim kütle başına az enerji harcar; sık örtüde yavaşlar.",
+  hue: "Gövdenin renk tonu. Yalnızca görünüştür; türleri gözle ayırt etmeye yarar.",
+  saturation: "Gövde renginin doygunluğu. Yalnızca görünüştür.",
+  lightness: "Gövde renginin açıklığı. Yalnızca görünüştür.",
+  moveSpeed: "Taban hız. Yüzgeç, bacak ve beden büyüklüğü bunun üstüne eklenir.",
+  senseRadius: "Besini, avı ve tehdidi fark ettiği uzaklık.",
+  metabolism: "Saniyede harcanan enerjinin çarpanı. Düşük olan açlığa daha uzun dayanır.",
+  divideEnergyFraction: "Bölünmek için enerjinin azami enerjiye oranla ne kadar dolması gerektiği.",
+  maxLifespan: "Yaşlılıktan ölmeden önce yaşayabileceği en uzun süre (saniye).",
+  ornament: "Erkekte süs. Eş seçiminde çekiciliği artırır; karşılığında metabolizmayı ve avcılara görünürlüğü yükseltir.",
+  virulence: "Parazitin emiş gücü. Çok emen konağını tüketir ve o oranda erken atılır, az emen aç kalır.",
+  gutBias: "Hepçil ve çürükçülde sindirimin yönü: 0 ete, 1 bitkiye uzmanlaşmış. İkisi birden en iyi olamaz.",
+  stage: "Örgütlenme düzeyi: organ yuvası sayısını, beden aralığını ve hangi organların mümkün olduğunu belirler.",
+  diet: "Beslenme biçimi: enerjinin nereden geldiği.",
+  reproductionStrategy: "Eşeysiz bölünme ya da eşeyli üreme.",
+  laysEggs: "Yavru canlı mı doğar, yumurtadan mı çıkar. Yalnızca çok hücrelide ortaya çıkabilir.",
+  packHunter: "Aynı türden sürü avcılarının yanında saldırı gücü artar. Yalnızca çok hücrelide ortaya çıkabilir.",
+};
+
+/** Kalıtım çiziminde seçili gen (adıyla). Kartlar yeniden çizilirken seçim korunur. */
+let dnaPick = "";
+/** Bir geni seçer; aynı gene yeniden tıklanınca seçim kalkar. */
+export function pickGene(name: string): void {
+  dnaPick = dnaPick === name ? "" : name;
+}
+
+function traitText(key: keyof Genome, value: unknown): string {
+  if (key === "stage") return STAGE_LABEL[value as number];
+  if (key === "diet") return DIET_LABEL[value as Diet];
+  if (key === "reproductionStrategy") return value === "sexual" ? "eşeyli" : "eşeysiz";
+  return value ? "var" : "yok";
+}
+
 const DNA_STEP = 7;
 type StrandShape = GeneticOption["shape"];
 
@@ -445,33 +480,65 @@ const SHAPE_NOTE: Record<StrandShape, string> = {
  */
 export function dnaHtml(g: Genome, origin: Genome | null, genetic: GeneticOption): string {
   if (!origin) return `<p class="foot">İlk canlının genomu bu kayıtta yok.</p>`;
-  const genes: { name: string; kind: 0 | 1 | 2; detail: string }[] = [];
-  const numeric = (name: string, now: number, then: number, span: number): void => {
+  const genes: { name: string; kind: 0 | 1 | 2; detail: string; note: string; body: string }[] = [];
+  // Sayısal gen: aralık üstünde ilk canlının ve şimdiki değerin yeri.
+  const numeric = (name: string, now: number, then: number, min: number, max: number, note: string, digits: number): void => {
+    const span = max - min;
     const shift = (now - then) / span;
     const kind = Math.abs(shift) < 0.02 ? 0 : 1;
-    genes.push({ name, kind, detail: kind === 0 ? "ilk canlıdaki değerde" : `ilk canlıya göre aralığın %${Math.round(Math.abs(shift) * 100)} kadarı ${shift > 0 ? "arttı" : "azaldı"}` });
+    const at = (v: number): string => (Math.min(1, Math.max(0, (v - min) / span)) * 100).toFixed(1);
+    genes.push({
+      name,
+      kind,
+      detail: kind === 0 ? "ilk canlıdaki değerde" : `ilk canlıya göre aralığın %${Math.round(Math.abs(shift) * 100)} kadarı ${shift > 0 ? "arttı" : "azaldı"}`,
+      note,
+      body:
+        `<div class="gene-scale" role="img" aria-label="Aralık ${nf(min, digits)} – ${nf(max, digits)}"><i class="then" style="left:${at(then)}%"></i><i class="now" style="left:${at(now)}%"></i></div>` +
+        `<div class="gene-vals"><span>${nf(min, digits)}</span><span>İlk canlı <b>${nf(then, digits)}</b></span><span>Şimdi <b>${nf(now, digits)}</b></span><span>${nf(max, digits)}</span></div>`,
+    });
   };
   for (const [key, name] of NUMERIC_GENES) {
-    const bounds = GENE_BOUNDS[key as keyof typeof GENE_BOUNDS];
-    numeric(name, g[key] as number, origin[key] as number, bounds ? bounds[1] - bounds[0] : key === "hue" ? 360 : 100);
+    const bounds = GENE_BOUNDS[key as keyof typeof GENE_BOUNDS] ?? (key === "hue" ? [0, 360] : [0, 100]);
+    numeric(name, g[key] as number, origin[key] as number, bounds[0], bounds[1], GENE_NOTE[key] ?? "", bounds[1] - bounds[0] > 20 ? 0 : 2);
   }
-  for (const [key, name] of TRAIT_GENES) genes.push({ name, kind: g[key] === origin[key] ? 0 : 1, detail: g[key] === origin[key] ? "ilk canlıdaki gibi" : "değişti" });
-  for (let i = 0; i < origin.brain.length; i++) numeric(`Karar ağı: ${BRAIN_INPUTS[i % IN]} → ${BRAIN_ACTIONS[Math.floor(i / IN)]}`, g.brain[i] ?? 0, origin.brain[i], 16);
-  for (const organ of g.organs) genes.push({ name: `Organ: ${ORGANS[organ.type].label}`, kind: 2, detail: "sonradan kazanıldı" });
+  for (const [key, name] of TRAIT_GENES) {
+    const same = g[key] === origin[key];
+    genes.push({ name, kind: same ? 0 : 1, detail: same ? "ilk canlıdaki gibi" : "değişti", note: GENE_NOTE[key] ?? "", body: `<div class="gene-vals"><span>İlk canlı <b>${traitText(key, origin[key])}</b></span><span>Şimdi <b>${traitText(key, g[key])}</b></span></div>` });
+  }
+  for (let i = 0; i < origin.brain.length; i++) {
+    const input = BRAIN_INPUTS[i % IN];
+    const action = BRAIN_ACTIONS[Math.floor(i / IN)];
+    const w = g.brain[i] ?? 0;
+    const effect = Math.abs(w) < 0.05 ? "bu eylemi etkilemiyor" : `bu eylemin puanını ${w > 0 ? "artırıyor" : "azaltıyor"}`;
+    numeric(`Karar ağı: ${input} → ${action}`, w, origin.brain[i], -8, 8, `Karar ağının bir ağırlığı: "${input}" girdisi büyüdükçe "${action}" eyleminin puanı bu sayıyla çarpılıp eklenir. Şu an ${effect}.`, 2);
+  }
+  for (const organ of g.organs) {
+    genes.push({ name: `Organ: ${ORGANS[organ.type].label}`, kind: 2, detail: "sonradan kazanıldı", note: ORGANS[organ.type].description, body: `<div class="gene-scale" role="img" aria-label="Organ gücü"><i class="now" style="left:${(organ.power * 100).toFixed(1)}%"></i></div><div class="gene-vals"><span>0</span><span>İlk canlıda yok</span><span>Güç <b>${nf(organ.power, 2)}</b></span><span>1</span></div>` });
+  }
   const width = genes.length * DNA_STEP + 6;
   let rungs = "";
   const [top, bottom] = strandPaths(genetic.shape, genes.length, 0, (i, y1, y2) => {
     const x = 3 + i * DNA_STEP + DNA_STEP / 2;
-    rungs += `<line class="dna-${genes[i].kind}" x1="${x}" x2="${x}" y1="${y1}" y2="${y2}"><title>${esc(genes[i].name)}: ${genes[i].detail}</title></line>`;
+    // Her genin tıklanabilir alanı basamağın bütün sütunudur; çizgi onun hemen ardından gelir (bkz. .dna-hit + line).
+    rungs +=
+      `<rect class="dna-hit" x="${x - DNA_STEP / 2}" y="0" width="${DNA_STEP}" height="46" data-gene="${esc(genes[i].name)}"><title>${esc(genes[i].name)}: ${genes[i].detail}. Ayrıntı için tıklayın.</title></rect>` +
+      `<line class="dna-${genes[i].kind}${genes[i].name === dnaPick ? " on" : ""}" x1="${x}" x2="${x}" y1="${y1}" y2="${y2}"/>`;
   });
+  const picked = genes.find((gene) => gene.name === dnaPick);
+  const card = picked
+    ? `<div class="gene-card gene-${picked.kind}"><div class="gene-head"><b>${esc(picked.name)}</b><span>${picked.detail}</span><button type="button" class="x" data-gene="${esc(picked.name)}" aria-label="Gen kartını kapat">✕</button></div>` +
+      (picked.note ? `<p>${esc(picked.note)}</p>` : "") +
+      `${picked.body}</div>`
+    : `<p class="foot gene-hint">Bir basamağa tıklayın: o genin ne işe yaradığı, ilk canlıdaki ve şimdiki değeri açılır.</p>`;
   const counts = [0, 1, 2].map((k) => genes.filter((gene) => gene.kind === k).length);
   const inherited = genes.length - counts[2];
   return (
     `<p class="foot" style="margin-bottom:4px"><b style="color:var(--ink)">${esc(genetic.name)}.</b> ${SHAPE_NOTE[genetic.shape]}</p>` +
     `<div class="dna-wrap"><svg class="dna dna-${genetic.shape}" data-shape="${genetic.shape}" viewBox="0 0 ${width} 46" preserveAspectRatio="none" role="img" aria-label="Kalıtım yapısı: ${counts[0]} gen ilk canlıyla aynı">` +
     `<path class="dna-strand" d="${top}"/><path class="dna-strand" d="${bottom}"/>${rungs}</svg></div>` +
+    card +
     `<div class="legend"><span><i class="sw dna-sw0"></i>İlk canlıdan kalan<b>${counts[0]}</b></span><span><i class="sw dna-sw1"></i>Değişen<b>${counts[1]}</b></span><span><i class="sw dna-sw2"></i>Yeni organ geni<b>${counts[2]}</b></span></div>` +
-    `<p class="foot">Atadan devralınan ${inherited} genin ${counts[0]} tanesi (${pct(counts[0] / inherited)}) hâlâ ilk canlıdaki değere yakın. Bir genin üzerine gelince adı ve ne kadar değiştiği görünür. Bu polimerin kopyalama hatası çarpanı ×${nf(genetic.error, 2)}.</p>`
+    `<p class="foot">Atadan devralınan ${inherited} genin ${counts[0]} tanesi (${pct(counts[0] / inherited)}) hâlâ ilk canlıdaki değere yakın. Bu polimerin kopyalama hatası çarpanı ×${nf(genetic.error, 2)}.</p>`
   );
 }
 

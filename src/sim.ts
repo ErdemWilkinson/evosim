@@ -17,13 +17,9 @@ export const MAX_CREATURES = 480;
  *  sonra, özdeş iki kardeş hücreyle başlar (köken filminin son sahnesi). */
 export const INITIAL_CREATURES = 2;
 
-// --- Zaman: gün ve yıl ---
+// --- Zaman: gün (mevsim yoktur; koşullar yalnızca gün–gece ve iklim dalgalarıyla değişir) ---
 export const DAY_LENGTH = 90;
-export const YEAR_LENGTH = 480;
-export const SEASON_LABEL = ["İlkbahar", "Yaz", "Sonbahar", "Kış"] as const;
 const NIGHT_LIGHT = 0.25;
-const SEASON_GROWTH_SWING = 0.4;
-const WINTER_COLD_STRESS = 0.12;
 
 // --- Bitki örtüsü (birincil üretim): yerel lojistik büyüme + tohum yağmuru ---
 const PLANT_ENERGY = 14;
@@ -590,7 +586,7 @@ export class Sim {
   private readonly cHash = new Hash<Creature>(64);
   private readonly nHash = new Hash<Nutrient>(64);
   /** Adım başına bir kez hesaplanan ortam değerleri. */
-  private env = { light: 1, night: false, warmth: 0, oxygen: 0.5, cold: 0 };
+  private env = { light: 1, night: false, oxygen: 0.5 };
 
   private flags: Record<string, boolean> = {};
   private organPeak: Partial<Record<OrganType, number>> = {};
@@ -615,15 +611,6 @@ export class Sim {
     return Math.min(1, Math.max(0, 0.5 + 0.85 * Math.sin((this.time / DAY_LENGTH) * Math.PI * 2)));
   }
 
-  /** −1 (kış ortası) … +1 (yaz ortası). Yıl ilkbaharla başlar. */
-  public warmth(): number {
-    return Math.sin((this.time / YEAR_LENGTH) * Math.PI * 2);
-  }
-
-  public season(): number {
-    return Math.floor((((this.time / YEAR_LENGTH) % 1) + 0.125) * 4) % 4;
-  }
-
   /** 0..1 oksijen seviyesi (0,5 nötr): 240 sn'lik yavaş bir salınım + iklim ofseti. */
   public oxygen(): number {
     const base = 0.5 + Math.sin((this.time / 240) * Math.PI * 2) * 0.12;
@@ -633,8 +620,7 @@ export class Sim {
 
   private updateEnv(): void {
     const light = this.light();
-    const warmth = this.warmth();
-    this.env = { light, night: light < NIGHT_LIGHT, warmth, oxygen: this.oxygen(), cold: warmth < -0.3 ? ((-warmth - 0.3) / 0.7) * WINTER_COLD_STRESS : 0 };
+    this.env = { light, night: light < NIGHT_LIGHT, oxygen: this.oxygen() };
   }
 
   public setEvolutionSpeed(speed: EvolutionSpeed): void {
@@ -1280,7 +1266,7 @@ export class Sim {
         plants.splice(rng.int(plants.length), 1)[0].dead = true;
       }
     } else if (g.diet === "phototroph") {
-      c.passive += (PHOTO_RATE * d.photo * this.lightAt(c.x, c.y) * env.light * (1 + 0.2 * env.warmth)) / (1 + PHOTO_SHADE_PER_NEIGHBOR * shaders);
+      c.passive += (PHOTO_RATE * d.photo * this.lightAt(c.x, c.y) * env.light) / (1 + PHOTO_SHADE_PER_NEIGHBOR * shaders);
       // Yerleşik üretici: enerjisi yeten fotosentetik canlı bulunduğu yere bir üretici öbeği bırakır.
       // Bitki örtüsü yalnızca buradan başlar, sonra kendi kendine yayılır.
       if (c.energy >= c.maxEnergy * PRODUCER_SHED_ENERGY && rng.chance(PRODUCER_SHED_RATE * c.thinkT) && this.plantOk(c.onLand, c.x, c.y) && !this.plantCrowded(c.x, c.y)) {
@@ -1494,7 +1480,7 @@ export class Sim {
     let m = g.metabolism * d.meta * c.crowd;
     const torpor = organPower(g.organs, "torpor");
     if (torpor !== undefined && c.energy <= c.maxEnergy * 0.2) m *= 1 - (0.35 + torpor * 0.35);
-    const thermal = (this.climate ? this.climate.meta - 1 : 0) + env.cold;
+    const thermal = this.climate ? this.climate.meta - 1 : 0;
     if (thermal !== 0) {
       const blubber = organPower(g.organs, "blubber");
       m *= 1 + thermal * (blubber === undefined ? 1 : 1 - (0.4 + blubber * 0.4));
@@ -1724,7 +1710,7 @@ export class Sim {
 
   /**
    * Bitkiler gerçek bir üreticidir: var olan bitkilerin yanında çoğalırlar, yer
-   * doldukça büyüme durur (yerel lojistik büyüme), hızları mevsimle ve iklimle değişir;
+   * doldukça büyüme durur (yerel lojistik büyüme), hızları iklim dalgalarıyla değişir;
    * aşırı otlanan bölge kenarlardan ve tohum yağmuruyla yeniden yeşerir.
    */
   private stepPlants(dt: number): void {
@@ -1736,7 +1722,7 @@ export class Sim {
     }
     // Bitki yoksa tohum da yoktur: örtü ancak bir fotosentetik canlı üretici öbeği bırakınca başlar.
     if (this.nutrients.length === 0) return;
-    const factor = (1 + SEASON_GROWTH_SWING * this.env.warmth) * (this.climate ? this.climate.nutrient : 1) * this.nutrientMultiplier * chemMods.plant;
+    const factor = (this.climate ? this.climate.nutrient : 1) * this.nutrientMultiplier * chemMods.plant;
     for (const kind of ["water", "land"] as const) {
       const list = kind === "water" ? water : land;
       const p = PLANT[kind];

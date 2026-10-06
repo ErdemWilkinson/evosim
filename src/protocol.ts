@@ -83,8 +83,6 @@ export interface UiPayload {
   stages: [number, number, number];
   sexual: number;
   infected: number;
-  season: number;
-  warmth: number;
   oxygen: number;
   climate: { warm: boolean; left: number } | null;
   wind: { angle: number; left: number } | null;

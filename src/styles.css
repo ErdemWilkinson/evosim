@@ -1294,8 +1294,119 @@ textarea {
   stroke-linecap: round;
 }
 
-.dna line:hover {
+.dna line {
+  pointer-events: none;
+  transition: stroke-width 0.12s;
+}
+
+.dna-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.dna-hit:hover + line {
   stroke-width: 5.5;
+  opacity: 1;
+}
+
+.dna line.on {
+  stroke: var(--ink);
+  stroke-width: 6;
+  opacity: 1;
+}
+
+/* Seçilen genin kartı: sol kenar çizgisi genin rengini taşır (aynı kalan, değişen, yeni organ). */
+.gene-card {
+  display: grid;
+  gap: 8px;
+  padding: 11px 12px 12px 14px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  border-left: 3px solid var(--accent);
+}
+
+.gene-card.gene-1 {
+  border-left-color: var(--accent-2);
+}
+
+.gene-card.gene-2 {
+  border-left-color: var(--neg);
+}
+
+.gene-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px 8px;
+}
+
+.gene-head b {
+  font-weight: 600;
+  font-size: 13.5px;
+  overflow-wrap: anywhere;
+}
+
+.gene-head span {
+  grid-column: 1;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+.gene-head .x {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+}
+
+.gene-card p {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.gene-scale {
+  position: relative;
+  height: 6px;
+  margin: 6px 5px 0;
+  background: var(--line);
+  border-radius: 3px;
+}
+
+.gene-scale i {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.gene-scale .then {
+  background: var(--surface);
+  border: 2px solid var(--ink-3);
+}
+
+.gene-scale .now {
+  background: var(--ink);
+  box-shadow: 0 0 10px rgba(243, 245, 252, 0.5);
+}
+
+.gene-vals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 10px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.gene-vals b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.gene-hint {
+  margin-top: 2px;
 }
 
 .dna-0 {
@@ -1806,20 +1917,52 @@ textarea {
   font-style: italic;
 }
 
+.film-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .film-dots {
   display: flex;
   gap: 6px;
 }
 
-.film-dots i {
-  width: 22px;
-  height: 3px;
+/* Sahne noktaları tıklanabilir: görünen çizgi ince, dokunma alanı yüksek. */
+.film-dots button {
+  width: 26px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: linear-gradient(var(--line), var(--line)) center / 100% 3px no-repeat;
   border-radius: 2px;
-  background: var(--line);
+  cursor: pointer;
 }
 
-.film-dots i.on {
-  background: var(--accent);
+.film-dots button:hover {
+  background-image: linear-gradient(var(--ink-3), var(--ink-3));
+}
+
+.film-dots button.on {
+  background-image: linear-gradient(var(--accent), var(--accent));
+}
+
+.film-end {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.film-end span {
+  flex: 1 1 220px;
 }
 
 #film-skip {

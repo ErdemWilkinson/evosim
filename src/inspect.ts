@@ -1211,6 +1211,7 @@ function drawOriginScene(ctx: CanvasRenderingContext2D, c: Chemistry, w: number,
 
 
 const SCENE_SECONDS = 5.2;
+const SCENES = 6;
 /** Film, son sahnede hücre ikiye bölünürken bu sürede haritaya erir (styles.css `.film.leaving` ile aynı). */
 const FILM_FADE_SECONDS = 1.1;
 
@@ -1223,6 +1224,13 @@ export class OriginFilm {
   private done: () => void = () => {};
   private shown = -1;
   private leaving = 0;
+  /** Gösterilen sahne ve o sahnenin başladığı an (ms). */
+  private scene = 0;
+  private sceneT0 = 0;
+  /** İzleyici elle gezindiyse sahne kendiliğinden ilerlemez; okumak için bekler. */
+  private manual = false;
+  private founder: Genome | null = null;
+  private theme: Theme | null = null;
 
   constructor(
     private readonly root: HTMLElement,
@@ -1231,18 +1239,42 @@ export class OriginFilm {
     private readonly caption: HTMLElement,
     private readonly source: HTMLElement,
     private readonly dots: HTMLElement,
-    skip: HTMLElement
+    private readonly controls: { skip: HTMLElement; back: HTMLElement; next: HTMLElement; end: HTMLElement; again: HTMLElement; go: HTMLElement }
   ) {
-    skip.addEventListener("click", () => this.finish());
+    controls.skip.addEventListener("click", () => this.finish());
+    controls.go.addEventListener("click", () => this.finish());
+    controls.back.addEventListener("click", () => this.goTo(this.scene - 1, true));
+    controls.next.addEventListener("click", () => (this.scene >= SCENES - 1 ? this.finish() : this.goTo(this.scene + 1, true)));
+    controls.again.addEventListener("click", () => this.goTo(0, false));
+    dots.addEventListener("click", (e) => {
+      const dot = (e.target as HTMLElement).closest<HTMLElement>("[data-scene]");
+      if (dot) this.goTo(Number(dot.dataset.scene), true);
+    });
+    window.addEventListener("keydown", (e) => {
+      if (!this.playing || this.leaving) return;
+      if (e.key === "ArrowLeft") this.goTo(this.scene - 1, true);
+      else if (e.key === "ArrowRight") this.goTo(this.scene + 1, true);
+      else return;
+      e.preventDefault();
+    });
+  }
+
+  private goTo(scene: number, manual: boolean): void {
+    this.scene = Math.min(SCENES - 1, Math.max(0, scene));
+    this.sceneT0 = performance.now();
+    this.manual = manual;
   }
 
   public get playing(): boolean {
     return !this.root.hidden;
   }
 
-  public play(chem: Chemistry, planet: HTMLCanvasElement, done: () => void): void {
+  public play(chem: Chemistry, planet: HTMLCanvasElement, done: () => void, founder: Genome | null = null, theme: Theme | null = null): void {
     this.chem = chem;
     this.planet = planet;
+    this.founder = founder;
+    this.theme = theme;
+    this.goTo(0, false);
     this.steps = originSteps(chem);
     this.done = done;
     this.shown = -1;
@@ -1254,11 +1286,17 @@ export class OriginFilm {
     this.source.textContent = `Köken senaryosu: ${chem.origin.name} · ${chem.origin.ref}`;
     cancelAnimationFrame(this.raf);
     const loop = (now: number): void => {
-      const t = (now - this.t0) / 1000;
-      // Bölünme tamamlanırken erime başlar; erirken sahne çizilmeye devam eder.
-      if (t >= SCENE_SECONDS * 6 - FILM_FADE_SECONDS) this.finish();
       if (this.root.hidden) return;
-      this.draw(Math.min(t, SCENE_SECONDS * 6 - 0.001));
+      let p = (now - this.sceneT0) / 1000 / SCENE_SECONDS;
+      // Sahne bitince sıradakine geçilir; izleyici elle gezindiyse ya da son sahnedeyse beklenir.
+      // Film kendiliğinden kapanmaz: sonda "Simülasyona geç" sorulur.
+      if (p >= 1 && !this.manual && this.scene < SCENES - 1) {
+        this.goTo(this.scene + 1, false);
+        p = 0;
+      }
+      const ended = this.scene === SCENES - 1 && p >= 1;
+      if (this.controls.end.hidden === ended) this.controls.end.hidden = !ended;
+      this.draw(this.scene, Math.min(p, 0.999), (now - this.t0) / 1000);
       this.raf = requestAnimationFrame(loop);
     };
     this.raf = requestAnimationFrame(loop);
@@ -1296,19 +1334,21 @@ export class OriginFilm {
     }
   }
 
-  private draw(t: number): void {
+  /** `scene` sahnesini `p` (0–1) ilerlemesinde çizer; `t` kesintisiz akan saattir (salınımlar için). */
+  private draw(scene: number, p: number, t: number): void {
     const fit = fitCanvas(this.canvas);
     const c = this.chem;
     if (!fit || !c) return;
     const { ctx, w, h } = fit;
-    const scene = Math.min(5, Math.floor(t / SCENE_SECONDS));
-    const p = t / SCENE_SECONDS - scene;
     if (scene !== this.shown) {
       this.shown = scene;
       const [title, text] = this.captionFor(scene);
       this.title.textContent = title;
       this.caption.textContent = text;
-      this.dots.innerHTML = Array.from({ length: 6 }, (_, i) => `<i${i === scene ? ' class="on"' : ""}></i>`).join("");
+      this.dots.innerHTML = Array.from({ length: SCENES }, (_, i) => `<button type="button" data-scene="${i}" aria-label="${i + 1}. sahne"${i === scene ? ' class="on" aria-current="step"' : ""}></button>`).join("");
+      (this.controls.back as HTMLButtonElement).disabled = scene === 0;
+      // Son sahnede ileri yoktur; simülasyona geçiş alttaki soruyla yapılır.
+      this.controls.next.hidden = scene === SCENES - 1;
     }
     const hue = c.solvent.hue;
     const liquid = (l: number, a = 1): string => `hsl(${hue} ${Math.round(c.solvent.sat * 80)}% ${l}% / ${a})`;
@@ -1384,6 +1424,18 @@ export class OriginFilm {
           ctx.globalAlpha = 1;
         }
       }
+    };
+
+    // Oyundaki çizimle ilk hücre: `size` yarıçaplı, `alpha` saydamlıkta; `facing` −1 ise ters yöne bakar.
+    const living = (x: number, y: number, size: number, alpha: number, facing: number, stretch = 1): void => {
+      if (!this.founder || !this.theme || alpha <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.translate(x, y);
+      const k = size / this.founder.radius;
+      ctx.scale(k * facing * stretch, k / stretch);
+      drawCreature(ctx, this.founder, this.theme, true, { t, state: 0, id: 1 });
+      ctx.restore();
     };
 
     if (scene === 0) {
@@ -1480,7 +1532,10 @@ export class OriginFilm {
       const ccx = narrow ? cx : w * 0.34;
       const ccy = narrow ? h * 0.3 : cy;
       const rr = narrow ? Math.min(w, h) * 0.2 : R;
-      cell(ccx, ccy, rr * (1 + Math.sin(t * 2) * 0.02), 1, 1);
+      // Şematik hücre, haritada görülecek ilk hücrenin kendi çizimine dönüşür.
+      const morph = Math.min(1, p * 3.2);
+      if (morph < 1 || !this.founder) cell(ccx, ccy, rr * (1 + Math.sin(t * 2) * 0.02), 1, 1);
+      living(ccx, ccy, rr, morph, 1);
       const labels: [string, string][] = [
         ["Zar", c.membrane.name],
         ["Duvar", c.wall.name],
@@ -1511,8 +1566,26 @@ export class OriginFilm {
       const ease = split * split * (3 - 2 * split);
       const r = R * (0.75 - ease * 0.18);
       const dx = ease * R * 0.95;
-      cell(cx - dx, cy, r, 1, 1);
-      if (ease > 0.02) cell(cx + dx, cy, r, 1, 1);
+      if (!this.founder) {
+        cell(cx - dx, cy, r, 1, 1);
+        if (ease > 0.02) cell(cx + dx, cy, r, 1, 1);
+      } else {
+        // Bölünme: gövde uzar, ortadan boğumlanır ve iki kardeş ayrılır.
+        const stretch = 1 + Math.sin(Math.min(1, split * 2) * Math.PI) * 0.22;
+        if (ease < 0.5) living(cx, cy, r, 1, 1, stretch);
+        else {
+          living(cx - dx, cy, r, 1, 1);
+          living(cx + dx, cy, r, 1, -1);
+        }
+        if (ease > 0.05 && ease < 0.5) {
+          ctx.strokeStyle = liquid(8);
+          ctx.lineWidth = r * 0.5 * (ease / 0.5);
+          ctx.beginPath();
+          ctx.moveTo(cx, cy - r * 1.2);
+          ctx.lineTo(cx, cy + r * 1.2);
+          ctx.stroke();
+        }
+      }
     }
   }
 }

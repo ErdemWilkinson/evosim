@@ -59,7 +59,10 @@ sıklığını ölçekler (×0,8 – ×1,8) ve kartlardaki kalıtım çizimi o y
 Yeni gezegen başlarken oynayan **köken filmi** gezegeni, seçilen köken senaryosunu (20
 senaryonun her birinin kendi ortam çizimi vardır), yapı taşlarının zincirlenmesini, zarın
 kapanmasını ve ilk hücrenin parçalarını altı sahnede anlatır.
-Son sahnede hücre ikiye bölünür ve film o anda haritaya erir: simülasyon, ilk bölünmenin
+Film kendiliğinden kapanmaz: "Geri" ve "İleri" düğmeleri, sahne çizgileri ya da ok tuşlarıyla
+sahneler arasında gezilir (elle gezilen sahne okunana kadar bekler); son sahnenin sonunda
+"Simülasyona geçmek istiyor musun?" diye sorulur. Filmdeki hücre, haritada görülecek ilk hücrenin
+kendi genomuyla ve oyundaki çizimle çizilir. Son sahnede hücre ikiye bölünür; simülasyona geçilince film haritaya erir: simülasyon, ilk bölünmenin
 hemen sonrasından, özdeş iki kardeş hücreyle başlar. İkisi de yeni bölünmüş hücre enerjisiyle
 (azami enerjinin yarısı) başlar; toplamları bölünmeden önceki tek dolu hücrenin enerjisidir.
 **Yapı inceleme** ekranı (birey kartında "Yapıyı incele", Genel sekmesinde "Hücre yapısını
@@ -112,14 +115,17 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
     birinde iyileşen ötekinde kötüleşir.
 - **Yumurtlama ve sürü avcılığı** yalnızca çok hücrelide ortaya çıkabilir.
 - **Coğrafi yalıtım:** sıradağlar kanatsızlar için geçilmezdir.
-- **Gün–gece ve mevsimler**, iklim dalgaları, rüzgâr, deprem, meteor.
+- **Gün–gece**, iklim dalgaları, rüzgâr, deprem, meteor. Mevsim yoktur (6 Ekim 2026'da
+  kaldırıldı): bitki büyümesi, fotosentez ve metabolizma artık yıl içinde salınmaz. Meteor,
+  deprem ve iklim dalgası haritada gerçek zamanla akan canlandırmalarla gösterilir; simülasyon
+  hızlıyken de izlenebilir.
 - **Türleşme:** genetik uzaklığa dayalı; tür adları, soy ağacı ve tür başına nüfus eğrisi.
 
 ## Arayüz
 
 Varsayılan görünüm yalnızca gözlem içindir. Elle müdahale araçları (bitki ek, canlı yerleştir,
 meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve düzeyini düzenleme)
-"Dünya ayarları" altındaki **Oyun modu** açılınca görünür. Bunların dışında: dönen DNA zinciri, tür kartı, organ tablosu, olay günlüğü, soy ağacı, zaman yolculuğu
+"Dünya ayarları" altındaki **Oyun modu** açılınca görünür. Bunların dışında: dönen DNA zinciri (bir basamağa tıklanınca o genin ne işe yaradığı, ilk canlıdaki ve şimdiki değeri açılır), tür kartı, organ tablosu, olay günlüğü, soy ağacı, zaman yolculuğu
 (60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. "Dünya ayarları"ndaki **Evrim hızı** üç kademelidir
 (Hızlı, Orta, Gerçekçi); simülasyon sürerken değiştirilebilir ve kayıtla birlikte saklanır. claude.ai üzerinde yayımlanan sürümde
 tür ve birey kartlarındaki "Claude analizi" ölçülen verileri Claude'a yorumlatır.
@@ -222,8 +228,10 @@ kopyala, commit + push.
   bitki örtüsü, tok canlının otlamaması, sığınağın büyük bedeni yavaşlatması, örtü biçici
   organ, örtüye kaçış ve yamyamlık hastalığı 6 Ekim 2026'da eklendi. Besin tabanı için
   typecheck ve çekirdek testleri geçti, üç tohumda 3000 sn'lik koşuda yaşam tutundu; son dört
-  mekanik eklendikten sonra yalnızca typecheck koştu. Denge testi bu kodda koşmadı, tarayıcıda
-  denenmedi; aşağıdaki denge tabloları eski besin tabanına aittir. Besin alanının sayıları
+  mekanik ve mevsimlerin kaldırılması için typecheck ve çekirdek testleri koştu. Denge testi bu
+  kodda koşmadı; aşağıdaki denge tabloları eski besin tabanına ve mevsimli koda aittir. Tarayıcıda
+  (masaüstü ve telefon genişliği) film gezinmesi, meteor ve deprem canlandırması ve gen kartı
+  denendi; yeni mekaniklerin oyundaki etkisi (sığınak, örtü biçici, yamyamlık hastalığı) izlenmedi. Besin alanının sayıları
   (kapasite, yenilenme, emiş hızı) bir bütçe hesabından seçildi, ölçülerek doğrulanmadı.
 - **Denge testinin eşikleri değişti:** kemotrof artık besin ağının tabanı sayılır ve baskınlık
   ile patlama eşiklerinin dışındadır; otçul kalıcılık eşiğine dahil edildi (gerekçe

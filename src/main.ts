@@ -7,8 +7,8 @@ import { generatePlanetProfile } from "./planet";
 import { FLAG, STRIDE, UiPayload } from "./protocol";
 import { Scene, Tool, isDark, readTheme, renderTerrain } from "./render";
 import { randomSeed } from "./rng";
-import { DAY_LENGTH, EventKind, INITIAL_CREATURES, SEASON_LABEL, SaveData, WorldEventKind, YEAR_LENGTH } from "./sim";
-import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, spinDna, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
+import { DAY_LENGTH, EventKind, INITIAL_CREATURES, SaveData, WorldEventKind } from "./sim";
+import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, pickGene, spinDna, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
 import { World } from "./world";
 
 const SAVE_KEY = "evosim-save-v2";
@@ -158,7 +158,7 @@ function refresh(v: View, ui: UiPayload): void {
   const time = v.frame.time;
   const light = v.frame.light;
   $("clock").textContent = fmtTime(time);
-  $("calendar").textContent = `Yıl ${Math.floor(time / YEAR_LENGTH) + 1} · ${SEASON_LABEL[ui.season]} · Gün ${Math.floor(time / DAY_LENGTH) + 1}`;
+  $("calendar").textContent = `Gün ${Math.floor(time / DAY_LENGTH) + 1}`;
   $("daylight-label").textContent = light >= 0.6 ? "Gündüz" : light >= 0.25 ? "Alacakaranlık" : "Gece";
   $("daylight-fill").style.transform = `scaleX(${light.toFixed(3)})`;
   for (const b of document.querySelectorAll<HTMLElement>("[data-speed]")) b.setAttribute("aria-pressed", String(Number(b.dataset.speed) === ui.speed));
@@ -323,9 +323,18 @@ $("zoom-fit").addEventListener("click", () => {
 // ------------------------------------------------------------------ yapı inceleme ve köken filmi
 
 const viewer = new StructureViewer($<HTMLDialogElement>("dlg-inspect"), $<HTMLCanvasElement>("inspect-canvas"), $("inspect-levels"), $("inspect-list"), $("inspect-info"), $("inspect-caption"), () => theme);
-const film = new OriginFilm($("film"), $<HTMLCanvasElement>("film-canvas"), $("film-title"), $("film-caption"), $("film-source"), $("film-dots"), $("film-skip"));
+const film = new OriginFilm($("film"), $<HTMLCanvasElement>("film-canvas"), $("film-title"), $("film-caption"), $("film-source"), $("film-dots"), {
+  skip: $("film-skip"),
+  back: $("film-back"),
+  next: $("film-next"),
+  end: $("film-end"),
+  again: $("film-again"),
+  go: $("film-go"),
+});
 function playFilm(v: View, done: () => void): void {
-  film.play(v.world.chem, renderTerrain(v.world, true, 480), done);
+  // Filmdeki hücre, haritada görülecek ilk hücrenin kendisidir (aynı genom, aynı çizim).
+  const founder = v.ui?.origin ?? v.genomes.get(v.frame.c[0]) ?? null;
+  film.play(v.world.chem, renderTerrain(v.world, true, 480), done, founder, theme);
 }
 
 // ------------------------------------------------------------------ panel olayları
@@ -337,6 +346,12 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
   const kindButton = target.closest<HTMLElement>("[data-kind]");
   if (kindButton) {
     logFilter = (kindButton.dataset.kind ?? "") as EventKind | "";
+    if (view?.ui) refreshTab(view, view.ui);
+    return;
+  }
+  const gene = target.closest<HTMLElement>("[data-gene]");
+  if (gene) {
+    pickGene(gene.dataset.gene ?? "");
     if (view?.ui) refreshTab(view, view.ui);
     return;
   }
@@ -450,7 +465,6 @@ function strongestWeights(weights: readonly number[], count = 8): string[] {
 function worldContext(v: View, ui: UiPayload): Record<string, unknown> {
   return {
     zaman_sn: Math.round(v.frame.time),
-    mevsim: SEASON_LABEL[ui.season],
     toplam_nufus: v.frame.n,
     bitki_sayisi: v.frame.plants.length / 2,
     beslenme_dagilimi: Object.fromEntries(DIETS.map((d, i) => [DIET_LABEL[d], ui.diets[i]])),

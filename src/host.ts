@@ -295,8 +295,6 @@ export class SimHost {
       stages,
       sexual,
       infected,
-      season: sim.season(),
-      warmth: sim.warmth(),
       oxygen: sim.oxygen(),
       climate: sim.climate ? { warm: sim.climate.warm, left: sim.climate.left } : null,
       wind: sim.wind ? { angle: sim.wind.angle, left: sim.wind.left } : null,

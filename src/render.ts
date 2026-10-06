@@ -556,6 +556,147 @@ export interface SceneState {
   tool: Tool;
 }
 
+const EFFECT_SECONDS: Record<string, number> = { meteor: 2.8, quake: 2.4, climate: 3.2, wind: 0 };
+const easeOut = (k: number): number => 1 - (1 - k) * (1 - k) * (1 - k);
+
+/** Dünya olayı canlandırması. `s` olayın başından beri geçen gerçek saniye, `px` bir ekran pikselinin harita birimi. */
+function drawEffect(ctx: CanvasRenderingContext2D, e: { x: number; y: number; r: number; kind: string; warm: boolean }, s: number, px: number, theme: Theme): void {
+  const { x, y, r } = e;
+  const noise = (i: number): number => {
+    const v = Math.sin(i * 127.1 + x * 0.37 + y * 0.71) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  if (e.kind === "meteor") {
+    const FALL = 0.42;
+    if (s < FALL) {
+      // Düşüş: sağ üstten gelen, başı akkor, kuyruğu sönen bir iz.
+      const q = s / FALL;
+      const hx = x + (1 - q) * r * 2.4;
+      const hy = y - (1 - q) * r * 3.4;
+      const tail = ctx.createLinearGradient(hx, hy, hx + r * 1.1, hy - r * 1.55);
+      tail.addColorStop(0, "rgba(255, 244, 214, 0.95)");
+      tail.addColorStop(0.35, "rgba(255, 150, 80, 0.55)");
+      tail.addColorStop(1, "rgba(255, 107, 94, 0)");
+      ctx.strokeStyle = tail;
+      ctx.lineCap = "round";
+      ctx.lineWidth = Math.max(3 * px, r * 0.09);
+      line(ctx, hx, hy, hx + r * 1.1, hy - r * 1.55);
+      ctx.lineCap = "butt";
+      const glow = ctx.createRadialGradient(hx, hy, 0, hx, hy, r * 0.42);
+      glow.addColorStop(0, "rgba(255, 250, 235, 1)");
+      glow.addColorStop(0.3, "rgba(255, 190, 110, 0.7)");
+      glow.addColorStop(1, "rgba(255, 107, 94, 0)");
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(hx, hy, r * 0.42, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    const k = Math.min(1, (s - FALL) / (EFFECT_SECONDS.meteor - FALL));
+    const out = easeOut(k);
+    // Yanık izi: çarpma yerinde koyu, yavaş sönen bir leke.
+    const scorch = ctx.createRadialGradient(x, y, 0, x, y, r * 0.75);
+    scorch.addColorStop(0, `rgba(10, 4, 6, ${0.6 * (1 - k)})`);
+    scorch.addColorStop(1, "rgba(10, 4, 6, 0)");
+    ctx.fillStyle = scorch;
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.75, 0, Math.PI * 2);
+    ctx.fill();
+    // Ateş topu: ilk anda beyaz, hızla turuncuya dönüp söner.
+    if (k < 0.3) {
+      const f = k / 0.3;
+      const ball = ctx.createRadialGradient(x, y, 0, x, y, r * (0.5 + f * 0.8));
+      ball.addColorStop(0, `rgba(255, 252, 240, ${1 - f})`);
+      ball.addColorStop(0.45, `rgba(255, 170, 90, ${0.75 * (1 - f)})`);
+      ball.addColorStop(1, "rgba(255, 107, 94, 0)");
+      ctx.fillStyle = ball;
+      ctx.beginPath();
+      ctx.arc(x, y, r * (0.5 + f * 0.8), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Şok dalgası: biri hızlı ve ince, biri yavaş ve kalın iki halka.
+    ctx.strokeStyle = theme.critical;
+    for (const [delay, reach, width] of [
+      [0, 1.75, 3],
+      [0.14, 1.15, 6],
+    ]) {
+      const w = Math.min(1, Math.max(0, (k - delay) / (1 - delay)));
+      if (w <= 0) continue;
+      ctx.globalAlpha = (1 - w) * 0.9;
+      ctx.lineWidth = (width * (1 - w) + 0.6) * px + r * 0.012;
+      ctx.beginPath();
+      ctx.arc(x, y, r * (0.15 + easeOut(w) * reach), 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    // Savrulan parçalar: merkezden dışarı kısa izler.
+    ctx.strokeStyle = "#ffd9a0";
+    ctx.lineCap = "round";
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + noise(i) * 0.5;
+      const far = r * (0.25 + out * (0.7 + noise(i + 40) * 1.1));
+      const len = r * 0.2 * (1 - k);
+      ctx.globalAlpha = (1 - k) * (0.5 + noise(i + 80) * 0.5);
+      ctx.lineWidth = (1 + noise(i + 20) * 1.6) * px + r * 0.008;
+      line(ctx, x + Math.cos(a) * far, y + Math.sin(a) * far, x + Math.cos(a) * (far + len), y + Math.sin(a) * (far + len));
+    }
+    ctx.lineCap = "butt";
+    ctx.globalAlpha = 1;
+  } else if (e.kind === "quake") {
+    const k = Math.min(1, s / EFFECT_SECONDS.quake);
+    // Sarsıntı: titreyen, art arda yayılan halkalar.
+    ctx.strokeStyle = theme.ink;
+    for (let ring = 0; ring < 3; ring++) {
+      const w = Math.min(1, Math.max(0, (k - ring * 0.16) / (1 - ring * 0.16)));
+      if (w <= 0) continue;
+      const shake = Math.floor(s * 22);
+      ctx.globalAlpha = (1 - w) * 0.75;
+      ctx.lineWidth = (2.4 * (1 - w) + 0.6) * px;
+      ctx.beginPath();
+      for (let i = 0; i <= 36; i++) {
+        const a = (i / 36) * Math.PI * 2;
+        const rr = r * (0.4 + easeOut(w) * 2.2) * (1 + (noise((i % 36) + ring * 50 + shake) - 0.5) * 0.09 * (1 - w));
+        if (i === 0) ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+        else ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+      }
+      ctx.stroke();
+    }
+    // Çatlaklar: merkezden uzayan kırık çizgiler.
+    ctx.globalAlpha = Math.min(1, (1 - k) * 1.6) * 0.85;
+    ctx.lineWidth = 1.4 * px + r * 0.02;
+    ctx.lineJoin = "round";
+    const grow = easeOut(Math.min(1, k * 2.2));
+    for (let crack = 0; crack < 6; crack++) {
+      let a = (crack / 6) * Math.PI * 2 + noise(crack) * 0.7;
+      let cx = x;
+      let cy = y;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      for (let seg = 0; seg < 5; seg++) {
+        if (seg / 5 > grow) break;
+        a += (noise(crack * 10 + seg) - 0.5) * 1.1;
+        cx += Math.cos(a) * r * 0.24;
+        cy += Math.sin(a) * r * 0.24;
+        ctx.lineTo(cx, cy);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  } else if (e.kind === "climate") {
+    // İklim dalgası: merkezden yayılan geniş, yumuşak bir renk cephesi (sıcak turuncu, soğuk mavi).
+    const k = Math.min(1, s / EFFECT_SECONDS.climate);
+    const rgb = e.warm ? "255, 168, 88" : "120, 190, 255";
+    const front = r * 2.6 * easeOut(k);
+    const band = ctx.createRadialGradient(x, y, Math.max(0, front - r * 0.9), x, y, front + 1);
+    band.addColorStop(0, `rgba(${rgb}, 0)`);
+    band.addColorStop(0.75, `rgba(${rgb}, ${0.3 * (1 - k)})`);
+    band.addColorStop(1, `rgba(${rgb}, 0)`);
+    ctx.fillStyle = band;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+    ctx.fillStyle = `rgba(${rgb}, ${0.1 * Math.sin(Math.PI * k)})`;
+    ctx.fillRect(0, 0, MAP_W, MAP_H);
+  }
+}
+
 export class Scene {
   public cx = MAP_W / 2;
   public cy = MAP_H / 2;
@@ -575,6 +716,9 @@ export class Scene {
   /** Çözünmüş besin katmanı: ızgara hücresi başına bir piksel; haritaya yumuşatılarak gerilir. */
   private soupLayer: HTMLCanvasElement | null = null;
   private soupFrom: Uint8Array | null = null;
+  /** Dünya olaylarının canlandırması gerçek zamanla akar: simülasyon hızlıyken de izlenebilir. */
+  private effects: { key: string; x: number; y: number; r: number; kind: string; t0: number; warm: boolean }[] = [];
+  private effectKeys = new Set<string>();
   private readonly ctx: CanvasRenderingContext2D;
   private terrain: HTMLCanvasElement | null = null;
   private terrainKey = "";
@@ -814,7 +958,7 @@ export class Scene {
           image.data[i * 4] = 214;
           image.data[i * 4 + 1] = 236;
           image.data[i * 4 + 2] = 255;
-          image.data[i * 4 + 3] = Math.round(soup[i] * 0.42);
+          image.data[i * 4 + 3] = Math.round(soup[i] * 0.3);
         }
         sctx.putImageData(image, 0, 0);
       }
@@ -985,22 +1129,18 @@ export class Scene {
       ctx.fillRect(0, 0, MAP_W, MAP_H);
     }
 
-    // Dünya olayları
+    // Dünya olayları: karede yeni görülen her olay bir canlandırma başlatır.
+    const present = new Set<string>();
     for (const f of frame.flashes) {
-      if (f.kind === "climate") continue;
-      const t = Math.min(1, f.age / 1.6);
-      ctx.globalAlpha = 1 - t;
-      ctx.strokeStyle = f.kind === "meteor" ? theme.critical : theme.ink;
-      ctx.lineWidth = 2 / zoom + 1;
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r * (0.3 + t * 0.8), 0, Math.PI * 2);
-      ctx.stroke();
-      if (f.kind === "meteor") {
-        ctx.fillStyle = theme.critical;
-        ctx.globalAlpha = (1 - t) * 0.25;
-        ctx.fill();
-      }
+      const key = `${view.epoch}:${f.kind}:${f.x.toFixed(1)}:${f.y.toFixed(1)}`;
+      present.add(key);
+      if (this.effectKeys.has(key)) continue;
+      this.effectKeys.add(key);
+      this.effects.push({ key, x: f.x, y: f.y, r: f.r, kind: f.kind, t0: nowMs, warm: view.ui?.climate?.warm ?? true });
     }
+    for (const key of this.effectKeys) if (!present.has(key)) this.effectKeys.delete(key);
+    this.effects = this.effects.filter((e) => nowMs - e.t0 < EFFECT_SECONDS[e.kind] * 1000 && e.key.startsWith(`${view.epoch}:`));
+    for (const e of this.effects) drawEffect(ctx, e, (nowMs - e.t0) / 1000, 1 / zoom, theme);
     ctx.globalAlpha = 1;
 
     // Seçim: nişangâh ve algı menzili

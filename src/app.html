@@ -19,7 +19,7 @@
 
     <div class="clock">
       <div class="clock-main" id="clock">00:00</div>
-      <div class="clock-sub" id="calendar">Yıl 1 · İlkbahar</div>
+      <div class="clock-sub" id="calendar">Gün 1</div>
     </div>
     <div class="daylight" title="Gün ışığı">
       <span class="label" id="daylight-label">Gündüz</span>
@@ -174,12 +174,21 @@
 <div class="film" id="film" hidden>
   <canvas id="film-canvas" aria-label="İlk canlının oluşumu"></canvas>
   <div class="film-text">
-    <div class="film-dots" id="film-dots"></div>
+    <div class="film-nav">
+      <button type="button" class="btn btn-small" id="film-back" aria-label="Önceki sahne">Geri</button>
+      <div class="film-dots" id="film-dots" role="group" aria-label="Sahneler"></div>
+      <button type="button" class="btn btn-small" id="film-next" aria-label="Sonraki sahne">İleri</button>
+    </div>
     <h2 id="film-title"></h2>
     <p id="film-caption"></p>
     <p class="film-source" id="film-source"></p>
+    <div class="film-end" id="film-end" hidden>
+      <span>Anlatım bitti. Simülasyona geçmek istiyor musun?</span>
+      <button type="button" class="btn btn-small" id="film-again">Baştan izle</button>
+      <button type="button" class="btn btn-small btn-primary" id="film-go">Simülasyona geç</button>
+    </div>
   </div>
-  <button type="button" class="btn" id="film-skip">Geç</button>
+  <button type="button" class="btn" id="film-skip">Anlatımı geç</button>
 </div>
 
 <dialog class="dialog dialog-hero" id="dlg-planet">
