@@ -127,8 +127,7 @@ Varsayılan görünüm yalnızca gözlem içindir. Elle müdahale araçları (bi
 meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve düzeyini düzenleme)
 "Dünya ayarları" altındaki **Oyun modu** açılınca görünür. Bunların dışında: dönen DNA zinciri (bir basamağa tıklanınca o genin ne işe yaradığı, ilk canlıdaki ve şimdiki değeri açılır), tür kartı, organ tablosu, olay günlüğü, soy ağacı, zaman yolculuğu
 (60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. "Dünya ayarları"ndaki **Evrim hızı** üç kademelidir
-(Hızlı, Orta, Gerçekçi); simülasyon sürerken değiştirilebilir ve kayıtla birlikte saklanır. claude.ai üzerinde yayımlanan sürümde
-tür ve birey kartlarındaki "Claude analizi" ölçülen verileri Claude'a yorumlatır; bu bölüm herkese açık sayfada (`dist/index.html`, GitHub Pages, itch.io) hiç yoktur: derleme iki ayrı paket üretir ve yalnızca `dist/artifact.html` bunu taşır.
+(Hızlı, Orta, Gerçekçi); simülasyon sürerken değiştirilebilir ve kayıtla birlikte saklanır.
 
 **Dil:** Türkçe ve İngilizce. Yeni gezegen penceresinin sağ üstündeki düğmelerden ya da "Dünya ayarları"ndan seçilir; seçim tarayıcıda saklanır, ilk açılışta tarayıcı dili kullanılır. Kaynak metinler Türkçedir ve simülasyon çekirdeği dili bilmez; çeviri yalnızca gösterimde yapılır (`src/i18n.ts`, sözlükler `src/i18n.auto.ts` ve `src/i18n.manual.ts`), bu yüzden kayıtlar ve olay günlüğü dilden bağımsızdır ve dil değişince eski günlük satırları da çevrilir. Sözlükte olmayan metin Türkçe kalır.
 
@@ -262,9 +261,9 @@ kopyala, commit + push.
   (süzme hızı, leşin kalma süresi, parazitin tutunma süresi gibi) geri alınmadı.
 - **Sığınak sabit bir harita katmanıdır:** örtü alanları büyümez, küçülmez, canlılar tarafından
   yok edilemez.
-- **Claude analizi ve dosya indirme hiç denenmedi.** İkisi de yalnızca claude.ai üzerindeki
-  artifact sürümünde çalışır; GitHub Pages sürümünde analiz bölümü yerine açıklama notu
-  çıkar, kayıt dosyası ise tarayıcının kendi indirmesiyle iner.
+- **Dosya indirme yayın parçasında denenmedi.** Kayıt dosyasını indirme düğmesi yalnızca
+  artifact sürümünde ayrı bir köprü kullanır; GitHub Pages sürümünde dosya tarayıcının kendi
+  indirmesiyle iner.
 - **İngilizce çeviri:** kimya, organ, gen ve arayüz metinleri elle çevrildi; sayı içeren olay
   cümleleri kalıplarla çevriliyor. Otomatik tarayıcı betiği (masaüstü ve telefon genişliği) film,
   paneller, soy ağacı, kayıt ve yapı inceleme pencerelerini İngilizcede gezdi ve çevrilmemiş

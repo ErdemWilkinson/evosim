@@ -3,15 +3,7 @@
  * Anahtar Türkçe kaynak metindir. `§` bir sayının, `{ad}` değişken bir parçanın yeridir;
  * `{ad^}` yakalanan parçanın büyük harfini korur.
  */
-declare const __ARTIFACT__: boolean;
-
-/** Yalnızca yayın parçasında (artifact) bulunan analiz bölümünün metinleri. */
-const ANALYSIS: Record<string, string> = __ARTIFACT__
-  ? { "Claude analizi": "Claude analysis", "Ölçümleri Claude'a yorumlat": "Have Claude interpret the measurements", "Claude ölçümleri inceliyor…": "Claude is studying the measurements…" }
-  : {};
-
 export const MANUAL: Record<string, string> = {
-  ...ANALYSIS,
   // ---- app.html
   "Simülasyon hızı": "Simulation speed",
   Duraklat: "Pause",

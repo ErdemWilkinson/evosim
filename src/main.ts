@@ -1,6 +1,6 @@
 import { Client, View } from "./client";
-import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, EvolutionSpeed, Genome, IN } from "./genome";
-import { ORGANS, OrganType, STAGE_LABEL } from "./organs";
+import { EvolutionSpeed } from "./genome";
+import { OrganType } from "./organs";
 import { PhyloTree } from "./phylo";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
@@ -12,7 +12,7 @@ import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, 
 import { World } from "./world";
 import { getLang, initI18n } from "./i18n";
 
-/** Derleme bayrağı: yalnızca claude.ai üzerinde yayımlanan sürümde doğrudur. */
+/** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
 
 const SAVE_KEY = "evosim-save-v2";
@@ -21,17 +21,14 @@ const AUTOSAVE_MS = 20000;
 
 type Tab = "overview" | "species" | "organs" | "log" | "creature";
 
-// ------------------------------------------------------------------ claude.ai çalışma zamanı (varsa)
+// ------------------------------------------------------------------ yayın parçasının dosya indirme köprüsü (varsa)
 
-interface SampleError {
+interface DownloadError {
   code?: string;
-  text?: string;
 }
-type SampleFn = (input: string, options?: { onText?: (part: { text: string }) => void }) => Promise<{ text: string }>;
 interface Downloads {
   save(request: { filename: string; data: string }): Promise<unknown>;
 }
-let sample: SampleFn | null = null;
 let downloads: Downloads | null = null;
 const runtime = __ARTIFACT__ ? (window as unknown as { claude?: { use(name: string): Promise<unknown> } }).claude : undefined;
 
@@ -238,7 +235,7 @@ function refreshTab(v: View, ui: UiPayload): void {
     }
     const root = $("species-card");
     if (speciesSkeletonFor !== info.id) {
-      setHtml(root, speciesSkeleton(info, sample !== null));
+      setHtml(root, speciesSkeleton(info));
       speciesSkeletonFor = info.id;
       speciesPortraitFor = -1;
       speciesChart = new LineChart($("sp-chart"));
@@ -268,7 +265,7 @@ function refreshTab(v: View, ui: UiPayload): void {
     $("creature-card").hidden = d === null;
     if (!d || d.id !== selected) return;
     if (creatureSkeletonFor !== d.id) {
-      setHtml($("creature-card"), creatureSkeleton(d.id, sample !== null));
+      setHtml($("creature-card"), creatureSkeleton(d.id));
       creatureSkeletonFor = d.id;
       creaturePortraitKey = "";
     }
@@ -406,12 +403,6 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
       if (choice && choice.value) client.send({ type: "organ", id: selected, organ: choice.value as OrganType, power: 0.5 });
       break;
     }
-    case "ai-species":
-      void analyze("species", button as HTMLButtonElement);
-      return;
-    case "ai-creature":
-      void analyze("creature", button as HTMLButtonElement);
-      return;
   }
   if (view?.ui) refreshTab(view, view.ui);
 });
@@ -457,125 +448,7 @@ $("tl-go").addEventListener("click", () => {
   toast(`${fmtTime(at)} anına dönüldü. Bundan sonrası yeniden yaşanacak.`);
 });
 
-// ------------------------------------------------------------------ Claude analizi
-
-function strongestWeights(weights: readonly number[], count = 8): string[] {
-  return weights
-    .map((w, i) => ({ w, i }))
-    .sort((a, b) => Math.abs(b.w) - Math.abs(a.w))
-    .slice(0, count)
-    .map(({ w, i }) => `${BRAIN_INPUTS[i % IN]} → ${BRAIN_ACTIONS[Math.floor(i / IN)]}: ${w.toFixed(2)}`);
-}
-
-function worldContext(v: View, ui: UiPayload): Record<string, unknown> {
-  return {
-    zaman_sn: Math.round(v.frame.time),
-    toplam_nufus: v.frame.n,
-    bitki_sayisi: v.frame.plants.length / 2,
-    beslenme_dagilimi: Object.fromEntries(DIETS.map((d, i) => [DIET_LABEL[d], ui.diets[i]])),
-    yasayan_tur_sayisi: ui.species.filter((s) => s.count > 0).length,
-    gezegen: { sivi: v.planet.chem.solvent.name, sivi_yuzdesi: Math.round(v.planet.liquidPercent), sicaklik_K: v.planet.chem.temperature, elementler: v.planet.chem.elements.map((e) => e.sym), zar: v.planet.chem.membrane.name, hucre_duvari: v.planet.chem.wall.name },
-  };
-}
-
-function organNotes(g: Genome): Record<string, string> {
-  return Object.fromEntries(g.organs.map((o) => [`${ORGANS[o.type].label} (güç ${o.power.toFixed(2)})`, ORGANS[o.type].description]));
-}
-
-function buildPrompt(kind: "species" | "creature"): string | null {
-  const v = view;
-  const ui = v?.ui;
-  if (!v || !ui) return null;
-  let subject: Record<string, unknown>;
-  if (kind === "species") {
-    const d = ui.speciesDetail;
-    const info = ui.species.find((s) => s.id === speciesCard);
-    if (!d || !info) return null;
-    const step = Math.max(1, Math.floor(d.series.length / 2 / 12));
-    const curve: string[] = [];
-    for (let i = 0; i < d.series.length / 2; i += step) curve.push(`${fmtTime(d.series[i * 2])}=${d.series[i * 2 + 1]}`);
-    const name = (id: number): string => ui.species.find((s) => s.id === id)?.name ?? "bilinmiyor";
-    subject = {
-      tur: info.name,
-      beslenme: `${DIET_LABEL[info.diet]}: ${DIET_DESCRIPTION[info.diet]}`,
-      orgutlenme_duzeyi: STAGE_LABEL[info.stage],
-      birey: info.count,
-      en_cok_birey: info.peak,
-      toplam_dogum: info.total,
-      ortaya_cikis_sn: Math.round(info.born),
-      ayrilma_nedeni: info.reason,
-      ata_tur: info.parentId ? name(info.parentId) : "yok",
-      yavru_turler: d.children.map(name),
-      ortalamalar: { yaricap: d.radius, hiz: d.speed, algi: d.sense, metabolizma: d.metabolism },
-      karada_olan: d.onLand,
-      eseyli_ureyen: d.sexual,
-      erkek: d.males,
-      ortalama_sus: d.ornament,
-      hasta: d.infected,
-      organlar: d.organs.map((o) => ({ organ: ORGANS[o.type].label, tasiyan_birey: o.count, ortalama_guc: Number(o.power.toFixed(2)), etkisi: ORGANS[o.type].description })),
-      karar_agi_en_guclu_agirliklar: strongestWeights(d.brain),
-      nufus_egrisi: curve,
-    };
-  } else {
-    const d = ui.selected;
-    if (!d) return null;
-    const g = d.genome;
-    subject = {
-      birey: d.id,
-      tur: ui.species.find((s) => s.id === g.speciesId)?.name ?? "bilinmiyor",
-      beslenme: `${DIET_LABEL[g.diet]}: ${DIET_DESCRIPTION[g.diet]}`,
-      orgutlenme_duzeyi: STAGE_LABEL[g.stage],
-      nesil: g.generation,
-      ureme: `${g.reproductionStrategy === "sexual" ? `eşeyli, ${g.sex === "f" ? "dişi" : "erkek"}` : "eşeysiz"}, ${g.laysEggs ? "yumurtlar" : "canlı doğurur"}`,
-      yasiyor: d.alive,
-      enerji_orani: Number((d.energy / d.maxEnergy).toFixed(2)),
-      yas_orani: Number((d.age / g.maxLifespan).toFixed(2)),
-      hiz: d.speed,
-      algi: d.sense,
-      metabolizma: d.metabolism,
-      nufus_ortalamalari: d.inspection.means,
-      organlar: organNotes(g),
-      karar_agi_en_guclu_agirliklar: strongestWeights(g.brain),
-      soy_gecmisi: d.inspection.history.map((h) => `${h.gen}. nesil: ${h.notes.join(", ")}`),
-      olum_nedeni: d.inspection.rec?.cause || null,
-    };
-  }
-  return (
-    `Aşağıda Evosim adlı bir yapay yaşam simülasyonundan ÖLÇÜLMÜŞ veriler var. Bu simülasyonda canlılar organsız tek hücreliler olarak başlar; organlar, beslenme biçimi, ` +
-    `örgütlenme düzeyi ve davranışı belirleyen karar ağı (girdi → eylem ağırlıkları) mutasyon ve seçilimle değişir.\n\n` +
-    `${kind === "species" ? "Bu TÜRÜ" : "Bu BİREYİ"} bir saha biyoloğu gibi yorumla: nasıl geçiniyor, organları ve karar ağı bu yaşam biçimiyle nasıl ilişkili, en belirgin zayıflığı ya da riski ne?\n` +
-    `Kurallar: ${getLang() === "en" ? "İngilizce" : "Türkçe"} yaz. Düz metin kullan, markdown ya da madde işareti kullanma. En çok 170 kelime. Yalnızca verilen ölçümlere dayan; ` +
-    `veride olmayan bir nedeni kesinmiş gibi sunma, çıkarım yapıyorsan "muhtemelen" de.\n\n` +
-    `VERİ:\n${JSON.stringify({ konu: subject, ortam: worldContext(v, ui) }, null, 1)}`
-  );
-}
-
-async function analyze(kind: "species" | "creature", button: HTMLButtonElement): Promise<void> {
-  if (!__ARTIFACT__) return;
-  const out = document.getElementById(`ai-${kind}-out`);
-  const prompt = buildPrompt(kind);
-  if (!sample || !out || !prompt) return;
-  out.hidden = false;
-  out.textContent = "Claude ölçümleri inceliyor…";
-  button.disabled = true;
-  try {
-    const result = await sample(prompt, { onText: (part) => (out.textContent = part.text) });
-    out.textContent = result.text;
-  } catch (error) {
-    const e = (error ?? {}) as SampleError;
-    out.textContent = e.text ? e.text : e.code === "not_granted" ? "İzin verilmediği için analiz yapılamadı." : e.code === "rate_limited" ? "Çok sık istek gönderildi; biraz sonra yeniden deneyin." : "Analiz alınamadı.";
-  } finally {
-    button.disabled = false;
-  }
-}
-
 if (runtime && typeof runtime.use === "function") {
-  void runtime.use("sample").then((fn) => {
-    sample = (fn as SampleFn | null) ?? null;
-    // Analiz düğmesi kartların iskeletindedir; iskeletler yeniden kurulsun.
-    speciesSkeletonFor = -1;
-    creatureSkeletonFor = -1;
-  });
   void runtime.use("downloads").then((ns) => (downloads = (ns as Downloads | null) ?? null));
 }
 
@@ -691,7 +564,7 @@ $("save-download").addEventListener("click", async () => {
       await downloads.save({ filename, data: json });
       saveStatus("Dosya kaydedildi.");
     } catch (error) {
-      saveStatus((error as SampleError | null)?.code === "declined" ? "İndirme iptal edildi." : "Dosya indirilemedi; panoya kopyalamayı deneyin.");
+      saveStatus((error as DownloadError | null)?.code === "declined" ? "İndirme iptal edildi." : "Dosya indirilemedi; panoya kopyalamayı deneyin.");
     }
     return;
   }

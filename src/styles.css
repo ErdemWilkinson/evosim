@@ -1163,17 +1163,6 @@ textarea {
   text-transform: lowercase;
 }
 
-.analysis {
-  padding: 12px 14px;
-  background: var(--accent-soft);
-  border-radius: var(--r-md);
-  white-space: pre-wrap;
-  font-size: 13px;
-  line-height: 1.6;
-  color: var(--ink);
-  overflow-wrap: anywhere;
-}
-
 .organ-group {
   display: grid;
   gap: 6px;

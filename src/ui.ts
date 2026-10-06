@@ -27,8 +27,6 @@ export function nf(v: number, digits = 1): string {
   return v.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
 
-declare const __ARTIFACT__: boolean;
-
 const pct = (v: number): string => `%${Math.round(v * 100)}`;
 const lower = (s: string): string => s.toLocaleLowerCase("tr");
 
@@ -589,7 +587,7 @@ export function speciesRows(species: SpeciesInfo[]): string {
     .join("");
 }
 
-export function speciesSkeleton(s: SpeciesInfo, aiAvailable: boolean): string {
+export function speciesSkeleton(s: SpeciesInfo): string {
   return (
     `<div class="card">` +
     `<div class="card-actions"><button type="button" class="btn btn-small" data-action="species-back">← Türler</button>` +
@@ -601,17 +599,7 @@ export function speciesSkeleton(s: SpeciesInfo, aiAvailable: boolean): string {
     `<section class="block"><h3>Kalıtım yapısı <span>tip örneği, ilk canlıya göre</span></h3><div id="sp-dna"></div></section>` +
     `<section class="block"><h3>Karar ağı <span>tür ortalaması</span></h3><div id="sp-brain"></div></section>` +
     `<section class="block"><h3>Akrabalık</h3><div class="history" id="sp-kin"></div></section>` +
-    aiBlock("species", aiAvailable) +
     `</div>`
-  );
-}
-
-function aiBlock(kind: "species" | "creature", available: boolean): string {
-  if (!__ARTIFACT__ || !available) return "";
-  return (
-    `<section class="block"><h3>Claude analizi</h3>` +
-    `<div class="card-actions"><button type="button" class="btn btn-small" data-action="ai-${kind}">Ölçümleri Claude'a yorumlat</button></div><div class="analysis" id="ai-${kind}-out" hidden></div>` +
-    `</section>`
   );
 }
 
@@ -695,7 +683,7 @@ export function logHtml(events: SimEvent[], filter: EventKind | ""): string {
 
 // ------------------------------------------------------------------ Birey sekmesi
 
-export function creatureSkeleton(id: number, aiAvailable: boolean): string {
+export function creatureSkeleton(id: number): string {
   return (
     `<div class="card">` +
     `<div class="card-head"><canvas id="cr-portrait"></canvas><div><div class="card-title">Birey <span class="mono">#${id}</span></div><div id="cr-species"></div><div class="card-sub" id="cr-sub"></div></div></div>` +
@@ -707,7 +695,6 @@ export function creatureSkeleton(id: number, aiAvailable: boolean): string {
     `<section class="block"><h3>Karar ağı <span>girdi → eylem ağırlıkları</span></h3><div id="cr-brain"></div>` +
     `<p class="foot">Her eylemin puanı, o satırdaki ağırlıkların girdilerle çarpımının toplamıdır; en yüksek puanlı eylem seçilir. Ağırlıklar kalıtılır ve mutasyona uğrar.</p></section>` +
     `<section class="block"><h3>Soy geçmişi <span id="cr-chain"></span></h3><div class="history" id="cr-history"></div></section>` +
-    aiBlock("creature", aiAvailable) +
     `</div>`
   );
 }
