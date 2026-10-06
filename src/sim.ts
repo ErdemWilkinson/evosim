@@ -445,6 +445,9 @@ export interface SpeciesStats {
   sexual: number;
   males: number;
   ornament: number;
+  /** Tür ortalamaları: parazitte emiş gücü, hepçil ve çürükçülde sindirim yönü. */
+  virulence: number;
+  gutBias: number;
   infected: number;
   organs: { type: OrganType; count: number; power: number }[];
   brain: number[];
@@ -2127,6 +2130,8 @@ export class Sim {
       sexual: sexual.length,
       males: sexual.filter((c) => c.g.sex === "m").length,
       ornament: sexual.length > 0 ? sexual.reduce((s, c) => s + c.g.ornament, 0) / sexual.length : 0,
+      virulence: sum((c) => c.g.virulence) / n,
+      gutBias: sum((c) => c.g.gutBias) / n,
       infected: members.filter((c) => c.infectedT > 0).length,
       organs: Array.from(organs, ([type, e]) => ({ type, count: e.count, power: e.power / e.count })).sort((a, b) => b.count - a.count),
       brain: members.length > 0 ? brain : sp.type.brain.slice(),

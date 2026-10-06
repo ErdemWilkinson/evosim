@@ -564,6 +564,8 @@ export function updateSpeciesCard(ui: UiPayload, info: SpeciesInfo, all: Species
       fact("Karada", d.members > 0 ? pct(d.onLand / n) : "—") +
       fact("Eşeyli üreyen", d.members > 0 ? pct(d.sexual / n) : "—", d.sexual > 0 ? `${d.males} erkek · süs ${nf(d.ornament, 2)}` : "") +
       fact("Hasta", String(d.infected)) +
+      (d.members > 0 && info.diet === "parasite" ? fact("Ort. emiş gücü", `×${nf(d.virulence, 2)}`, "çok emen erken atılır") : "") +
+      (d.members > 0 && (info.diet === "omnivore" || info.diet === "scavenger") ? fact("Ort. sindirim yönü", `${pct(d.gutBias)} bitki`, `${pct(1 - d.gutBias)} et`) : "") +
       fact("Tip örneği", `${ORGAN_SLOTS[info.stage]} organ yuvası`, `yarıçap ${nf(d.type.radius)}`)
   );
   setHtml(
