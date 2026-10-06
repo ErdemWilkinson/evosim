@@ -1121,6 +1121,7 @@ export class Sim {
     let kin = 0;
     let rivals = 0;
     let shaders = 0;
+    let sharers = 0;
     const scan = Math.max(TERRITORY_RADIUS, PHOTO_SHADE_RADIUS);
     this.cHash.query(c.x, c.y, scan, (o) => {
       if (o === c || !o.alive) return;
@@ -1130,6 +1131,7 @@ export class Sim {
       if (o.g.speciesId === g.speciesId && dist2 <= 3600) kin++;
       if (g.diet === "carnivore" && o.g.diet === "carnivore" && dist2 <= TERRITORY_RADIUS * TERRITORY_RADIUS && !(g.packHunter && o.g.packHunter && o.g.speciesId === g.speciesId)) rivals++;
       if (g.diet === "phototroph" && o.g.diet === "phototroph" && dist2 <= PHOTO_SHADE_RADIUS * PHOTO_SHADE_RADIUS) shaders++;
+      if (g.diet === "filter_feeder" && o.g.diet === "filter_feeder" && !o.onLand && dist2 <= FILTER_RADIUS * FILTER_RADIUS) sharers++;
       // Hastalık: aynı türden, bağışık olmayan yakın komşuya bulaşır.
       if (c.infectedT > 0 && o.g.speciesId === g.speciesId && o.infectedT <= 0 && o.immuneT <= 0 && dist2 <= INFECTION_RADIUS * INFECTION_RADIUS && rng.chance(INFECTION_CHANCE * (1 - o.d.immune))) {
         o.infectedT = INFECTION_DURATION;
@@ -1144,7 +1146,8 @@ export class Sim {
         const dy = n.y - c.y;
         if (!n.dead && dx * dx + dy * dy <= FILTER_RADIUS * FILTER_RADIUS) plants.push(n);
       });
-      const rate = c.energy < c.maxEnergy ? FILTER_RATE * d.filter * Math.min(1, plants.length / FILTER_SATURATION) : 0;
+      // Paylaşılan kaynak: aynı öbekten süzen her komşu, bu canlının payına düşen bitkiyi azaltır.
+      const rate = c.energy < c.maxEnergy ? FILTER_RATE * d.filter * Math.min(1, plants.length / (1 + sharers) / FILTER_SATURATION) : 0;
       c.passive += rate;
       // Süzülen enerji bitki örtüsünden gelir: biriken borç kadar bitki tüketilir.
       c.filterDebt += (rate * THINK_INTERVAL) / FILTER_ENERGY_PER_PLANT;

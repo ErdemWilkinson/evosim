@@ -196,5 +196,69 @@
    "kalıcılık: parazit sürenin ≥%30'unda var olan tohum ≥ yarı",
    "kalıcılık: etçil sürenin ≥%30'unda var olan tohum ≥ yarı"
   ]
+ },
+ {
+  "label": "a-paylasilan-kaynak",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.032,
+    "peak": 0.264,
+    "present": 0.723
+   },
+   {
+    "name": "otçul",
+    "share": 0.528,
+    "peak": 1,
+    "present": 0.991
+   },
+   {
+    "name": "parazit",
+    "share": 0.048,
+    "peak": 0.899,
+    "present": 0.674
+   },
+   {
+    "name": "süzücü",
+    "share": 0.147,
+    "peak": 0.536,
+    "present": 0.749
+   },
+   {
+    "name": "hepçil",
+    "share": 0.047,
+    "peak": 0.955,
+    "present": 0.641
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.089,
+    "peak": 0.544,
+    "present": 0.788
+   },
+   {
+    "name": "etçil",
+    "share": 0.109,
+    "peak": 1,
+    "present": 0.741
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 2,
+  "failed": []
  }
 ]
