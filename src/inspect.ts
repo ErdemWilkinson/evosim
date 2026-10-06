@@ -2,6 +2,7 @@ import { Chemistry, ELEMENTS, Option, originSteps } from "./chemistry";
 import { Genome } from "./genome";
 import { ORGANS, OrganType } from "./organs";
 import { Theme, drawCreature } from "./render";
+import { getLang, tr } from "./i18n";
 
 /**
  * Yapı inceleme ekranı ve köken filmi. İkisi de gezegenin kimyasını (chemistry.ts)
@@ -382,7 +383,8 @@ function drawEnvelope(ctx: CanvasRenderingContext2D, chem: Chemistry, w: number,
   ctx.font = "500 11.5px Onest, system-ui, sans-serif";
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
-  const label = (text: string, y: number): void => {
+  const label = (source: string, y: number): void => {
+    const text = tr(source);
     const tw = ctx.measureText(text).width;
     ctx.fillStyle = "rgba(4, 6, 14, 0.72)";
     ctx.fillRect(10, y - 10, tw + 14, 20);
@@ -1553,10 +1555,10 @@ export class OriginFilm {
         ctx.globalAlpha = appear;
         ctx.font = "600 12px Onest, system-ui, sans-serif";
         ctx.fillStyle = "#6df0d2";
-        ctx.fillText(k.toLocaleUpperCase("tr"), x, y - (narrow ? 0 : 9));
+        ctx.fillText(tr(k).toLocaleUpperCase(getLang()), x, y - (narrow ? 0 : 9));
         ctx.font = `500 ${narrow ? 12.5 : 14.5}px Onest, system-ui, sans-serif`;
         ctx.fillStyle = "#f3f5fc";
-        ctx.fillText(v, narrow ? x + 82 : x, y + (narrow ? 0 : 10));
+        ctx.fillText(tr(v), narrow ? x + 82 : x, y + (narrow ? 0 : 10));
         ctx.globalAlpha = 1;
       });
     } else {

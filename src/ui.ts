@@ -4,6 +4,7 @@ import { ELEMENTS, GeneticOption } from "./chemistry";
 import { PlanetProfile } from "./planet";
 import { CreatureDetail, SpeciesInfo, UiPayload } from "./protocol";
 import { Theme, drawCreature } from "./render";
+import { locale, tr } from "./i18n";
 import { BEHAVIOR_LABEL, DEATH_LABEL, DeathCause, EventKind, HistorySample, SimEvent } from "./sim";
 
 /** Panel içerikleri. Hepsi veriden HTML üretir; olaylar main.ts'te `data-*` ile yakalanır. */
@@ -23,8 +24,10 @@ export function fmtTime(t: number): string {
 }
 
 export function nf(v: number, digits = 1): string {
-  return v.toLocaleString("tr-TR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return v.toLocaleString(locale(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
+
+declare const __ARTIFACT__: boolean;
 
 const pct = (v: number): string => `%${Math.round(v * 100)}`;
 const lower = (s: string): string => s.toLocaleLowerCase("tr");
@@ -235,7 +238,7 @@ export class LineChart {
     if (n < 2) {
       ctx.font = MONO;
       ctx.fillStyle = theme.ink3;
-      ctx.fillText("henüz yeterli veri yok", PAD.l, h / 2);
+      ctx.fillText(tr("henüz yeterli veri yok"), PAD.l, h / 2);
       return;
     }
     let max = 0;
@@ -604,11 +607,10 @@ export function speciesSkeleton(s: SpeciesInfo, aiAvailable: boolean): string {
 }
 
 function aiBlock(kind: "species" | "creature", available: boolean): string {
+  if (!__ARTIFACT__ || !available) return "";
   return (
     `<section class="block"><h3>Claude analizi</h3>` +
-    (available
-      ? `<div class="card-actions"><button type="button" class="btn btn-small" data-action="ai-${kind}">Ölçümleri Claude'a yorumlat</button></div><div class="analysis" id="ai-${kind}-out" hidden></div>`
-      : `<p class="foot">Bu özellik yalnızca claude.ai üzerinde yayımlanan sürümde çalışır: ölçülen verileri Claude'a gönderir ve kısa bir yorum ister.</p>`) +
+    `<div class="card-actions"><button type="button" class="btn btn-small" data-action="ai-${kind}">Ölçümleri Claude'a yorumlat</button></div><div class="analysis" id="ai-${kind}-out" hidden></div>` +
     `</section>`
   );
 }

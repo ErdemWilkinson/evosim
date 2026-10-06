@@ -4,6 +4,7 @@ import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
 import { View } from "./client";
 import { MAP_H, MAP_W, World } from "./world";
 import { Chemistry } from "./chemistry";
+import { tr } from "./i18n";
 import { BEHAVIORS, INITIAL_CREATURES, SOUP_COLS, SOUP_ROWS } from "./sim";
 
 /** Sahne çizimi (Canvas 2D). Simülasyondan gelen kareleri yalnızca okur. */
@@ -1122,10 +1123,10 @@ export class Scene {
         ctx.textAlign = "center";
         ctx.textBaseline = "top";
         ctx.font = `700 ${18 * px}px "Unbounded", "Onest", sans-serif`;
-        ctx.fillText("İlk canlılar", gx, gy + 104 * px);
+        ctx.fillText(tr("İlk canlılar"), gx, gy + 104 * px);
         ctx.font = `${12.5 * px}px "Onest", system-ui, sans-serif`;
         ctx.fillStyle = theme.ink2;
-        ctx.fillText("Bütün yaşam bu iki kardeş hücrenin soyundan gelecek.", gx, gy + 130 * px);
+        ctx.fillText(tr("Bütün yaşam bu iki kardeş hücrenin soyundan gelecek."), gx, gy + 130 * px);
       }
       ctx.globalAlpha = 1;
     }
@@ -1206,7 +1207,7 @@ export class Scene {
     ctx.font = `10px "Onest", system-ui, sans-serif`;
     ctx.textAlign = "left";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(`${units} birim`, bx, by - 8);
+    ctx.fillText(tr(`${units} birim`), bx, by - 8);
   }
 
   /** Verilen dünya noktasına en yakın canlının kimliği (yoksa 0). */

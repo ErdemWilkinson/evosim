@@ -1487,6 +1487,11 @@ textarea {
   gap: 8px 14px;
 }
 
+.lang-pick {
+  display: flex;
+  gap: 6px;
+}
+
 .dialog-head h2 {
   font: 500 13px/1 var(--display);
   color: var(--ink-2);

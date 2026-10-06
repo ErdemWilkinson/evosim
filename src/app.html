@@ -139,6 +139,7 @@
           <label class="check"><input type="checkbox" id="set-events" checked><span>Kendiliğinden dünya olayları <small>meteor, iklim dalgası, rüzgâr, deprem</small></span></label>
           <label class="check"><input type="checkbox" id="set-rescue" checked><span>Çöküşte dışarıdan göç <small>nüfus 8'in altına inerse ilkel mikroorganizmalar gelir</small></span></label>
           <label class="field"><span>Evrim hızı</span><select id="set-evo"><option value="fast">Hızlı</option><option value="medium">Orta</option><option value="slow">Gerçekçi (yavaş)</option></select><small class="foot">Mutasyonların sıklığını belirler; yapısal yenilikler (yeni organ, beslenme biçimi, düzey) sayısal kaymalardan daha çok yavaşlar. Yavaş kademede çok hücrelilik ve karaya çıkış çok daha geç görülür.</small></label>
+          <label class="field"><span data-notr>Dil / Language</span><select data-lang-select data-notr aria-label="Dil / Language"><option value="tr">Türkçe</option><option value="en">English</option></select></label>
           <label class="slider game-only"><span>Bitki verimi <b class="mono" id="set-plants-value">×1,0</b></span><input type="range" id="set-plants" min="0.3" max="2.5" step="0.1" value="1"></label>
         </section>
 
@@ -147,7 +148,7 @@
 
       <div class="tab-body" id="tab-species" hidden>
         <div id="species-list-view">
-          <div class="list-head"><span class="label">Tür</span><span class="label">Birey</span></div>
+          <div class="list-head"><span class="label">Tür</span><span class="label" data-en="Count">Birey</span></div>
           <div class="rows" id="species-list"></div>
         </div>
         <div id="species-card" hidden></div>
@@ -195,6 +196,11 @@
   <form method="dialog" class="dialog-body" id="planet-form">
     <header class="dialog-head">
       <h2>Yeni gezegen</h2>
+      <span class="bar-space"></span>
+      <div class="lang-pick" data-notr role="group" aria-label="Dil / Language">
+        <button type="button" class="btn btn-small" data-lang="tr">Türkçe</button>
+        <button type="button" class="btn btn-small" data-lang="en">English</button>
+      </div>
       <button type="button" class="btn btn-icon" data-close aria-label="Kapat">✕</button>
     </header>
     <p class="hero-title">Bütün yaşam tek bir hücreyle başlar.</p>
@@ -208,7 +214,7 @@
       <div id="planet-preview-facts"></div>
     </div>
     <footer class="dialog-foot">
-      <button type="submit" class="btn btn-primary" id="planet-start">Simülasyonu başlat</button>
+      <button type="submit" class="btn btn-primary" id="planet-start" autofocus>Simülasyonu başlat</button>
     </footer>
   </form>
 </dialog>

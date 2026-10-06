@@ -10,6 +10,10 @@ import { randomSeed } from "./rng";
 import { DAY_LENGTH, EventKind, INITIAL_CREATURES, SaveData, WorldEventKind } from "./sim";
 import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, pickGene, spinDna, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
 import { World } from "./world";
+import { getLang, initI18n } from "./i18n";
+
+/** Derleme bayrağı: yalnızca claude.ai üzerinde yayımlanan sürümde doğrudur. */
+declare const __ARTIFACT__: boolean;
 
 const SAVE_KEY = "evosim-save-v2";
 const LEGACY_SAVE_KEY = "evosim-opus-save-v2";
@@ -29,10 +33,11 @@ interface Downloads {
 }
 let sample: SampleFn | null = null;
 let downloads: Downloads | null = null;
-const runtime = (window as unknown as { claude?: { use(name: string): Promise<unknown> } }).claude;
+const runtime = __ARTIFACT__ ? (window as unknown as { claude?: { use(name: string): Promise<unknown> } }).claude : undefined;
 
 // ------------------------------------------------------------------ durum
 
+initI18n();
 const theme = readTheme();
 const client = new Client();
 const scene = new Scene($<HTMLCanvasElement>("scene"), theme);
@@ -167,7 +172,7 @@ function refresh(v: View, ui: UiPayload): void {
   const chips: string[] = [`<span class="chip">O₂ <b>%${Math.round(ui.oxygen * 100)}</b></span>`];
   if (ui.climate) chips.push(`<span class="chip">${ui.climate.warm ? "Sıcak dalga" : "Soğuk dalga"} <b>${Math.ceil(ui.climate.left)} sn</b></span>`);
   if (ui.wind) {
-    const dirs = ["D", "GD", "G", "GB", "B", "KB", "K", "KD"];
+    const dirs = getLang() === "en" ? ["E", "SE", "S", "SW", "W", "NW", "N", "NE"] : ["D", "GD", "G", "GB", "B", "KB", "K", "KD"];
     const deg = ((ui.wind.angle * 180) / Math.PI + 360) % 360;
     chips.push(`<span class="chip">Rüzgâr → <b>${dirs[Math.round(deg / 45) % 8]}</b> ${Math.ceil(ui.wind.left)} sn</span>`);
   }
@@ -539,13 +544,14 @@ function buildPrompt(kind: "species" | "creature"): string | null {
     `Aşağıda Evosim adlı bir yapay yaşam simülasyonundan ÖLÇÜLMÜŞ veriler var. Bu simülasyonda canlılar organsız tek hücreliler olarak başlar; organlar, beslenme biçimi, ` +
     `örgütlenme düzeyi ve davranışı belirleyen karar ağı (girdi → eylem ağırlıkları) mutasyon ve seçilimle değişir.\n\n` +
     `${kind === "species" ? "Bu TÜRÜ" : "Bu BİREYİ"} bir saha biyoloğu gibi yorumla: nasıl geçiniyor, organları ve karar ağı bu yaşam biçimiyle nasıl ilişkili, en belirgin zayıflığı ya da riski ne?\n` +
-    `Kurallar: Türkçe yaz. Düz metin kullan, markdown ya da madde işareti kullanma. En çok 170 kelime. Yalnızca verilen ölçümlere dayan; ` +
+    `Kurallar: ${getLang() === "en" ? "İngilizce" : "Türkçe"} yaz. Düz metin kullan, markdown ya da madde işareti kullanma. En çok 170 kelime. Yalnızca verilen ölçümlere dayan; ` +
     `veride olmayan bir nedeni kesinmiş gibi sunma, çıkarım yapıyorsan "muhtemelen" de.\n\n` +
     `VERİ:\n${JSON.stringify({ konu: subject, ortam: worldContext(v, ui) }, null, 1)}`
   );
 }
 
 async function analyze(kind: "species" | "creature", button: HTMLButtonElement): Promise<void> {
+  if (!__ARTIFACT__) return;
   const out = document.getElementById(`ai-${kind}-out`);
   const prompt = buildPrompt(kind);
   if (!sample || !out || !prompt) return;
@@ -589,6 +595,12 @@ function previewPlanet(): void {
   canvas.getContext("2d")!.drawImage(terrain, 0, 0);
   $("planet-preview-facts").innerHTML = planetHtml(generatePlanetProfile(world), false);
 }
+
+// Sayı biçimi dile bağlıdır: dil değişince sayı içeren kalıcı bölümler yeniden kurulur.
+window.addEventListener("evosim-lang", () => {
+  if ($<HTMLDialogElement>("dlg-planet").open) previewPlanet();
+  if (view) setHtml($("planet-facts"), planetHtml(view.planet));
+});
 
 function openPlanet(): void {
   $<HTMLInputElement>("seed-input").value = String(randomSeed());
