@@ -264,6 +264,12 @@ kopyala, commit + push.
 - **Dosya indirme yayın parçasında denenmedi.** Kayıt dosyasını indirme düğmesi yalnızca
   artifact sürümünde ayrı bir köprü kullanır; GitHub Pages sürümünde dosya tarayıcının kendi
   indirmesiyle iner.
+- **Yeni oyunlar artık "Orta" evrim hızıyla başlar** (öncesinde "Hızlı"; eski kayıtlar kendi
+  kademesini korur, "Dünya ayarları"ndan değiştirilebilir). Neden: gün sayacına göre canlılar
+  fazla hızlı evriliyordu. Yeni mekanik eklenmedi, yalnızca var olan bir kademe seçildi.
+  Ölçüm: geliştirme tohumları 1–12, Orta kademe, 6000 sn, tüm denge ölçütleri geçti (hiçbir
+  tohumda yaşam tükenmedi, çok hücrelilik ve karaya çıkış 12/12). Doğrulama tohumları (13–24)
+  ve 96 tohumluk gürültü ölçümü bu kademe için koşmadı.
 - **İngilizce çeviri:** kimya, organ, gen ve arayüz metinleri elle çevrildi; sayı içeren olay
   cümleleri kalıplarla çevriliyor. Otomatik tarayıcı betiği (masaüstü ve telefon genişliği) film,
   paneller, soy ağacı, kayıt ve yapı inceleme pencerelerini İngilizcede gezdi ve çevrilmemiş

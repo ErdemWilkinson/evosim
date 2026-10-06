@@ -561,7 +561,7 @@ export class Sim {
   public autoEvents = true;
   public rescueEnabled = true;
   /** Evrim hızı kademesi; mutasyon ölçeğini kalıtım polimerinin hata çarpanıyla birlikte belirler. */
-  public evolutionSpeed: EvolutionSpeed = "fast";
+  public evolutionSpeed: EvolutionSpeed = "medium";
   public nutrientMultiplier = 1;
   public climate: { warm: boolean; meta: number; nutrient: number; left: number } | null = null;
   public wind: { vx: number; vy: number; angle: number; left: number } | null = null;
