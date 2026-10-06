@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor } from "./genome";
+import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, World } from "./world";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
@@ -498,6 +498,8 @@ export class Sim {
 
   public autoEvents = true;
   public rescueEnabled = true;
+  /** Evrim hızı kademesi; mutasyon ölçeğini kalıtım polimerinin hata çarpanıyla birlikte belirler. */
+  public evolutionSpeed: EvolutionSpeed = "fast";
   public nutrientMultiplier = 1;
   public climate: { warm: boolean; meta: number; nutrient: number; left: number } | null = null;
   public wind: { vx: number; vy: number; angle: number; left: number } | null = null;
@@ -533,7 +535,7 @@ export class Sim {
     this.planet = generatePlanetProfile(this.world);
     setForbiddenOrgans(this.planet.forbiddenOrgans);
     chemMods = this.world.chem.mods;
-    setMutationScale("fast", chemMods.mutation);
+    setMutationScale(this.evolutionSpeed, chemMods.mutation);
     rng.seed(this.world.seed ^ 0x51ed270b);
     this.updateEnv();
     if (populate) this.populate();
@@ -566,6 +568,11 @@ export class Sim {
     const light = this.light();
     const warmth = this.warmth();
     this.env = { light, night: light < NIGHT_LIGHT, warmth, oxygen: this.oxygen(), cold: warmth < -0.3 ? ((-warmth - 0.3) / 0.7) * WINTER_COLD_STRESS : 0 };
+  }
+
+  public setEvolutionSpeed(speed: EvolutionSpeed): void {
+    this.evolutionSpeed = speed;
+    setMutationScale(speed, chemMods.mutation);
   }
 
   // ------------------------------------------------------------------ kurulum
@@ -2120,6 +2127,7 @@ export class Sim {
       maxGeneration: this.maxGeneration,
       autoEvents: this.autoEvents,
       rescueEnabled: this.rescueEnabled,
+      evolutionSpeed: this.evolutionSpeed,
       immigrants: this.immigrants,
       nutrientMultiplier: this.nutrientMultiplier,
       climate: this.climate,
@@ -2200,6 +2208,7 @@ export class Sim {
     sim.maxGeneration = data.maxGeneration ?? 0;
     sim.autoEvents = data.autoEvents ?? true;
     sim.rescueEnabled = data.rescueEnabled ?? true;
+    sim.setEvolutionSpeed(data.evolutionSpeed ?? "fast");
     sim.immigrants = data.immigrants ?? 0;
     sim.nutrientMultiplier = data.nutrientMultiplier ?? 1;
     sim.climate = data.climate ?? null;
@@ -2318,6 +2327,7 @@ function cleanSave(raw: SaveData): SaveData {
     maxGeneration: Math.floor(num(raw.maxGeneration)),
     autoEvents: raw.autoEvents !== false,
     rescueEnabled: raw.rescueEnabled !== false,
+    evolutionSpeed: EVOLUTION_SPEEDS.includes(raw.evolutionSpeed as EvolutionSpeed) ? (raw.evolutionSpeed as EvolutionSpeed) : "fast",
     immigrants: Math.floor(num(raw.immigrants)),
     nutrientMultiplier: Math.min(3, Math.max(0.2, num(raw.nutrientMultiplier, 1))),
     climate: raw.climate ? { warm: raw.climate.warm === true, meta: num(raw.climate.meta, 1), nutrient: num(raw.climate.nutrient, 1), left: num(raw.climate.left) } : null,
@@ -2350,6 +2360,7 @@ export interface SaveData {
   maxGeneration: number;
   autoEvents: boolean;
   rescueEnabled: boolean;
+  evolutionSpeed?: EvolutionSpeed;
   immigrants: number;
   nutrientMultiplier: number;
   climate: Sim["climate"];

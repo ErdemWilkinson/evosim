@@ -1,4 +1,4 @@
-import { Diet, Genome } from "./genome";
+import { Diet, EvolutionSpeed, Genome } from "./genome";
 import { OrganType } from "./organs";
 import { Behavior, Flash, HistorySample, Inspection, SaveData, SimEvent, SpeciesStats, WorldEventKind } from "./sim";
 
@@ -26,7 +26,7 @@ export type Command =
   | { type: "remove"; id: number }
   | { type: "organ"; id: number; organ: OrganType; power: number | null }
   | { type: "stage"; id: number; stage: number }
-  | { type: "set"; autoEvents?: boolean; rescueEnabled?: boolean; nutrientMultiplier?: number }
+  | { type: "set"; autoEvents?: boolean; rescueEnabled?: boolean; nutrientMultiplier?: number; evolutionSpeed?: EvolutionSpeed }
   | { type: "save"; req: number }
   | { type: "rewind"; index: number };
 
@@ -97,6 +97,7 @@ export interface UiPayload {
   snaps: number[];
   autoEvents: boolean;
   rescueEnabled: boolean;
+  evolutionSpeed: EvolutionSpeed;
   nutrientMultiplier: number;
   speed: number;
   selected: CreatureDetail | null;

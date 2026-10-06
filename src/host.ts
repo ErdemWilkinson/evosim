@@ -1,6 +1,6 @@
 import { BEHAVIORS, Creature, MAX_CREATURES, STEP, SaveData, Sim } from "./sim";
 import { Command, CreatureDetail, FLAG, Frame, HostMessage, PLANT_LAND_BIT, PLANT_SCALE, STRIDE, SpeciesInfo, UiPayload } from "./protocol";
-import { Genome, cloneGenome } from "./genome";
+import { EVOLUTION_SPEEDS, Genome, cloneGenome } from "./genome";
 
 /**
  * Simülasyonun sahibi. Web Worker içinde çalışır (bkz. worker.ts); Worker
@@ -101,6 +101,7 @@ export class SimHost {
       case "set":
         if (cmd.autoEvents !== undefined) sim.autoEvents = cmd.autoEvents;
         if (cmd.rescueEnabled !== undefined) sim.rescueEnabled = cmd.rescueEnabled;
+        if (cmd.evolutionSpeed !== undefined && EVOLUTION_SPEEDS.includes(cmd.evolutionSpeed)) sim.setEvolutionSpeed(cmd.evolutionSpeed);
         if (cmd.nutrientMultiplier !== undefined) sim.nutrientMultiplier = Math.max(0.2, Math.min(3, cmd.nutrientMultiplier));
         break;
       case "save":
@@ -306,6 +307,7 @@ export class SimHost {
       snaps: this.snaps.map((s) => s.t),
       autoEvents: sim.autoEvents,
       rescueEnabled: sim.rescueEnabled,
+      evolutionSpeed: sim.evolutionSpeed,
       nutrientMultiplier: sim.nutrientMultiplier,
       speed: this.speed,
       selected: this.detail(sim),

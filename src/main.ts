@@ -1,5 +1,5 @@
 import { Client, View } from "./client";
-import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, Genome, IN } from "./genome";
+import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, EvolutionSpeed, Genome, IN } from "./genome";
 import { ORGANS, OrganType, STAGE_LABEL } from "./organs";
 import { PhyloTree } from "./phylo";
 import { OriginFilm, StructureViewer } from "./inspect";
@@ -213,6 +213,8 @@ function refreshTab(v: View, ui: UiPayload): void {
     const plants = $<HTMLInputElement>("set-plants");
     if (document.activeElement !== events) events.checked = ui.autoEvents;
     if (document.activeElement !== rescue) rescue.checked = ui.rescueEnabled;
+    const evo = $<HTMLSelectElement>("set-evo");
+    if (document.activeElement !== evo) evo.value = ui.evolutionSpeed;
     if (document.activeElement !== plants) plants.value = String(ui.nutrientMultiplier);
     $("set-plants-value").textContent = `×${nf(ui.nutrientMultiplier)}`;
     $("engine-note").textContent =
@@ -409,6 +411,7 @@ function setGameMode(on: boolean): void {
 }
 $<HTMLInputElement>("set-game").addEventListener("change", (e) => setGameMode((e.target as HTMLInputElement).checked));
 $<HTMLInputElement>("set-events").addEventListener("change", (e) => client.send({ type: "set", autoEvents: (e.target as HTMLInputElement).checked }));
+$<HTMLSelectElement>("set-evo").addEventListener("change", (e) => client.send({ type: "set", evolutionSpeed: (e.target as HTMLSelectElement).value as EvolutionSpeed }));
 $<HTMLInputElement>("set-rescue").addEventListener("change", (e) => client.send({ type: "set", rescueEnabled: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("set-plants").addEventListener("input", (e) => client.send({ type: "set", nutrientMultiplier: Number((e.target as HTMLInputElement).value) }));
 
