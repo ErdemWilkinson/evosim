@@ -13,6 +13,8 @@ npm run dev        # http://localhost:5180, kaynak değişince yeniden derler
 npm run typecheck
 npm run balance -- 6000 1 2 3 --brief   # başsız denge koşusu: [saniye] [tohumlar…] [--no-rescue]
 npm run balance -- 4000 1 2 3 --summary # beslenme biçimlerinin ortalama/tepe payı ve var olduğu süre
+npm run balance:check                   # denge testi: geçti/kaldı (8 tohum × 6000 sn, yaklaşık 6 dk)
+npm run test:core                       # çekirdek testleri: belirlenimcilik ve kayıt gidiş-dönüşü (yaklaşık 3 dk)
 ```
 
 ## Yapı
@@ -75,6 +77,21 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
 - **Parazitlik ve hastalık:** parazitler başka türden konağa tutunup enerjisini emer; konak
   bir süre sonra paraziti atar ve bir süre dirençli kalır, zayıf konaktan daha az enerji emilir; türe
   özgü salgınlar kalabalıkta başlar ve temasla yayılır, iyileşen bir süre bağışık kalır.
+- **Dengeyi geri beslemeler kurar** (bir grubu doğrudan güçlendiren ya da zayıflatan sayı ayarı
+  yerine):
+  - *Paylaşılan kaynak:* aynı bitki öbeğinden süzen süzücüler birbirinin payını düşürür. Leş
+    zaten paylaşılır: her ısırık leşin enerjisinden düşer.
+  - *Doyma ve sindirim:* etçil ve hepçil avını sindirene kadar yeniden avlanamaz; parazit, öğünü
+    dolunca emmeyi bırakıp sindirir. Süre yenen miktarla orantılıdır.
+  - *Sığınak:* haritanın yaklaşık beşte biri sık örtüdür (üretici pigmentinin renginde, benekli
+    alanlar). Örtüdeki canlı ancak dokunacak kadar yaklaşılınca fark edilir; kıyı sığlığı ve
+    bitki öbekleri kısmi örtü sağlar. Elektroreseptör örtünün içini görür. Sığınaktaki canlı
+    haritada halkayla işaretlenir, üst şeritte "Sığınakta N" yazar.
+  - *Parazitin ikilemi:* emiş gücü kalıtılan bir gendir. Çok emen konağını tüketir ve konak onu
+    o oranda erken atar; az emen aç kalır.
+  - *Sindirim yönü:* hepçil ve çürükçülün bitkiden ve etten aldığı verim tek bir gene bağlıdır;
+    birinde iyileşen ötekinde kötüleşir.
+- **Yumurtlama ve sürü avcılığı** yalnızca çok hücrelide ortaya çıkabilir.
 - **Coğrafi yalıtım:** sıradağlar kanatsızlar için geçilmezdir.
 - **Gün–gece ve mevsimler**, iklim dalgaları, rüzgâr, deprem, meteor.
 - **Türleşme:** genetik uzaklığa dayalı; tür adları, soy ağacı ve tür başına nüfus eğrisi.
@@ -84,8 +101,90 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
 Varsayılan görünüm yalnızca gözlem içindir. Elle müdahale araçları (bitki ek, canlı yerleştir,
 meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve düzeyini düzenleme)
 "Dünya ayarları" altındaki **Oyun modu** açılınca görünür. Bunların dışında: dönen DNA zinciri, tür kartı, organ tablosu, olay günlüğü, soy ağacı, zaman yolculuğu
-(60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. claude.ai üzerinde yayımlanan sürümde
+(60 sn'de bir kayıt, en çok 24), dışa/içe aktarma. "Dünya ayarları"ndaki **Evrim hızı** üç kademelidir
+(Hızlı, Orta, Gerçekçi); simülasyon sürerken değiştirilebilir ve kayıtla birlikte saklanır. claude.ai üzerinde yayımlanan sürümde
 tür ve birey kartlarındaki "Claude analizi" ölçülen verileri Claude'a yorumlatır.
+
+## Testler ve ölçüm
+
+İki ayrı test vardır; ikisi de simülasyonu tarayıcısız, Node'da koşturur.
+
+**Çekirdek testleri** (`npm run test:core`, `scripts/core.mjs`) iki güvenceyi sınar:
+
+- *Belirlenimcilik:* aynı tohum ve ayar iki koşuda bire bir aynı durumu verir.
+- *Kayıt gidiş-dönüşü:* koşunun ortasında kaydedilip yüklenen simülasyon, kaydedilmeden devam
+  edenle bire bir aynı durumda biter.
+
+Karşılaştırma tam durum üzerindendir (her canlının konumu, enerjisi, genomu ve zamanlayıcıları;
+bitkiler, leşler, yumurtalar, türler, üreteç durumu) ve yuvarlama payı yoktur. Sonuç
+(6 Ekim 2026): 3 tohum × 600 sn, Hızlı ve Gerçekçi kademelerde 18 denetimin 18'i geçti.
+Bu test yazıldığında gidiş-dönüş kalıyordu, çünkü kayıt konumları yuvarlıyor; leşleri, deprem
+bölgelerini, sindirim ve karar zamanlayıcılarını taşımıyordu. Kayıt sürüm 5 ile eksiksiz hâle
+getirildi. Aynı sırada bir hata da çıktı: kayıt yüklenince türlerin birey sayısı sıfırdan
+başlıyordu (245 canlılık bir kayıtta yüklemeden sonra yaşayan tür sayısı 26 yerine 0); sayı
+artık yüklenen canlılardan sayılıyor.
+
+**Denge testi** (`npm run balance:check`, `scripts/check.mjs`) bir termometredir, ayar düğmesi
+değil: 8 tohumu 6000 sn koşturur ve şu eşiklere bakar (otçul hepsinde hariçtir; ilk hücre
+otçuldur ve birincil tüketici besin ağının tabanıdır):
+
+1. Baskınlık: hiçbir beslenme biçimi tohumların yarısından fazlasında ortalama %60'ı geçmez.
+2. Kalıcılık: her biçim tohumların en az yarısında sürenin en az %30'unda vardır.
+3. Hiçbir tohumda yaşam tükenmez.
+4. Tohumların en az yarısında çok hücreli, en az birinde karaya çıkış görülür.
+5. Patlama: bir biçimin anlık payı (nüfus en az 20 iken) tohumların yarısından fazlasında
+   %90'ı geçmez. İlk ölçümden sonra eklendi: ortalama pay, etçillerin bir ara nüfusun tamamını
+   oluşturduğu anları gizliyordu.
+6. Çöküş: nüfusun 8'in altına düşüp dışarıdan göç gerektirdiği tohumlar yarıyı geçmez. İlk
+   ölçümden sonra eklendi: göç yaşamı yeniden başlattığı için 3. eşik çöküşü göremiyordu.
+
+### Taban ölçümü ve güncel durum
+
+Taban ölçümü 6 Ekim 2026'da, evrim hızı ayarı girdikten sonra ve dengeleyici mekaniklerden
+("fren" commit'leri) önce alındı; `scripts/balance-log.json` içinde `taban-fast`,
+`taban-medium`, `taban-slow` etiketleriyle durur (günlüğe 0ddfe33 ile girdi, ölçülen kod
+3aba30c ile aynıdır). Güncel sütunlar beş fren commit'inden sonraki koddur (d891d55). Hepsi 1–8 tohumları × 6000 sn.
+Hücreler: sekiz tohumun ortalama payı / herhangi bir tohumdaki en yüksek anlık pay / var olduğu
+sürenin ortalaması (%).
+
+| | Taban Hızlı | Güncel Hızlı | Taban Orta | Güncel Orta | Taban Gerçekçi | Güncel Gerçekçi |
+| --- | --- | --- | --- | --- | --- | --- |
+| Fotosentetik | 3 / 19 / 73 | 3 / 30 / 74 | 3 / 30 / 63 | 4 / 25 / 73 | 1 / 9 / 27 | 1 / 15 / 44 |
+| Otçul | 44 / 100 / 94 | 45 / 100 / 94 | 55 / 100 / 96 | 52 / 100 / 96 | 61 / 100 / 91 | 73 / 100 / 100 |
+| Parazit | 2 / 51 / 66 | 4 / 84 / 62 | 2 / 64 / 51 | 3 / 67 / 53 | 1 / 28 / 24 | 0 / 6 / 23 |
+| Süzücü | 24 / 95 / 85 | 13 / 63 / 77 | 19 / 98 / 74 | 20 / 98 / 77 | 27 / 85 / 68 | 14 / 58 / 45 |
+| Hepçil | 5 / 73 / 67 | 9 / 85 / 72 | 4 / 69 / 51 | 3 / 48 / 48 | 5 / 100 / 28 | 1 / 31 / 29 |
+| Çürükçül | 10 / 66 / 74 | 14 / 83 / 76 | 7 / 66 / 59 | 14 / 88 / 77 | 2 / 44 / 33 | 8 / 57 / 50 |
+| Etçil | 12 / 100 / 72 | 12 / 100 / 76 | 10 / 100 / 61 | 6 / 97 / 53 | 3 / 51 / 23 | 2 / 56 / 32 |
+| Çok hücreli görülen tohum | 8/8 | 8/8 | 8/8 | 6/8 | 4/8 | 4/8 |
+| Karaya çıkış görülen tohum | 8/8 | 8/8 | 8/8 | 8/8 | 7/8 | 6/8 |
+| Dışarıdan göç gereken tohum | 6/8 | 3/8 | 3/8 | 2/8 | 1/8 | 1/8 |
+| Yaşamın tükendiği tohum | 0 | 0 | 0 | 0 | 0 | 0 |
+| **Sonuç** | **KALDI (2)** | **GEÇTİ** | **GEÇTİ** | **GEÇTİ** | **KALDI (2)** | **KALDI (2)** |
+
+Kalan eşikler:
+
+- *Taban Hızlı:* etçil patlaması (payı %90'ı geçen tohum yarıdan fazla) ve çöküş (6/8 tohumda göç).
+- *Taban Gerçekçi:* parazit ve etçil kalıcılığı (tohumların yarısından azında sürenin %30'unda var).
+- *Güncel Gerçekçi:* parazit ve hepçil kalıcılığı. Olası neden: bu kademede beslenme değişimi
+  beş kat seyrek olduğu için yeni bir biçim 6000 sn içinde çoğu tohumda geç ortaya çıkıyor;
+  bu bir tahmindir, ilk görülme zamanı ölçülmedi.
+
+Güncel Hızlı sütunu bu depoda 6 Ekim 2026'da yeniden koşturuldu ve günlükteki
+`e-sindirim-geni` kaydıyla aynı çıktı. Güncel Orta ve Gerçekçi sütunları günlükteki `son-medium`
+ve `son-slow` kayıtlarından alındı; yeniden koşturulmadı. Bu iki kayıt günlüğe d891d55'ten sonra yazıldı;
+hangi kod üstünde koşturuldukları günlükte yazmıyor.
+
+Güncel Hızlı sonucu yalnızca 1–8 tohumları için geçerlidir. Dengeleyici mekanikler bu sekiz
+tohumda ölçülerek geliştirildi; günlükteki `son-tohum-9-16` kaydında (9–16 tohumları, Hızlı)
+bir tohumda yaşam tükendiği için test kalıyor. Bu sekiz tohum olay olay izlendi:
+
+- *Tohum 16 (tükenme):* ilk hücre ve tek yavrusu 50. saniyede açlıktan öldü (enerji 47 saniyede
+  79'dan 2,6'ya indi); ortada henüz avcı yoktu. Bu, dengeleyici mekaniklerle ilgisiz bir başlangıç
+  sorunudur: ilk hücrenin yakınında yeterli bitki olması garanti değildir.
+- *Tohum 11 ve 12 (göç):* 5250–5400. saniyelerde nüfusun tamamı etçildi (9–10 birey) ve
+  ölümlerin çoğu avlanmaydı; yani etçiller avı bitirip birbirini yedi. Sığınak ve doyma bu
+  döngüyü seyreltti (taban ölçümünde 6/8 tohum) ama ortadan kaldırmadı.
 
 ## Deneme adresi
 
@@ -103,10 +202,17 @@ kopyala, commit + push.
 - **Organ malzemeleri şematiktir:** 37 organın her birinin kendi malzemesi ve molekül çizimi
   var, ama bunlar Dünya'daki karşılıklarından uyarlanmış yalın modellerdir ve organ malzemelerinin
   kaynak künyesi yoktur. Gezegende gereken element yoksa organ genel liften yapılmış gösterilir.
-- **Beslenme dengesi tohumdan tohuma oynar:** 12 tohum × 4000 sn denemede parazitler ortalama
-  %0–3 (tepe %25), süzücüler %11–35, çürükçüller %2–24 pay aldı; tek tek koşularda bir grubun
-  kısa süreli olarak nüfusun çoğunu oluşturduğu anlar hâlâ görülüyor.
-
+- **Denge testi yalnızca geliştirildiği tohumlarda geçiyor:** 1–8 tohumlarında (Hızlı ve Orta)
+  geçer; 9–16 tohumlarında ve Gerçekçi kademede kalır (ayrıntı "Testler ve ölçüm" bölümünde).
+  Açık kalan iki sorun: etçillerin bütün avı bitirip birbirini yediği çöküşler ve ilk hücrenin
+  yiyecek bulamadan öldüğü başlangıçlar.
+- **Denge ölçümü gürültülüdür:** simülasyon kaotiktir; kurala eklenen tek bir rastgele sayı
+  çekimi aynı tohumda bambaşka bir tarih üretir. Sekiz tohumluk ölçümde eşiğe yakın sonuçlar
+  (örneğin göç gereken tohum sayısı 3–5 arasında) bir değişiklikten ötekine yer değiştirebilir.
+- **Eski el ayarları duruyor:** dengeleyici mekaniklerden önce elle ayarlanmış sabitler
+  (süzme hızı, leşin kalma süresi, parazitin tutunma süresi gibi) geri alınmadı.
+- **Sığınak sabit bir harita katmanıdır:** örtü alanları büyümez, küçülmez, canlılar tarafından
+  yok edilemez.
 - **Claude analizi ve dosya indirme hiç denenmedi.** İkisi de yalnızca claude.ai üzerindeki
   artifact sürümünde çalışır; GitHub Pages sürümünde analiz bölümü yerine açıklama notu
   çıkar, kayıt dosyası ise tarayıcının kendi indirmesiyle iner.
@@ -124,11 +230,18 @@ kopyala, commit + push.
   gelmez (12 tohumluk denemede 1 kez oldu). "Çöküşte dışarıdan göç" ayarı kapatılabilir.
 - **Kalıtım yapısı eşiği:** sayısal bir gen, aralığının %2'sinden az kaydıysa "değişmedi"
   sayılır; eşik keyfîdir.
-- **Eski kayıtlar:** sürüm 2 kayıtları açılır, ama harita artık kimyadan üretildiği için arazi
-  farklıdır; yaşayamayacağı yerde kalan canlılar sığ sıvıya taşınır. Sürüm 1 kayıtları açılmaz.
+- **Eski kayıtlar:** güncel kayıt sürümü 5'tir; sürüm 2, 3 ve 4 kayıtları açılır. Sürüm 2'de
+  harita farklıdır (artık kimyadan üretiliyor); yaşayamayacağı yerde kalan canlılar sığ sıvıya
+  taşınır. Sürüm 4 ve öncesi canlının anlık durumunu (hedefi, zamanlayıcıları), leşleri ve
+  deprem bölgelerini taşımaz; bunlar varsayılanla başlar, yani eski bir kayıttan devam eden
+  koşu kaydedilmeden devam edenle aynı ilerlemez. Sürüm 1 kayıtları açılmaz.
+- **Kayıt büyüdü:** sürüm 5 değerleri yuvarlamadan yazar; 245–326 canlılık bir koşuda kayıt
+  yaklaşık 0,7 MB'tan 1,1 MB'a çıktı (iki ölçüm aynı anda alınmadı, nüfus farklı). Zaman
+  yolculuğu bu kayıtlardan 24 tane bellekte tutar. 500 canlıda boyut ölçülmedi.
 - **Yalnızca koyu görünüm vardır;** açık tema kaldırıldı.
-- **Simülasyon çekirdeği için otomatik test yok:** denge yalnızca `npm run balance`
-  çıktısına bakılarak ayarlandı.
+- **Otomatik testler dardır:** çekirdek testleri yalnızca belirlenimciliği ve kayıt
+  gidiş-dönüşünü sınar (bkz. "Testler ve ölçüm"); tek tek mekanikler için birim testi yoktur.
+  Gidiş-dönüş testi elle müdahaleyi (Oyun modu araçları) ve Orta kademeyi kapsamaz.
 
 ## Bilinen sınırlar
 
