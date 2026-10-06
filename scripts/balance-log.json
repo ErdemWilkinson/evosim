@@ -1,0 +1,200 @@
+[
+ {
+  "label": "taban-fast",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.027,
+    "peak": 0.189,
+    "present": 0.725
+   },
+   {
+    "name": "otçul",
+    "share": 0.443,
+    "peak": 1,
+    "present": 0.939
+   },
+   {
+    "name": "parazit",
+    "share": 0.024,
+    "peak": 0.513,
+    "present": 0.656
+   },
+   {
+    "name": "süzücü",
+    "share": 0.237,
+    "peak": 0.951,
+    "present": 0.851
+   },
+   {
+    "name": "hepçil",
+    "share": 0.049,
+    "peak": 0.731,
+    "present": 0.669
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.1,
+    "peak": 0.66,
+    "present": 0.735
+   },
+   {
+    "name": "etçil",
+    "share": 0.121,
+    "peak": 1,
+    "present": 0.721
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 6,
+  "failed": [
+   "patlama: etçil payı %90'ı geçen tohum ≤ yarı",
+   "çöküş: dışarıdan göç gerektiren tohum ≤ yarı"
+  ]
+ },
+ {
+  "label": "taban-medium",
+  "evo": "medium",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.029,
+    "peak": 0.304,
+    "present": 0.626
+   },
+   {
+    "name": "otçul",
+    "share": 0.546,
+    "peak": 1,
+    "present": 0.957
+   },
+   {
+    "name": "parazit",
+    "share": 0.021,
+    "peak": 0.642,
+    "present": 0.508
+   },
+   {
+    "name": "süzücü",
+    "share": 0.189,
+    "peak": 0.98,
+    "present": 0.739
+   },
+   {
+    "name": "hepçil",
+    "share": 0.038,
+    "peak": 0.685,
+    "present": 0.506
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.074,
+    "peak": 0.658,
+    "present": 0.591
+   },
+   {
+    "name": "etçil",
+    "share": 0.103,
+    "peak": 1,
+    "present": 0.614
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 3,
+  "failed": []
+ },
+ {
+  "label": "taban-slow",
+  "evo": "slow",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.005,
+    "peak": 0.087,
+    "present": 0.274
+   },
+   {
+    "name": "otçul",
+    "share": 0.611,
+    "peak": 1,
+    "present": 0.914
+   },
+   {
+    "name": "parazit",
+    "share": 0.008,
+    "peak": 0.283,
+    "present": 0.243
+   },
+   {
+    "name": "süzücü",
+    "share": 0.272,
+    "peak": 0.852,
+    "present": 0.681
+   },
+   {
+    "name": "hepçil",
+    "share": 0.054,
+    "peak": 1,
+    "present": 0.278
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.024,
+    "peak": 0.436,
+    "present": 0.327
+   },
+   {
+    "name": "etçil",
+    "share": 0.025,
+    "peak": 0.512,
+    "present": 0.229
+   }
+  ],
+  "multicellularSeeds": 4,
+  "landSeeds": 7,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 1,
+  "failed": [
+   "kalıcılık: parazit sürenin ≥%30'unda var olan tohum ≥ yarı",
+   "kalıcılık: etçil sürenin ≥%30'unda var olan tohum ≥ yarı"
+  ]
+ }
+]

@@ -8,7 +8,8 @@
     "build": "node scripts/build.mjs",
     "dev": "node scripts/build.mjs --serve",
     "typecheck": "tsc --noEmit",
-    "balance": "node scripts/balance.mjs"
+    "balance": "node scripts/balance.mjs",
+    "balance:check": "node scripts/check.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.21.5",
