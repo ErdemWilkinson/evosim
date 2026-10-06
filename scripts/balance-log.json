@@ -260,5 +260,69 @@
   "extinctSeeds": 0,
   "rescuedSeeds": 2,
   "failed": []
+ },
+ {
+  "label": "b-doyma",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.035,
+    "peak": 0.417,
+    "present": 0.659
+   },
+   {
+    "name": "otçul",
+    "share": 0.57,
+    "peak": 1,
+    "present": 0.988
+   },
+   {
+    "name": "parazit",
+    "share": 0.018,
+    "peak": 0.426,
+    "present": 0.59
+   },
+   {
+    "name": "süzücü",
+    "share": 0.108,
+    "peak": 0.542,
+    "present": 0.664
+   },
+   {
+    "name": "hepçil",
+    "share": 0.058,
+    "peak": 0.7,
+    "present": 0.669
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.124,
+    "peak": 0.618,
+    "present": 0.733
+   },
+   {
+    "name": "etçil",
+    "share": 0.087,
+    "peak": 1,
+    "present": 0.591
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 4,
+  "failed": []
  }
 ]

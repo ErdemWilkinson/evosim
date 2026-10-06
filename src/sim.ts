@@ -87,6 +87,10 @@ const REST_METABOLISM = 0.85;
 const ATTACK_INTERVAL = 0.8;
 const HUNT_METABOLISM = 1.5;
 const HANDLING_TIME = 5;
+/** Sindirim hızı (enerji/sn): yenen av ya da emilen öğün bu hızla sindirilir; sindirim bitmeden yeniden avlanılmaz, emilmez. */
+const DIGEST_RATE = 4;
+/** Parazit, mide kapasitesi (azami enerjinin bu oranı) dolunca emmeyi bırakıp sindirir. */
+const PARASITE_MEAL = 0.25;
 const ALARM_DISTANCE = 30;
 const PREY_SIZE_LIMIT: Record<"carnivore" | "omnivore", number> = { carnivore: 1.35, omnivore: 0.9 };
 const CANNIBALISM_ENERGY = 0.2;
@@ -304,6 +308,9 @@ export interface Creature {
   parasites: number;
   attachT: number;
   resistT: number;
+  /** Sindirim süresi: sıfırdan büyükken etçil ve hepçil avlanamaz, parazit ememez. */
+  digestT: number;
+  meal: number;
   passive: number;
   filterDebt: number;
   crowd: number;
@@ -648,6 +655,8 @@ export class Sim {
       parasites: 0,
       attachT: 0,
       resistT: 0,
+      digestT: 0,
+      meal: 0,
       passive: 0,
       filterDebt: 0,
       crowd: 1,
@@ -1163,7 +1172,7 @@ export class Sim {
     const threatRange = sense * 0.75 * (c.onLand ? 1 : d.lateral);
     const threat = g.diet !== "carnivore" ? this.findThreat(c, threatRange) : null;
     const hunter = g.diet === "carnivore" || g.diet === "omnivore";
-    const prey = hunter && c.attackCd <= ATTACK_INTERVAL ? this.findPrey(c, sense) : null;
+    const prey = hunter && c.attackCd <= ATTACK_INTERVAL && c.digestT <= 0 ? this.findPrey(c, sense) : null;
     let nutrient: Nutrient | null = null;
     let corpse: Corpse | null = null;
     let host: Creature | null = null;
@@ -1284,6 +1293,8 @@ export class Sim {
       const gain = Math.sqrt(pred.d.feed);
       const eaten = Math.min(mass * ASSIMILATION, (pred.maxEnergy - pred.energy) / gain);
       pred.energy = Math.min(pred.maxEnergy, pred.energy + eaten * gain);
+      // Doyma: yenen miktar sindirilene kadar yeniden avlanılmaz.
+      pred.digestT = (eaten * gain) / DIGEST_RATE;
       this.kill(prey, "predation", mass - eaten);
       pred.attackCd = HANDLING_TIME;
       pred.thinkT = 0;
@@ -1309,6 +1320,7 @@ export class Sim {
     if (c.careT > 0) c.careT -= dt;
     if (c.immuneT > 0) c.immuneT -= dt;
     if (c.resistT > 0) c.resistT -= dt;
+    if (c.digestT > 0) c.digestT -= dt;
     if (c.infectedT > 0 && (c.infectedT -= dt) <= 0) c.immuneT = IMMUNITY_DURATION;
 
     const wasOnLand = c.onLand;
@@ -1379,9 +1391,15 @@ export class Sim {
         // Konağa tutunmuş: onunla taşınır, doyana kadar enerjisini emer. Zayıf konaktan daha az emer.
         const yieldRate = PARASITE_EFFICIENCY * Math.sqrt(d.feed);
         const vigor = Math.min(1, 0.45 + host.energy / host.maxEnergy);
-        const drain = Math.max(0, Math.min(host.energy, PARASITE_DRAIN * vigor * dt, (c.maxEnergy - c.energy) / yieldRate));
+        const drain = c.digestT > 0 ? 0 : Math.max(0, Math.min(host.energy, PARASITE_DRAIN * vigor * dt, (c.maxEnergy - c.energy) / yieldRate));
         host.energy -= drain;
         c.energy += drain * yieldRate;
+        // Öğün dolunca emme durur ve öğün sindirilir.
+        c.meal += drain * yieldRate;
+        if (c.meal >= c.maxEnergy * PARASITE_MEAL) {
+          c.digestT = c.meal / DIGEST_RATE;
+          c.meal = 0;
+        }
         const a = host.heading + c.hostAngle;
         c.x = host.x + Math.cos(a) * (host.g.radius + g.radius * 0.5);
         c.y = host.y + Math.sin(a) * (host.g.radius + g.radius * 0.5);
