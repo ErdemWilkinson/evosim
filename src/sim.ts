@@ -68,10 +68,13 @@ const PHOTO_SHADE_RADIUS = 110;
 const PHOTO_SHADE_PER_NEIGHBOR = 0.6;
 const PHOTO_LIGHT = { land: 1, shallow: 0.75, deep: 0.2 };
 const SCAVENGE_RATE = 14;
-const SCAVENGE_EFFICIENCY = 0.7;
-const SCAVENGER_PLANT_EFFICIENCY = 0.45;
-const OMNIVORE_PLANT_EFFICIENCY = 0.65;
-const OMNIVORE_ATTACK = 0.7;
+// Hepçil ve çürükçülün verimleri sabit değil, `gutBias` genine bağlıdır (0 et, 1 bitki).
+// Aralıkların ortası (gen 0,5) eski sabit değerlerdir: [gen 0'daki değer, gen 1'deki değer].
+const SCAVENGE_EFFICIENCY: [number, number] = [0.9, 0.5];
+const SCAVENGER_PLANT_EFFICIENCY: [number, number] = [0.25, 0.65];
+const OMNIVORE_PLANT_EFFICIENCY: [number, number] = [0.4, 0.9];
+const OMNIVORE_ATTACK: [number, number] = [0.95, 0.45];
+const byGut = (range: [number, number], g: Genome): number => range[0] + (range[1] - range[0]) * g.gutBias;
 const CHEMO_RATE = [0.25, 0.35];
 const PARASITE_DRAIN = 1.5;
 const PARASITE_EFFICIENCY = 0.7;
@@ -1286,7 +1289,7 @@ export class Sim {
 
   private eatNutrient(c: Creature, n: Nutrient): void {
     n.dead = true;
-    const efficiency = c.g.diet === "omnivore" ? OMNIVORE_PLANT_EFFICIENCY : c.g.diet === "scavenger" ? SCAVENGER_PLANT_EFFICIENCY : 1;
+    const efficiency = c.g.diet === "omnivore" ? byGut(OMNIVORE_PLANT_EFFICIENCY, c.g) : c.g.diet === "scavenger" ? byGut(SCAVENGER_PLANT_EFFICIENCY, c.g) : 1;
     c.energy = Math.min(c.maxEnergy, c.energy + PLANT_ENERGY * c.d.feed * efficiency);
   }
 
@@ -1304,7 +1307,7 @@ export class Sim {
     pred.attackCd = ATTACK_INTERVAL;
     pred.flashT = 0.3;
     if (prey.d.miss > 0 && rng.chance(prey.d.miss)) return;
-    const dmg = pred.d.attack * (1 + this.packBonus(pred)) * prey.d.resist * (pred.g.diet === "omnivore" ? OMNIVORE_ATTACK : 1);
+    const dmg = pred.d.attack * (1 + this.packBonus(pred)) * prey.d.resist * (pred.g.diet === "omnivore" ? byGut(OMNIVORE_ATTACK, pred.g) : 1);
     prey.hp -= dmg;
     prey.hurtT = 0.4;
     if (prey.d.venom > 0) {
@@ -1509,7 +1512,7 @@ export class Sim {
         if (dx * dx + dy * dy <= contact * contact) {
           const bite = Math.min(k.energy, SCAVENGE_RATE * dt);
           k.energy -= bite;
-          c.energy = Math.min(c.maxEnergy, c.energy + bite * SCAVENGE_EFFICIENCY * Math.sqrt(d.feed));
+          c.energy = Math.min(c.maxEnergy, c.energy + bite * byGut(SCAVENGE_EFFICIENCY, g) * Math.sqrt(d.feed));
           speed = 0;
         }
         heading = Math.atan2(dy, dx);

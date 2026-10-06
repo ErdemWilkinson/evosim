@@ -79,6 +79,8 @@ export interface Genome {
   ornament: number;
   /** Parazitin emiş gücü çarpanı: çok emen konağını tüketir ve erken atılır, az emen aç kalır. */
   virulence: number;
+  /** Hepçil ve çürükçülde sindirimin yönü: 0 ete, 1 bitkiye uzmanlaşmış; ikisi birden en iyi olamaz. */
+  gutBias: number;
 
   organs: Organ[];
   brain: number[];
@@ -90,7 +92,7 @@ export interface Genome {
   packHunter: boolean;
 }
 
-type NumericGene = "radius" | "saturation" | "lightness" | "moveSpeed" | "senseRadius" | "metabolism" | "divideEnergyFraction" | "maxLifespan" | "ornament" | "virulence";
+type NumericGene = "radius" | "saturation" | "lightness" | "moveSpeed" | "senseRadius" | "metabolism" | "divideEnergyFraction" | "maxLifespan" | "ornament" | "virulence" | "gutBias";
 
 export const GENE_BOUNDS: Record<NumericGene, [number, number]> = {
   radius: [3, 12],
@@ -103,6 +105,7 @@ export const GENE_BOUNDS: Record<NumericGene, [number, number]> = {
   maxLifespan: [90, 500],
   ornament: [0, 1],
   virulence: [0.3, 2.5],
+  gutBias: [0, 1],
 };
 const NUMERIC_GENES = Object.keys(GENE_BOUNDS) as NumericGene[];
 
@@ -183,6 +186,7 @@ export function randomGenome(id: number): Genome {
     maxLifespan: rng.range(180, 320),
     ornament: rng.range(0, 0.2),
     virulence: 1,
+    gutBias: 0.5,
     organs: [],
     brain: defaultBrain(),
     reproductionStrategy: "asexual",
@@ -306,6 +310,7 @@ export function crossoverGenomes(a: Genome, b: Genome, id: number, stress = 1): 
     maxLifespan: pick(a.maxLifespan, b.maxLifespan),
     ornament: pick(a.ornament, b.ornament),
     virulence: pick(a.virulence, b.virulence),
+    gutBias: pick(a.gutBias, b.gutBias),
     organs,
     brain: a.brain.map((w, i) => pick(w, b.brain[i] ?? w)),
     reproductionStrategy: pick(a.reproductionStrategy, b.reproductionStrategy),
@@ -318,7 +323,7 @@ export function crossoverGenomes(a: Genome, b: Genome, id: number, stress = 1): 
   return mutate(child, stress);
 }
 
-const DISTANCE_GENES: NumericGene[] = ["radius", "moveSpeed", "senseRadius", "metabolism", "maxLifespan", "virulence"];
+const DISTANCE_GENES: NumericGene[] = ["radius", "moveSpeed", "senseRadius", "metabolism", "maxLifespan", "virulence", "gutBias"];
 
 /**
  * İki genom arasındaki genetik uzaklık (0 = özdeş). Tür kavramının tek ölçütü:
@@ -387,6 +392,7 @@ export function sanitizeGenome(raw: unknown): Genome {
     maxLifespan: num(r.maxLifespan, ...GENE_BOUNDS.maxLifespan, 250),
     ornament: num(r.ornament, ...GENE_BOUNDS.ornament, 0),
     virulence: num(r.virulence, ...GENE_BOUNDS.virulence, 1),
+    gutBias: num(r.gutBias, ...GENE_BOUNDS.gutBias, 0.5),
     organs,
     brain,
     reproductionStrategy: r.reproductionStrategy === "sexual" ? "sexual" : "asexual",

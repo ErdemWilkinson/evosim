@@ -351,6 +351,7 @@ const NUMERIC_GENES: [keyof Genome, string][] = [
   ["maxLifespan", "Ömür"],
   ["ornament", "Süs"],
   ["virulence", "Emiş gücü"],
+  ["gutBias", "Bitki–et dengesi"],
 ];
 const TRAIT_GENES: [keyof Genome, string][] = [
   ["stage", "Örgütlenme düzeyi"],
@@ -652,6 +653,7 @@ function versus(value: number, mean: number | undefined): string {
 
 /** Beslenme biçimine özgü kalıtılan özellik (varsa). */
 function dietTrait(g: Genome): string {
+  if (g.diet === "omnivore" || g.diet === "scavenger") return `sindirim: %${Math.round(g.gutBias * 100)} bitkiye, %${Math.round((1 - g.gutBias) * 100)} ete yatkın`;
   return g.diet === "parasite" ? `emiş gücü ×${nf(g.virulence, 2)}` : "";
 }
 
