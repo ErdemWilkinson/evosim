@@ -32,7 +32,7 @@ export const enum Band {
 
 export const BAND_LABEL = ["Derin sıvı", "Sığ sıvı", "Kıyı", "Ova", "Dağ"] as const;
 
-interface Quake {
+export interface Quake {
   gx: number;
   gy: number;
   gr: number;

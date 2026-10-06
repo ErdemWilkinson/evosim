@@ -1,7 +1,7 @@
 import { rng } from "./rng";
 import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
-import { Band, MAP_H, MAP_W, World } from "./world";
+import { Band, MAP_H, MAP_W, Quake, World } from "./world";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
 import { makeEpithet, makeGenus } from "./taxonomy";
 
@@ -2138,7 +2138,11 @@ export class Sim {
   // ------------------------------------------------------------------ kaydet / yükle
 
   public serialize(): SaveData {
-    const r1 = (v: number): number => Math.round(v * 10) / 10;
+    // Kayıt durumu eksiksiz taşır: yüklenen simülasyon, kaydedilmeden devam edenle bire bir
+    // aynı ilerler (bkz. scripts/core.mjs). Bu yüzden değerler yuvarlanmaz.
+    const nutrientIndex = new Map<Nutrient, number>();
+    this.nutrients.forEach((n, i) => nutrientIndex.set(n, i));
+    const live = (c: Creature | null): number => (c && c.alive ? c.id : 0);
     return {
       version: SAVE_VERSION,
       seed: this.world.seed,
@@ -2148,18 +2152,25 @@ export class Sim {
       nextSpeciesId: this.nextSpeciesId,
       creatures: this.creatures.map((c) => ({
         g: c.g,
-        x: r1(c.x),
-        y: r1(c.y),
-        energy: Math.round(c.energy * 100) / 100,
-        hp: Math.round(c.hp * 100) / 100,
-        age: r1(c.age),
-        divideCd: r1(Math.max(0, c.divideCd)),
-        parent: c.parent && c.parent.alive ? c.parent.id : 0,
-        host: c.host && c.host.alive ? c.host.id : 0,
-        infectedT: r1(Math.max(0, c.infectedT)),
-        immuneT: r1(Math.max(0, c.immuneT)),
+        x: c.x,
+        y: c.y,
+        energy: c.energy,
+        hp: c.hp,
+        age: c.age,
+        divideCd: c.divideCd,
+        parent: live(c.parent),
+        host: live(c.host),
+        infectedT: c.infectedT,
+        immuneT: c.immuneT,
+        rest: CREATURE_REST.map((key) => c[key]),
+        state: c.state,
+        onLand: c.onLand,
+        tC: live(c.tC),
+        tN: c.tN ? nutrientIndex.get(c.tN) ?? -1 : -1,
+        tK: c.tK ? this.corpses.indexOf(c.tK) : -1,
       })),
-      nutrients: this.nutrients.map((n) => [Math.round(n.x), Math.round(n.y), n.land ? 1 : 0] as [number, number, number]),
+      nutrients: this.nutrients.map((n) => [n.x, n.y, n.land ? 1 : 0, n.age] as [number, number, number, number]),
+      corpses: this.corpses,
       eggs: this.eggs,
       species: Array.from(this.species.values()),
       lineage: this.lineageOrder
@@ -2182,14 +2193,28 @@ export class Sim {
       nutrientMultiplier: this.nutrientMultiplier,
       climate: this.climate,
       wind: this.wind,
+      quakes: this.world.quakes,
+      clock: {
+        plantWater: this.plantAcc.water,
+        plantLand: this.plantAcc.land,
+        sampleT: this.sampleT,
+        evolutionT: this.evolutionT,
+        hgtT: this.hgtT,
+        outbreakT: this.outbreakT,
+        eventT: this.eventT,
+        rescueT: this.rescueT,
+        quakeLeft: this.quakeLeft,
+      },
     };
   }
 
   /** Kayıttan simülasyon kurar. Geçersiz veride hata fırlatır (çağıran yakalar). */
   public static load(data: SaveData): Sim {
-    // Sürüm 3 kayıtlarında yeni genler yoktur; sanitizeGenome varsayılan değerle doldurur.
+    // Eski sürümlerden geçiş: sürüm 2'de arazi farklıdır (aşağıda uyarlanır); sürüm 3'te yeni
+    // genler yoktur (sanitizeGenome varsayılan değerle doldurur); sürüm 4 ve öncesinde canlının
+    // adım içi durumu, leşler, deprem bölgeleri ve zamanlayıcılar yoktur (varsayılanla başlar).
     const legacy = data?.version === 2;
-    if (!data || (data.version !== SAVE_VERSION && data.version !== 3 && !legacy) || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
+    if (!data || !SUPPORTED_SAVE_VERSIONS.includes(data.version) || !Array.isArray(data.creatures) || !Number.isFinite(data.seed)) {
       throw new Error("Bu dosya geçerli bir Evosim kaydı değil ya da eski bir sürüme ait.");
     }
     data = cleanSave(data);
@@ -2197,7 +2222,7 @@ export class Sim {
     sim.time = data.time;
     sim.nextId = data.nextId;
     sim.nextSpeciesId = data.nextSpeciesId;
-    for (const s of data.species) sim.species.set(s.id, { ...s, series: s.series ?? [], infected: 0 });
+    for (const s of data.species) sim.species.set(s.id, { ...s, series: s.series ?? [], count: 0 });
     for (const rec of data.lineage) {
       sim.lineage.set(rec.id, rec);
       sim.lineageOrder.push(rec.id);
@@ -2205,30 +2230,44 @@ export class Sim {
     const byId = new Map<number, Creature>();
     for (const e of data.creatures) {
       const c = sim.makeCreature(e.g, e.x, e.y, null);
-      c.energy = Math.min(c.maxEnergy, Math.max(0.1, e.energy));
-      c.hp = Math.min(c.maxHp, Math.max(0.1, e.hp));
+      c.energy = Math.min(c.maxEnergy, e.rest ? e.energy : Math.max(0.1, e.energy));
+      c.hp = Math.min(c.maxHp, e.rest ? e.hp : Math.max(0.1, e.hp));
       c.age = e.age;
       c.divideCd = e.divideCd;
       c.infectedT = e.infectedT ?? 0;
       c.immuneT = e.immuneT ?? 0;
       c.bornT = 0;
+      if (e.rest) {
+        CREATURE_REST.forEach((key, i) => (c[key] = e.rest![i]));
+        if (e.state) c.state = e.state;
+        if (e.onLand !== undefined) c.onLand = e.onLand;
+      }
       sim.creatures.push(c);
       byId.set(c.id, c);
+      // Türün birey sayısı kayıttan okunmaz, canlılardan sayılır.
+      const sp = sim.species.get(c.g.speciesId);
+      if (sp) sp.count++;
     }
+    sim.nutrients = data.nutrients.map(([x, y, land, age]) => ({ x, y, land: land === 1, age: age ?? 10, dead: false }));
+    sim.corpses = data.corpses ?? [];
     data.creatures.forEach((e, i) => {
       const c = sim.creatures[i];
       const parent = e.parent ? byId.get(e.parent) : undefined;
       if (parent) {
         c.parent = parent;
-        c.careT = Math.max(0, PARENTAL_CARE_SECONDS - e.age);
+        if (!e.rest) c.careT = Math.max(0, PARENTAL_CARE_SECONDS - e.age);
       }
       const host = e.host ? byId.get(e.host) : undefined;
       if (host) {
         c.host = host;
-        c.state = "attached";
+        if (!e.rest) c.state = "attached";
+      }
+      if (e.rest) {
+        c.tC = (e.tC ? byId.get(e.tC) : undefined) ?? null;
+        c.tN = sim.nutrients[e.tN ?? -1] ?? null;
+        c.tK = sim.corpses[e.tK ?? -1] ?? null;
       }
     });
-    sim.nutrients = data.nutrients.map(([x, y, land]) => ({ x, y, land: land === 1, age: 10, dead: false }));
     if (legacy) {
       // Sürüm 2 kaydı: harita artık kimyadan üretildiği için arazi değişti. Yeni arazide
       // yaşayamayacağı yerde kalan canlılar sıvıya taşınır, bitkiler bulundukları zemine uyarlanır.
@@ -2264,9 +2303,22 @@ export class Sim {
     sim.nutrientMultiplier = data.nutrientMultiplier ?? 1;
     sim.climate = data.climate ?? null;
     sim.wind = data.wind ?? null;
+    for (const q of data.quakes ?? []) sim.world.quakes.push(q);
+    if (sim.world.quakes.length > 0) sim.world.version++;
+    if (data.clock) {
+      const k = data.clock;
+      sim.plantAcc = { water: k.plantWater, land: k.plantLand };
+      sim.sampleT = k.sampleT;
+      sim.evolutionT = k.evolutionT;
+      sim.hgtT = k.hgtT;
+      sim.outbreakT = k.outbreakT;
+      sim.eventT = k.eventT;
+      sim.rescueT = k.rescueT;
+      sim.quakeLeft = k.quakeLeft;
+    }
     sim.extinct = sim.creatures.length === 0 && sim.eggs.length === 0 && !sim.rescueEnabled;
     sim.updateEnv();
-    rng.s = data.rng;
+    rng.s = data.rng | 0;
     return sim;
   }
 }
@@ -2309,15 +2361,39 @@ function cleanSave(raw: SaveData): SaveData {
         energy: num(e?.energy, 10),
         hp: num(e?.hp, 1),
         age: Math.max(0, num(e?.age)),
-        divideCd: Math.max(0, num(e?.divideCd)),
+        divideCd: num(e?.divideCd),
         parent: num(e?.parent),
         host: num(e?.host),
-        infectedT: Math.max(0, num(e?.infectedT)),
-        immuneT: Math.max(0, num(e?.immuneT)),
+        infectedT: num(e?.infectedT),
+        immuneT: num(e?.immuneT),
+        rest: Array.isArray(e?.rest) && e.rest.length === CREATURE_REST.length ? e.rest.map((v) => num(v)) : undefined,
+        state: BEHAVIORS.includes(e?.state as Behavior) ? e.state : undefined,
+        onLand: typeof e?.onLand === "boolean" ? e.onLand : undefined,
+        tC: num(e?.tC),
+        tN: Math.floor(num(e?.tN, -1)),
+        tK: Math.floor(num(e?.tK, -1)),
       })),
-    nutrients: list<[number, number, number]>(raw.nutrients)
-      .slice(0, 2000)
-      .map((n) => [num(n?.[0]), num(n?.[1]), n?.[2] === 1 ? 1 : 0] as [number, number, number]),
+    nutrients: list<[number, number, number, number?]>(raw.nutrients)
+      .slice(0, 4000)
+      .map((n) => [num(n?.[0]), num(n?.[1]), n?.[2] === 1 ? 1 : 0, Math.max(0, num(n?.[3], 10))] as [number, number, number, number]),
+    corpses: list<Corpse>(raw.corpses)
+      .slice(0, 4000)
+      .map((k) => ({
+        x: num(k?.x, MAP_W / 2),
+        y: num(k?.y, MAP_H / 2),
+        r: num(k?.r, 5),
+        hue: num(k?.hue),
+        energy: num(k?.energy),
+        energy0: num(k?.energy0, 1),
+        age: Math.max(0, num(k?.age)),
+        life: Math.max(1, num(k?.life, 1)),
+        organs: list<Organ>(k?.organs)
+          .filter((o) => organ(o?.type))
+          .slice(0, 40)
+          .map((o) => ({ type: o.type, power: Math.min(1, Math.max(0.05, num(o.power, 0.3))) })),
+        stage: Math.min(2, Math.max(0, Math.floor(num(k?.stage)))),
+      }))
+      .filter((k) => k.energy > 0),
     eggs: list<Egg>(raw.eggs)
       .slice(0, MAX_CREATURES)
       .map((e) => ({
@@ -2341,12 +2417,12 @@ function cleanSave(raw: SaveData): SaveData {
         extinct: num(s?.extinct, -1),
         count: 0,
         peak: Math.floor(num(s?.peak)),
+        infected: Math.max(0, Math.floor(num(s?.infected))),
         total: Math.floor(num(s?.total)),
         established: s?.established === true,
         type: sanitizeGenome(s?.type),
         reason: str(s?.reason),
         series: list<number>(s?.series).slice(0, SERIES_CAP * 2).map((v) => num(v)),
-        infected: 0,
       })),
     lineage: list<LineageRec>(raw.lineage)
       .slice(-LINEAGE_CAP)
@@ -2383,10 +2459,30 @@ function cleanSave(raw: SaveData): SaveData {
     nutrientMultiplier: Math.min(3, Math.max(0.2, num(raw.nutrientMultiplier, 1))),
     climate: raw.climate ? { warm: raw.climate.warm === true, meta: num(raw.climate.meta, 1), nutrient: num(raw.climate.nutrient, 1), left: num(raw.climate.left) } : null,
     wind: raw.wind ? { vx: num(raw.wind.vx), vy: num(raw.wind.vy), angle: num(raw.wind.angle), left: num(raw.wind.left) } : null,
+    quakes: list<Quake>(raw.quakes)
+      .slice(0, 8)
+      .map((q) => ({ gx: num(q?.gx), gy: num(q?.gy), gr: Math.max(1, num(q?.gr, 1)), toWater: q?.toWater === true })),
+    clock: raw.clock
+      ? {
+          plantWater: Math.min(1, Math.max(0, num(raw.clock.plantWater))),
+          plantLand: Math.min(1, Math.max(0, num(raw.clock.plantLand))),
+          sampleT: num(raw.clock.sampleT),
+          evolutionT: num(raw.clock.evolutionT),
+          hgtT: num(raw.clock.hgtT),
+          outbreakT: num(raw.clock.outbreakT, OUTBREAK_CHECK),
+          eventT: num(raw.clock.eventT, EVENT_CHECK_INTERVAL),
+          rescueT: num(raw.clock.rescueT, RESCUE_INTERVAL),
+          quakeLeft: num(raw.clock.quakeLeft),
+        }
+      : undefined,
   };
 }
 
-export const SAVE_VERSION = 4;
+/** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar). */
+export const SAVE_VERSION = 5;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, SAVE_VERSION];
+/** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
+const CREATURE_REST = ["heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
 export interface SaveData {
   version: number;
@@ -2395,8 +2491,11 @@ export interface SaveData {
   rng: number;
   nextId: number;
   nextSpeciesId: number;
-  creatures: { g: Genome; x: number; y: number; energy: number; hp: number; age: number; divideCd: number; parent: number; host: number; infectedT: number; immuneT: number }[];
-  nutrients: [number, number, number][];
+  /** `rest` ve sonrası sürüm 5 ile geldi; eski kayıtlarda yoktur. Hedefler: canlı kimliği, bitki ve leş sırası. */
+  creatures: { g: Genome; x: number; y: number; energy: number; hp: number; age: number; divideCd: number; parent: number; host: number; infectedT: number; immuneT: number; rest?: number[]; state?: Behavior; onLand?: boolean; tC?: number; tN?: number; tK?: number }[];
+  /** x, y, karada mı, yaş (yaş sürüm 5 ile geldi). */
+  nutrients: [number, number, number, number?][];
+  corpses?: Corpse[];
   eggs: Egg[];
   species: Species[];
   lineage: LineageRec[];
@@ -2416,4 +2515,7 @@ export interface SaveData {
   nutrientMultiplier: number;
   climate: Sim["climate"];
   wind: Sim["wind"];
+  quakes?: Quake[];
+  /** Adımlar arasında taşınan zamanlayıcılar ve birikimler (sürüm 5). */
+  clock?: { plantWater: number; plantLand: number; sampleT: number; evolutionT: number; hgtT: number; outbreakT: number; eventT: number; rescueT: number; quakeLeft: number };
 }
