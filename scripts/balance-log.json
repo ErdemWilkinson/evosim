@@ -324,5 +324,201 @@
   "extinctSeeds": 0,
   "rescuedSeeds": 4,
   "failed": []
+ },
+ {
+  "label": "c-siginak",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.031,
+    "peak": 0.172,
+    "present": 0.705
+   },
+   {
+    "name": "otçul",
+    "share": 0.51,
+    "peak": 1,
+    "present": 0.959
+   },
+   {
+    "name": "parazit",
+    "share": 0.007,
+    "peak": 0.066,
+    "present": 0.541
+   },
+   {
+    "name": "süzücü",
+    "share": 0.15,
+    "peak": 0.909,
+    "present": 0.752
+   },
+   {
+    "name": "hepçil",
+    "share": 0.062,
+    "peak": 0.987,
+    "present": 0.642
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.1,
+    "peak": 0.814,
+    "present": 0.732
+   },
+   {
+    "name": "etçil",
+    "share": 0.139,
+    "peak": 1,
+    "present": 0.733
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 6,
+  "failed": [
+   "çöküş: dışarıdan göç gerektiren tohum ≤ yarı"
+  ]
+ },
+ {
+  "label": "c-siginak-ortu",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.035,
+    "peak": 0.183,
+    "present": 0.773
+   },
+   {
+    "name": "otçul",
+    "share": 0.525,
+    "peak": 1,
+    "present": 0.956
+   },
+   {
+    "name": "parazit",
+    "share": 0.009,
+    "peak": 0.096,
+    "present": 0.644
+   },
+   {
+    "name": "süzücü",
+    "share": 0.145,
+    "peak": 0.746,
+    "present": 0.818
+   },
+   {
+    "name": "hepçil",
+    "share": 0.066,
+    "peak": 0.802,
+    "present": 0.717
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.11,
+    "peak": 0.64,
+    "present": 0.822
+   },
+   {
+    "name": "etçil",
+    "share": 0.11,
+    "peak": 1,
+    "present": 0.751
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 6,
+  "failed": [
+   "çöküş: dışarıdan göç gerektiren tohum ≤ yarı"
+  ]
+ },
+ {
+  "label": "c-siginak-tam-ortu",
+  "evo": "fast",
+  "seeds": [
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8
+  ],
+  "seconds": 6000,
+  "summary": [
+   {
+    "name": "foto",
+    "share": 0.082,
+    "peak": 0.366,
+    "present": 0.888
+   },
+   {
+    "name": "otçul",
+    "share": 0.465,
+    "peak": 1,
+    "present": 0.994
+   },
+   {
+    "name": "parazit",
+    "share": 0.015,
+    "peak": 0.141,
+    "present": 0.73
+   },
+   {
+    "name": "süzücü",
+    "share": 0.151,
+    "peak": 0.557,
+    "present": 0.859
+   },
+   {
+    "name": "hepçil",
+    "share": 0.042,
+    "peak": 0.512,
+    "present": 0.739
+   },
+   {
+    "name": "çürükçül",
+    "share": 0.164,
+    "peak": 0.531,
+    "present": 0.911
+   },
+   {
+    "name": "etçil",
+    "share": 0.082,
+    "peak": 1,
+    "present": 0.7
+   }
+  ],
+  "multicellularSeeds": 8,
+  "landSeeds": 8,
+  "extinctSeeds": 0,
+  "rescuedSeeds": 3,
+  "failed": []
  }
 ]

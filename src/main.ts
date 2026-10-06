@@ -4,7 +4,7 @@ import { ORGANS, OrganType, STAGE_LABEL } from "./organs";
 import { PhyloTree } from "./phylo";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
-import { UiPayload } from "./protocol";
+import { FLAG, STRIDE, UiPayload } from "./protocol";
 import { Scene, Tool, isDark, readTheme, renderTerrain } from "./render";
 import { randomSeed } from "./rng";
 import { DAY_LENGTH, EventKind, SEASON_LABEL, SaveData, WorldEventKind, YEAR_LENGTH } from "./sim";
@@ -173,6 +173,9 @@ function refresh(v: View, ui: UiPayload): void {
   }
   if (ui.quakeLeft > 0) chips.push(`<span class="chip">Deprem etkisi <b>${Math.ceil(ui.quakeLeft)} sn</b></span>`);
   if (ui.infected > 0) chips.push(`<span class="chip chip-alert">Hasta <b>${ui.infected}</b></span>`);
+  let hidden = 0;
+  for (let i = 0; i < v.frame.n; i++) if (v.frame.c[i * STRIDE + 6] & FLAG.hidden) hidden++;
+  if (hidden > 0) chips.push(`<span class="chip" title="Sık bitki örtüsünde ya da kıyı sığlığında olan canlıyı avcı ve parazit daha zor fark eder; haritada kesik yeşil halkayla görünür.">Sığınakta <b>${hidden}</b></span>`);
   if (ui.eggs > 0) chips.push(`<span class="chip">Yumurta <b>${ui.eggs}</b></span>`);
   if (ui.speed > 1 && ui.rate < ui.speed * 0.8) chips.push(`<span class="chip">Gerçekleşen hız <b>×${nf(ui.rate)}</b></span>`);
   if (highlight) {

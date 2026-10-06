@@ -91,6 +91,16 @@ const HANDLING_TIME = 5;
 const DIGEST_RATE = 4;
 /** Parazit, mide kapasitesi (azami enerjinin bu oranı) dolunca emmeyi bırakıp sindirir. */
 const PARASITE_MEAL = 0.25;
+// --- Sığınak: sık örtü alanındaki (bkz. World.thicket), bitki öbeğinin içindeki ya da kıyı
+// sığlığındaki canlı daha zor algılanır.
+const COVER_RADIUS = 26;
+/** Bu kadar bitki tam örtü sayılır. */
+const COVER_PLANTS = 5;
+/** Kıyıya bu kadar hücre (5 px) yakın sıvı, kıyı sığlığıdır. */
+const SHORE_COVER_CELLS = 2;
+const SHORE_COVER = 0.6;
+/** Örtü görüşü keser: tam örtüdeki canlı ancak dokunacak kadar yaklaşılınca fark edilir. */
+const COVER_TOUCH = 4;
 const ALARM_DISTANCE = 30;
 const PREY_SIZE_LIMIT: Record<"carnivore" | "omnivore", number> = { carnivore: 1.35, omnivore: 0.9 };
 const CANNIBALISM_ENERGY = 0.2;
@@ -311,6 +321,8 @@ export interface Creature {
   /** Sindirim süresi: sıfırdan büyükken etçil ve hepçil avlanamaz, parazit ememez. */
   digestT: number;
   meal: number;
+  /** Sığınak düzeyi 0–1 (bkz. COVER_*). */
+  cover: number;
   passive: number;
   filterDebt: number;
   crowd: number;
@@ -657,6 +669,7 @@ export class Sim {
       resistT: 0,
       digestT: 0,
       meal: 0,
+      cover: 0,
       passive: 0,
       filterDebt: 0,
       crowd: 1,
@@ -1039,7 +1052,7 @@ export class Sim {
       const dy = o.y - c.y;
       const d = dx * dx + dy * dy;
       // Kamuflaj menzili kısaltır; süslü erkek daha uzaktan görülür.
-      let reach = sense * (seesThrough ? 1 : 1 - o.d.camo);
+      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - o.cover));
       if (o.g.reproductionStrategy === "sexual" && o.g.sex === "m") reach *= 1 + ORNAMENT_VISIBILITY * o.g.ornament;
       if (d > reach * reach || d >= bestD || !this.passable(c, o.x, o.y)) return;
       bestD = d;
@@ -1057,7 +1070,8 @@ export class Sim {
       const dx = o.x - c.x;
       const dy = o.y - c.y;
       const d = dx * dx + dy * dy;
-      if (d >= bestD || !this.passable(c, o.x, o.y)) return;
+      const reach = Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.cover));
+      if (d >= bestD || d > reach * reach || !this.passable(c, o.x, o.y)) return;
       bestD = d;
       best = o;
     });
@@ -1125,6 +1139,16 @@ export class Sim {
       c.heading = this.escapeHeading(c);
       return;
     }
+
+    // Sığınak: yakındaki bitki sayısı ve kıyı sığlığı.
+    let coverPlants = 0;
+    this.nHash.query(c.x, c.y, COVER_RADIUS, (n) => {
+      const dx = n.x - c.x;
+      const dy = n.y - c.y;
+      if (!n.dead && dx * dx + dy * dy <= COVER_RADIUS * COVER_RADIUS) coverPlants++;
+    });
+    const shore = !c.onLand && this.world.sample(this.world.coast, c.x, c.y) <= SHORE_COVER_CELLS;
+    c.cover = this.world.inThicket(c.x, c.y) ? 1 : Math.max(Math.min(1, coverPlants / COVER_PLANTS), shore ? SHORE_COVER : 0);
 
     // Tek bir komşuluk taramasıyla kalabalık, rakip ve gölge sayıları.
     let kin = 0;
@@ -1538,7 +1562,8 @@ export class Sim {
       const dy = n.y - y;
       if (!n.dead && dx * dx + dy * dy <= PLANT_CROWD_RADIUS * PLANT_CROWD_RADIUS) neighbors++;
     });
-    return neighbors >= PLANT_CROWD_LIMIT;
+    // Sık örtüde bitkiler iki kat sıkışabilir.
+    return neighbors >= PLANT_CROWD_LIMIT * (this.world.inThicket(x, y) ? 2 : 1);
   }
 
   /** Tohum yağmuru: boş bir yere rastgele düşen yeni bitki. */

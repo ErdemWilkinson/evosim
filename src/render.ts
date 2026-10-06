@@ -114,6 +114,7 @@ export function renderTerrain(world: World, dark: boolean, width = 1600): HTMLCa
   const data = image.data;
   const pal = dark ? mapPalette(world.chem) : MAP_LIGHT;
   const ridgeWidth = world.ridgeWidth;
+  const leaf = hsl(world.chem.pigment.hue, 0.55, dark ? 0.3 : 0.45);
   const sx = MAP_W / width;
   const sea = world.seaLevel;
   const mount = world.mountainLevel;
@@ -155,6 +156,12 @@ export function renderTerrain(world: World, dark: boolean, width = 1600): HTMLCa
         const shade = Math.min(1.1, Math.max(0.86, 1 - slope * 1.4)) * beach + (1 - beach);
         rgb = mix(pal.beach, base, beach);
         rgb = [rgb[0] * shade, rgb[1] * shade, rgb[2] * shade];
+      }
+      // Sık örtü (sığınak): üretici pigmentinin renginde, benekli bir doku.
+      const cover = world.sample(world.thicket, x, y) - world.thicketLevel;
+      if (cover > 0 && !(h >= sea && ((h > mount && c > 5) || (ridge < ridgeWidth && c > 3.2)))) {
+        const speck = (px * 7 + py * 13) % 11 === 0 || (px * 5 + py * 3) % 17 === 0;
+        rgb = mix(rgb, leaf, Math.min(0.42, 0.16 + cover * 0.5) + (speck ? 0.3 : 0));
       }
       const i = (py * width + px) * 4;
       data[i] = rgb[0];
@@ -870,6 +877,18 @@ export class Scene {
       ctx.restore();
       if (dim) continue;
       const rr = g.radius * boost;
+      if (flags & FLAG.hidden) {
+        // Sığınakta: bitki örtüsünün renginde, yaprak gibi kesik bir halka.
+        ctx.strokeStyle = this.plantCol[flags & FLAG.land ? 1 : 0];
+        ctx.lineWidth = 1.1 * boost;
+        ctx.globalAlpha = 0.75;
+        ctx.setLineDash([2.6 * boost, 2.2 * boost]);
+        ctx.beginPath();
+        ctx.arc(x, y, rr * 1.25 + 0.8, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+      }
       if (flags & FLAG.infected) {
         ctx.strokeStyle = theme.warn;
         ctx.lineWidth = 0.9 * boost;

@@ -9,7 +9,7 @@ import { Behavior, Flash, HistorySample, Inspection, SaveData, SimEvent, Species
 
 /** Kare başına canlı verisi: id, x, y, yön, enerji oranı, can oranı, bayraklar, davranış. */
 export const STRIDE = 8;
-export const FLAG = { land: 1, infected: 2, flash: 4, hurt: 8, born: 16, immune: 32, attached: 64 } as const;
+export const FLAG = { land: 1, infected: 2, flash: 4, hurt: 8, born: 16, immune: 32, attached: 64, hidden: 128 } as const;
 /** Bitki konumları Uint16 çiftleridir: x·8 ve y·8; karadaysa y'nin en üst biti 1. */
 export const PLANT_SCALE = 8;
 export const PLANT_LAND_BIT = 0x8000;

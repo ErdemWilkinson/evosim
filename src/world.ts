@@ -49,6 +49,9 @@ export class World {
   public readonly height: Float32Array;
   /** Karşı arazi türüne (su için karaya, kara için suya) hücre cinsinden uzaklık. */
   public readonly coast: Float32Array;
+  /** Sık örtü alanı: değeri `thicketLevel` üstünde olan yer sığınaktır (sazlık, yosun ormanı, çalılık). */
+  public readonly thicket: Float32Array;
+  public readonly thicketLevel: number;
   /** Sıradağ alanı: 0 sırtın tam üstü, büyüdükçe uzak. */
   public readonly ridge: Float32Array;
   public readonly seaLevel: number;
@@ -99,6 +102,24 @@ export class World {
         this.ridge[gy * GRID_COLS + gx] = Math.abs(ridge);
       }
     }
+
+    // Sık örtü: haritanın yaklaşık beşte biri. Ayrı bir üreteçten gelir; yükseklik alanını etkilemez.
+    const tr = makeRng(this.seed ^ 0x7f4a7c15);
+    const thicketWaves = Array.from({ length: 6 }, (_, i) => {
+      const angle = tr.next() * Math.PI * 2;
+      return { cos: Math.cos(angle), sin: Math.sin(angle), freq: (2.4 + tr.next() * 3.6) * Math.PI * 2, phase: tr.next() * Math.PI * 2, amp: 1 / (1 + i * 0.35) };
+    });
+    this.thicket = new Float32Array(n);
+    for (let gy = 0; gy < GRID_ROWS; gy++) {
+      const ny = gy / (GRID_ROWS - 1);
+      for (let gx = 0; gx < GRID_COLS; gx++) {
+        const nx = (gx / (GRID_COLS - 1)) * (MAP_W / MAP_H);
+        let sum = 0;
+        for (const w of thicketWaves) sum += Math.sin((nx * w.cos + ny * w.sin) * w.freq + w.phase) * w.amp;
+        this.thicket[gy * GRID_COLS + gx] = sum;
+      }
+    }
+    this.thicketLevel = Float32Array.from(this.thicket).sort()[Math.floor(0.8 * (n - 1))];
 
     const sorted = Float32Array.from(this.height).sort();
     const targetWater = terrain.liquid[0] + r.next() * (terrain.liquid[1] - terrain.liquid[0]);
@@ -194,6 +215,12 @@ export class World {
     const q = this.quakeAt(x, y);
     if (q !== null) return q ? Band.ShallowWater : Band.Plain;
     return this.bandOfCell(this.cellIndex(x, y));
+  }
+
+  /** Sık örtünün içinde mi? Dağda örtü yoktur. */
+  public inThicket(x: number, y: number): boolean {
+    const i = this.cellIndex(x, y);
+    return this.thicket[i] > this.thicketLevel && this.bandOfCell(i) !== Band.Mountain;
   }
 
   public isDeep(x: number, y: number): boolean {

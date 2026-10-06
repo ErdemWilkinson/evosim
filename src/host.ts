@@ -176,7 +176,7 @@ export class SimHost {
       c[o + 4] = k.energy / k.maxEnergy;
       c[o + 5] = k.hp / k.maxHp;
       c[o + 6] =
-        (k.onLand ? FLAG.land : 0) | (k.infectedT > 0 ? FLAG.infected : 0) | (k.flashT > 0 ? FLAG.flash : 0) | (k.hurtT > 0 ? FLAG.hurt : 0) | (k.bornT > 0 ? FLAG.born : 0) | (k.immuneT > 0 ? FLAG.immune : 0) | (k.host ? FLAG.attached : 0);
+        (k.onLand ? FLAG.land : 0) | (k.infectedT > 0 ? FLAG.infected : 0) | (k.flashT > 0 ? FLAG.flash : 0) | (k.hurtT > 0 ? FLAG.hurt : 0) | (k.bornT > 0 ? FLAG.born : 0) | (k.immuneT > 0 ? FLAG.immune : 0) | (k.host ? FLAG.attached : 0) | (k.cover >= 0.5 ? FLAG.hidden : 0);
       c[o + 7] = BEHAVIORS.indexOf(k.state);
       if (this.sent.get(k.id) !== k.gv) {
         this.sent.set(k.id, k.gv);
