@@ -6,6 +6,7 @@ export class StartMenu {
   private index = 0;
   private timer = 0;
   private raf = 0;
+  private stopInput: (() => void) | null = null;
   private dots: HTMLElement[] = [];
 
   constructor(
@@ -31,6 +32,8 @@ export class StartMenu {
     document.getElementById("app")?.classList.add("hold");
     this.root.hidden = false;
     this.show(0, false);
+    cancelAnimationFrame(this.raf);
+    this.stopInput?.();
     this.draw();
   }
 
@@ -38,6 +41,7 @@ export class StartMenu {
     this.root.hidden = true;
     window.clearTimeout(this.timer);
     cancelAnimationFrame(this.raf);
+    this.stopInput?.();
     this.onChoice(what);
   }
 
@@ -55,26 +59,152 @@ export class StartMenu {
     const ctx = canvas.getContext("2d")!;
     let seed = 12345;
     const rnd = (): number => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-    const cells = Array.from({ length: 46 }, () => ({ x: rnd(), y: rnd(), r: 5 + rnd() * 16, a: rnd() * 6.28, v: 0.00003 + rnd() * 0.00007, h: rnd() < 0.5 ? 168 : 252 }));
+    interface Ball {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      r: number;
+      m: number;
+      phase: number;
+      h: number;
+    }
+    const balls: Ball[] = Array.from({ length: 46 }, () => {
+      const r = 5 + rnd() * 16;
+      const a = rnd() * Math.PI * 2;
+      const v = 0.015 + rnd() * 0.03;
+      return { x: rnd(), y: rnd(), vx: Math.cos(a) * v, vy: Math.sin(a) * v, r, m: r * r, phase: rnd() * 6.28, h: rnd() < 0.5 ? 168 : 252 };
+    });
+    let placed = false;
+    let last = 0;
+    // Basılı tutulan nokta: toplar oraya çekilir; kısa bir halka basılan yeri gösterir.
+    let pull: { x: number; y: number } | null = null;
+    let pulse = 0;
+    const where = (e: PointerEvent): { x: number; y: number } => {
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    };
+    const onDown = (e: PointerEvent): void => {
+      if ((e.target as HTMLElement).closest("button, a, input, select")) return;
+      pull = where(e);
+      pulse = 1;
+    };
+    const onMove = (e: PointerEvent): void => {
+      if (pull) pull = where(e);
+    };
+    const onUp = (): void => {
+      pull = null;
+    };
+    this.root.addEventListener("pointerdown", onDown);
+    this.root.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    this.stopInput = (): void => {
+      this.root.removeEventListener("pointerdown", onDown);
+      this.root.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      pull = null;
+    };
     const step = (t: number): void => {
+      const dt = Math.min(40, last ? t - last : 16);
+      last = t;
       const w = (canvas.width = canvas.clientWidth);
       const h = (canvas.height = canvas.clientHeight);
+      if (!placed) {
+        for (const b of balls) {
+          b.x *= w;
+          b.y *= h;
+        }
+        placed = true;
+      }
       ctx.clearRect(0, 0, w, h);
-      for (const c of cells) {
-        const x = ((c.x + Math.cos(c.a) * c.v * t + 1) % 1) * w;
-        const y = ((c.y + Math.sin(c.a) * c.v * t + 1) % 1) * h;
-        const pulse = 1 + 0.06 * Math.sin(t / 900 + c.a * 9);
+      for (const b of balls) {
+        if (pull) {
+          const dx = pull.x - b.x;
+          const dy = pull.y - b.y;
+          const d = Math.max(30, Math.hypot(dx, dy));
+          const a = 0.0016 * Math.min(1, 260 / d) * dt;
+          b.vx += (dx / d) * a;
+          b.vy += (dy / d) * a;
+          // Çekim yerinde toplar birbirine yığılmasın diye hız hafifçe sönümlenir.
+          const damp = Math.pow(0.9985, dt);
+          b.vx *= damp;
+          b.vy *= damp;
+        } else {
+          // Serbest bırakılınca yavaşça eski süzülmeye döner: hız, taban hıza doğru yumuşar.
+          const sp = Math.hypot(b.vx, b.vy) || 0.0001;
+          const target = 0.03;
+          const k = 1 + (target / sp - 1) * Math.min(1, dt * 0.0006);
+          b.vx *= k;
+          b.vy *= k;
+        }
+        b.x += b.vx * dt;
+        b.y += b.vy * dt;
+        if (b.x < b.r) {
+          b.x = b.r;
+          b.vx = Math.abs(b.vx);
+        } else if (b.x > w - b.r) {
+          b.x = w - b.r;
+          b.vx = -Math.abs(b.vx);
+        }
+        if (b.y < b.r) {
+          b.y = b.r;
+          b.vy = Math.abs(b.vy);
+        } else if (b.y > h - b.r) {
+          b.y = h - b.r;
+          b.vy = -Math.abs(b.vy);
+        }
+      }
+      // Çarpışmalar: örtüşme ayrılır, normal doğrultudaki hızlar kütleye göre esnek olarak değişir.
+      for (let i = 0; i < balls.length; i++) {
+        for (let j = i + 1; j < balls.length; j++) {
+          const a = balls[i];
+          const c = balls[j];
+          const dx = c.x - a.x;
+          const dy = c.y - a.y;
+          const min = a.r + c.r;
+          const d2 = dx * dx + dy * dy;
+          if (d2 >= min * min || d2 === 0) continue;
+          const d = Math.sqrt(d2);
+          const nx = dx / d;
+          const ny = dy / d;
+          const push = (min - d) / (a.m + c.m);
+          a.x -= nx * push * c.m;
+          a.y -= ny * push * c.m;
+          c.x += nx * push * a.m;
+          c.y += ny * push * a.m;
+          const rel = (c.vx - a.vx) * nx + (c.vy - a.vy) * ny;
+          if (rel < 0) {
+            const imp = (2 * rel) / (a.m + c.m);
+            a.vx += imp * c.m * nx;
+            a.vy += imp * c.m * ny;
+            c.vx -= imp * a.m * nx;
+            c.vy -= imp * a.m * ny;
+          }
+        }
+      }
+      for (const b of balls) {
+        const pulseR = b.r * (1 + 0.06 * Math.sin(t / 900 + b.phase * 9));
         ctx.beginPath();
-        ctx.arc(x, y, c.r * pulse, 0, 6.2832);
-        ctx.fillStyle = `hsla(${c.h},70%,60%,0.07)`;
+        ctx.arc(b.x, b.y, pulseR, 0, 6.2832);
+        ctx.fillStyle = `hsla(${b.h},70%,60%,0.07)`;
         ctx.fill();
         ctx.lineWidth = 1.2;
-        ctx.strokeStyle = `hsla(${c.h},80%,70%,0.28)`;
+        ctx.strokeStyle = `hsla(${b.h},80%,70%,0.28)`;
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(x, y, c.r * 0.28, 0, 6.2832);
-        ctx.fillStyle = `hsla(${c.h},80%,75%,0.35)`;
+        ctx.arc(b.x, b.y, b.r * 0.28, 0, 6.2832);
+        ctx.fillStyle = `hsla(${b.h},80%,75%,0.35)`;
         ctx.fill();
+      }
+      if (pull && pulse > 0) {
+        pulse = Math.max(0, pulse - dt / 500);
+        ctx.beginPath();
+        ctx.arc(pull.x, pull.y, 14 + (1 - pulse) * 60, 0, 6.2832);
+        ctx.strokeStyle = `rgba(109,240,210,${0.5 * pulse})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
       }
       this.raf = requestAnimationFrame(step);
     };
