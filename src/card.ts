@@ -90,7 +90,7 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
   ctx.fillText(`${tr("Tohum")} ${seed}`, pad, pad + 34);
   ctx.fillStyle = DIM;
   ctx.font = font(16);
-  ctx.fillText(fit(ctx, `${tr(c.origin.name)} · ${c.temperature} K · ${tr("yüzeyin")} %${Math.round(p.liquidPercent)} ${tr("sıvı")}`, mapW), pad, pad + 56);
+  ctx.fillText(fit(ctx, `${tr(c.origin.name)} · ${c.temperature} K · ${tr(`yüzeyin %${Math.round(p.liquidPercent)} sıvı`)}`, mapW), pad, pad + 56);
 
   // Elementler: haritanın altında.
   let x = pad;

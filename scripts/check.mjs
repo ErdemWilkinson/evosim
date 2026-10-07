@@ -25,10 +25,25 @@ const BUCKET = 300;
 const EARLY = 300;
 
 if (!isMainThread) {
-  const { out, seed, seconds, evo } = workerData;
+  const { out, seed, seconds, evo, groundOut } = workerData;
   const { Sim, STEP } = await import(pathToFileURL(out).href);
   const sim = new Sim(seed);
   sim.setEvolutionSpeed(evo);
+  // Renk ölçümü (yalnızca okur): yaşam alanı başına gövde tonunun zemin tonuna yakınlığı, üç zaman diliminde.
+  const G = await import(pathToFileURL(groundOut).href);
+  const ground = new G.GroundTone(sim.world);
+  const HABITATS = ["derin", "sığ", "kara", "dağ", "örtü"];
+  const habitat = (c) => {
+    if (sim.world.inThicket(c.x, c.y)) return 4;
+    const b = sim.world.band(c.x, c.y);
+    return b === 0 ? 0 : b === 1 ? 1 : b === 4 ? 3 : 2;
+  };
+  const oxy = { n: 0, sum: 0, sq: 0, min: 1, max: 0 };
+  const tone = Array.from({ length: 3 }, () => HABITATS.map(() => ({ n: 0, match: 0, bs: 0, bc: 0, ga: 0, gb: 0, dh: 0, dhn: 0 })));
+  const bodyOf = (c) => {
+    const b = G.bodyHSL(c.g, true);
+    return { hue: b.h, tone: G.toneOfHSL(b.h, b.s) };
+  };
 
   // --- Teşhis ölçümleri: yalnızca okur ve sayar; üreteçten sayı çekmez, durumu değiştirmez. ---
   const founder = sim.creatures[0];
@@ -110,6 +125,32 @@ if (!isMainThread) {
     }
     samples++;
     const pop = sim.creatures;
+    {
+      const o = sim.oxygen();
+      oxy.n++; oxy.sum += o; oxy.sq += o * o; oxy.min = Math.min(oxy.min, o); oxy.max = Math.max(oxy.max, o);
+    }
+    {
+      const w = tone[Math.min(2, Math.floor((t / seconds) * 3))];
+      for (const c of pop) {
+        const h = habitat(c);
+        const e = w[h];
+        const body = bodyOf(c);
+        const gt = ground.at(c.x, c.y, 0);
+        e.n++;
+        e.match += G.toneMatch(body.tone, gt);
+        e.bs += Math.sin((body.hue * Math.PI) / 180);
+        e.bc += Math.cos((body.hue * Math.PI) / 180);
+        e.ga += gt[0];
+        e.gb += gt[1];
+        if (Math.hypot(gt[0], gt[1]) > 0.08) {
+          const gh = (Math.atan2(gt[1], gt[0]) * 180) / Math.PI;
+          let d = Math.abs(body.hue - gh) % 360;
+          if (d > 180) d = 360 - d;
+          e.dh += d;
+          e.dhn++;
+        }
+      }
+    }
     const n = pop.length;
     total += n;
     if (n === 0) wiped = true;
@@ -168,6 +209,15 @@ if (!isMainThread) {
     meanPopulation: total / samples,
     finalPopulation: sim.creatures.length,
     species: sim.livingSpecies().length,
+    tone,
+    oxy,
+    clusters: (() => {
+      const bins = new Array(12).fill(0);
+      for (const c of sim.creatures) bins[Math.floor((((c.g.hue % 360) + 360) % 360) / 30)]++;
+      const n = sim.creatures.length || 1;
+      return bins.filter((v) => v / n >= 0.1).length;
+    })(),
+    speciesEver: sim.species.size,
     multicellular,
     land,
     sexual,
@@ -189,6 +239,8 @@ if (!isMainThread) {
   const dir = mkdtempSync(join(tmpdir(), "evosim-check-"));
   // --bundle: önceden derlenmiş bir çekirdek (ör. bir değişiklikten önceki kod) aynı tohumlarda ölçülür.
   const out = arg("bundle", "") || join(dir, "sim.mjs");
+  const groundOut = join(dir, "ground.mjs");
+  await build({ entryPoints: [join(root, "src/ground.ts")], bundle: true, format: "esm", platform: "node", outfile: groundOut, logLevel: "error" });
   if (!arg("bundle", "")) await build({ entryPoints: [join(root, "src/sim.ts")], bundle: true, format: "esm", platform: "node", outfile: out, logLevel: "error" });
 
   const queue = seeds.slice();
@@ -200,7 +252,7 @@ if (!isMainThread) {
         const seed = queue.shift();
         results.push(
           await new Promise((resolve, reject) => {
-            const worker = new Worker(fileURLToPath(import.meta.url), { workerData: { out, seed, seconds, evo } });
+            const worker = new Worker(fileURLToPath(import.meta.url), { workerData: { out, seed, seconds, evo, groundOut } });
             worker.once("message", resolve);
             worker.once("error", reject);
           })
@@ -248,6 +300,35 @@ if (!isMainThread) {
       const g = r.diag;
       console.log(`${String(r.seed).padStart(5)}  ${g.firstSeen.map((v) => d(v).padStart(8)).join("")} ${d(g.first.multicellular)}  ${d(g.first.land)}   ${d(g.first.sexual)}    ${d(g.first.attach)}  ${d(g.first.rescue)} | ${`${g.start.plants0[0]}/${g.start.plants0[1]}`.padStart(9)}  ${g.start.lostAt < 0 ? "—" : `${g.start.lostAt}. sn`}`);
     }
+  }
+
+  if (process.argv.includes("--atmo")) {
+    const rows = results.map((r) => { const m = r.oxy.sum / r.oxy.n; return { m, sd: Math.sqrt(Math.max(0, r.oxy.sq / r.oxy.n - m * m)), lo: r.oxy.min, hi: r.oxy.max }; });
+    const avg = (f) => rows.reduce((a, r) => a + f(r), 0) / rows.length;
+    console.log(`
+Oksijen (24 tohum): ortalama ${avg((r) => r.m).toFixed(3)} · tohum içi sapma ${avg((r) => r.sd).toFixed(3)} · en düşük ${Math.min(...rows.map((r) => r.lo)).toFixed(2)} · en yüksek ${Math.max(...rows.map((r) => r.hi)).toFixed(2)}`);
+    console.log(`tohumlar arası ortalama farkı (sapma): ${Math.sqrt(avg((r) => (r.m - avg((x) => x.m)) ** 2)).toFixed(3)}`);
+  }
+  if (process.argv.includes("--tone")) {
+    const HAB = ["derin", "sığ", "kara", "dağ", "örtü"];
+    console.log(`
+Renk: gövde tonu ile zemin tonunun yakınlığı (tohumlar üzerinden toplam). Dilim: sürenin üçte biri.`);
+    console.log(`alan    dilim   birey   uyum(0-1)  ort.|ton farkı|(°)   gövde ort.ton  zemin ort.ton`);
+    for (let w = 0; w < 3; w++) {
+      HAB.forEach((name, h) => {
+        let n = 0, match = 0, bs = 0, bc = 0, ga = 0, gb = 0, dh = 0, dhn = 0;
+        for (const r of results) {
+          const e = r.tone[w][h];
+          n += e.n; match += e.match; bs += e.bs; bc += e.bc; ga += e.ga; gb += e.gb; dh += e.dh; dhn += e.dhn;
+        }
+        const deg = (y, x) => ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+        console.log(`${name.padEnd(7)} ${String(w + 1).padStart(4)} ${String(n).padStart(8)}   ${(n ? match / n : 0).toFixed(3).padStart(8)}   ${(dhn ? dh / dhn : 0).toFixed(1).padStart(14)}   ${n ? deg(bs, bc).toFixed(0).padStart(11) : "—".padStart(11)}   ${n ? deg(gb, ga).toFixed(0).padStart(11) : "—".padStart(11)}`);
+      });
+    }
+    const mean = (f) => results.reduce((a, r) => a + f(r), 0) / results.length;
+    console.log(`
+Belirgin renk kümesi (30°'lik dilimde nüfusun ≥%10'u), son an, tohum ortalaması: ${mean((r) => r.clusters).toFixed(2)}`);
+    console.log(`Yaşayan tür sayısı ortalaması: ${mean((r) => r.species).toFixed(1)} · bugüne dek görülen tür: ${mean((r) => r.speciesEver).toFixed(1)}`);
   }
 
   const json = arg("json", "");

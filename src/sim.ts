@@ -2,6 +2,7 @@ import { rng } from "./rng";
 import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, Quake, World } from "./world";
+import { GroundTone, Tone, bodyHSL, toneMatch, toneOfHSL } from "./ground";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
 import { makeEpithet, makeGenus } from "./taxonomy";
 
@@ -69,6 +70,20 @@ const FEMALE_COST = 0.4;
 const MALE_COST = 0.1;
 const ORNAMENT_METABOLISM = 0.15;
 const ORNAMENT_VISIBILITY = 0.4;
+/**
+ * Renk kamuflajının tavanı: gövde tonu bulunduğu zeminin tonuna ne kadar uyuyorsa (0–1, karesi alınır)
+ * avcının algı menzili en çok bu oranda kısalır. Kamuflaj organının gücüyle (0,2–0,3) aynı mertebededir:
+ * kusursuz bir ton uyumu bir organ kadar işe yarar ama organ yuvası harcamaz. Örtüde etkisi (1 - örtü) ile
+ * söner; örtü zaten menzili düşürdüğü için aynı gizlenme iki kez sayılmaz.
+ * Organ ve renk birbirinden bağımsız çarpılır: örtü dışında toplam gizlenme en çok 1 - (1 - 0,3)(1 - 0,35) = %54,5.
+ */
+const COLOR_HIDE_MAX = 0.35;
+/** Atmosfer: yenileme aralığı (sn), ortalamanın hafızası, tepki kazancı, oksijenin salınım genliği ve gevşeme süresi. */
+const ATMOSPHERE_INTERVAL = 1;
+const ATMOSPHERE_MEMORY = 1200;
+const ATMOSPHERE_GAIN = 3;
+const ATMOSPHERE_SWING = 0.15;
+const ATMOSPHERE_RELAX = 60;
 const EGG_INCUBATION: [number, number] = [14, 24];
 /** r/K: avcılar daha yüksek eşikte ve daha seyrek ürer. */
 const DIET_DIVIDE_THRESHOLD: Record<Diet, number> = { carnivore: 1.15, omnivore: 1.05, scavenger: 1.05, parasite: 1, herbivore: 1, filter_feeder: 1, phototroph: 1, chemotroph: 1 };
@@ -630,6 +645,9 @@ export class Sim {
   public eggs: Egg[] = [];
   public flashes: Flash[] = [];
   public milestones: Milestone[] = [];
+  /** Yaşamın değiştirdiği atmosfer: oksijenin tabanı ve üretici payının uzun vadeli ortalaması. */
+  private atmo = { oxygen: 0.5, mean: -1 };
+  private atmoT = 0;
   private line: { track: LineTrack; members: Set<number>; species: Set<number>; eggParents: Set<number> } | null = null;
   private pendingMeteors: { x: number; y: number; r: number; left: number }[] = [];
   /** Çözünmüş kimyasal besin: ızgara hücresi başına derişim ve kapasite (bkz. SOUP_*). */
@@ -672,6 +690,9 @@ export class Sim {
   private rescueT = RESCUE_INTERVAL;
   private newborns: Creature[] = [];
   private readonly cHash = new Hash<Creature>(64);
+  /** Zeminin ton önbelleği ve genomların gövde tonu (yalnızca okunur, durum sayılmaz). */
+  private groundTone: GroundTone | null = null;
+  private readonly bodyTones = new WeakMap<Genome, Tone>();
   private readonly nHash = new Hash<Nutrient>(64);
   /** Adım başına bir kez hesaplanan ortam değerleri. */
   private env = { light: 1, night: false, oxygen: 0.5 };
@@ -699,11 +720,36 @@ export class Sim {
     return Math.min(1, Math.max(0, 0.5 + 0.85 * Math.sin((this.time / DAY_LENGTH) * Math.PI * 2)));
   }
 
-  /** 0..1 oksijen seviyesi (0,5 nötr): 240 sn'lik yavaş bir salınım + iklim ofseti. */
+  /** 0..1 oksijen seviyesi (0,5 nötr): yaşamın ürettiği taban + iklim ofseti. */
   public oxygen(): number {
-    const base = 0.5 + Math.sin((this.time / 240) * Math.PI * 2) * 0.12;
     const offset = this.climate ? (this.climate.warm ? -0.08 : 0.08) : 0;
-    return Math.min(0.9, Math.max(0.1, base + offset));
+    return Math.min(0.9, Math.max(0.1, this.atmo.oxygen + offset));
+  }
+
+  /**
+   * Atmosfer yaşamla değişir: üreticilerin (bitkiler ve ışıkla beslenen canlılar) enerji stoku tüketicilerinkine
+   * oranla, kendi uzun vadeli ortalamasının üstündeyse oksijen yükselir, altındaysa düşer. Ölçek gezegene ve
+   * ekosisteme göre kendini ayarlar (ortalama izlenir); eskiden saf bir salınım olan oksijen artık bir tepki.
+   * Oksijen ±0,15 içinde kalır, eski salınımla aynı genlik.
+   */
+  private stepAtmosphere(dt: number): void {
+    this.atmoT -= dt;
+    if (this.atmoT > 0) return;
+    const span = ATMOSPHERE_INTERVAL;
+    this.atmoT = span;
+    let producers = this.nutrients.length * PLANT_ENERGY;
+    let consumers = 0;
+    for (const c of this.creatures) {
+      if (c.g.diet === "phototroph") producers += c.energy;
+      else if (c.g.diet !== "chemotroph") consumers += c.energy;
+    }
+    const ratio = producers / (producers + consumers + 1);
+    const a = this.atmo;
+    if (a.mean < 0) a.mean = ratio;
+    a.mean += ((ratio - a.mean) * span) / ATMOSPHERE_MEMORY;
+    const push = Math.tanh((ATMOSPHERE_GAIN * (ratio - a.mean)) / Math.max(0.05, a.mean));
+    const target = 0.5 + ATMOSPHERE_SWING * push;
+    a.oxygen += ((target - a.oxygen) * span) / ATMOSPHERE_RELAX;
   }
 
   private updateEnv(): void {
@@ -1329,6 +1375,23 @@ export class Sim {
     return best;
   }
 
+  /**
+   * Renk kamuflajı: canlının gövde tonu o an bulunduğu zeminin (sıvı derinliği, kara, dağ, örtü) tonuna
+   * uyuyorsa 0'dan COLOR_HIDE_MAX'e kadar bir gizlenme. Zemin rengi haritayı çizenle aynı kaynaktan gelir.
+   */
+  private colorHide(o: Creature): number {
+    if (o.cover >= 1) return 0;
+    let body = this.bodyTones.get(o.g);
+    if (!body) {
+      const c = bodyHSL(o.g, true);
+      body = toneOfHSL(c.h, c.s);
+      this.bodyTones.set(o.g, body);
+    }
+    const ground = (this.groundTone ??= new GroundTone(this.world)).at(o.x, o.y, o.cover);
+    const m = toneMatch(body, ground);
+    return COLOR_HIDE_MAX * m * m * (1 - o.cover);
+  }
+
   private findPrey(c: Creature, sense: number): Creature | null {
     let best: Creature | null = null;
     let bestD = Infinity;
@@ -1340,7 +1403,7 @@ export class Sim {
       const dy = o.y - c.y;
       const d = dx * dx + dy * dy;
       // Kamuflaj menzili kısaltır; süslü erkek daha uzaktan görülür.
-      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - o.cover * (1 - c.d.cutter)));
+      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - this.colorHide(o)) * (1 - o.cover * (1 - c.d.cutter)));
       if (o.g.reproductionStrategy === "sexual" && o.g.sex === "m") reach *= 1 + ORNAMENT_VISIBILITY * o.g.ornament;
       if (d > reach * reach || d >= bestD || !this.passable(c, o.x, o.y)) return;
       bestD = d;
@@ -2389,6 +2452,7 @@ export class Sim {
 
     this.stepWorldEvents(dt);
     this.stepSoup(dt);
+    this.stepAtmosphere(dt);
     for (const c of this.creatures) if (c.alive) this.stepCreature(c, dt);
 
     this.hgtT -= dt;
@@ -2575,6 +2639,7 @@ export class Sim {
         .filter((rec): rec is LineageRec => rec !== undefined),
       events: this.events.slice(-120),
       milestones: this.milestones,
+      atmo: { ...this.atmo, t: this.atmoT },
       line: this.line ? { ...this.line.track, members: Array.from(this.line.members), species: Array.from(this.line.species) } : undefined,
       history: this.history,
       sampleInterval: this.sampleInterval,
@@ -2688,6 +2753,10 @@ export class Sim {
     sim.eggs = data.eggs ?? [];
     sim.events = data.events ?? [];
     sim.milestones = data.milestones ?? [];
+    if (data.atmo) {
+      sim.atmo = { oxygen: data.atmo.oxygen, mean: data.atmo.mean };
+      sim.atmoT = data.atmo.t;
+    }
     if (data.line) sim.line = { track: data.line, members: new Set(data.line.members), species: new Set(data.line.species), eggParents: new Set(sim.eggs.flatMap((e) => e.parentIds).filter((p) => !data.line!.members.includes(p))) };
     sim.eventSeq = sim.events.reduce((m, e) => Math.max(m, e.seq), 0);
     sim.history = data.history ?? [];
@@ -2868,6 +2937,7 @@ function cleanSave(raw: SaveData): SaveData {
           maxGen: Math.max(0, Math.floor(num(raw.line.maxGen))),
         }
       : undefined,
+    atmo: raw.atmo ? { oxygen: Math.min(0.9, Math.max(0.1, num(raw.atmo.oxygen, 0.5))), mean: num(raw.atmo.mean, -1), t: num(raw.atmo.t) } : undefined,
     milestones: list<Milestone>(raw.milestones)
       .slice(0, 40)
       .map((m) => ({ key: str(m?.key).slice(0, 24), t: num(m?.t), id: Math.max(0, Math.floor(num(m?.id))), seq: Math.floor(num(m?.seq)), text: str(m?.text) })),
@@ -2910,8 +2980,8 @@ function cleanSave(raw: SaveData): SaveData {
 /** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar).
  *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi.
  *  Sürüm 7: dönüm noktaları ve olaylarda isteğe bağlı `ms`/`id` alanları (yalnızca gözlem verisi; eski kayıtlar olduğu gibi yüklenir). */
-export const SAVE_VERSION = 7;
-const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, SAVE_VERSION];
+export const SAVE_VERSION = 8;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
 const CREATURE_REST = ["heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
@@ -2934,6 +3004,7 @@ export interface SaveData {
   lineage: LineageRec[];
   events: SimEvent[];
   milestones?: Milestone[];
+  atmo?: { oxygen: number; mean: number; t: number };
   line?: LineTrack;
   history: HistorySample[];
   sampleInterval: number;

@@ -4,6 +4,7 @@ import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
 import { View } from "./client";
 import { MAP_H, MAP_W, World } from "./world";
 import { Chemistry } from "./chemistry";
+import { MAP_LIGHT, bodyHSL, groundRGB, leafColor, mapPalette } from "./ground";
 import { tr } from "./i18n";
 import { BEHAVIORS, INITIAL_CREATURES, METEOR_FALL, SOUP_COLS, SOUP_ROWS } from "./sim";
 
@@ -56,52 +57,11 @@ export function readTheme(): Theme {
 
 // ------------------------------------------------------------------ arazi dokusu
 
-type RGB = [number, number, number];
-interface MapPalette {
-  deep: RGB;
-  shallow: RGB;
-  beach: RGB;
-  plainLow: RGB;
-  plainHigh: RGB;
-  mountain: RGB;
-  peak: RGB;
-  contour: number;
-}
-const MAP_LIGHT: MapPalette = { deep: [170, 190, 204], shallow: [212, 224, 231], beach: [233, 230, 219], plainLow: [224, 227, 216], plainHigh: [204, 210, 194], mountain: [178, 181, 176], peak: [136, 140, 139], contour: 0.96 };
-
-function hsl(h: number, s: number, l: number): RGB {
-  const a = s * Math.min(l, 1 - l);
-  const f = (n: number): number => {
-    const k = (n + (((h % 360) + 360) % 360) / 30) % 12;
-    return (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))) * 255;
-  };
-  return [f(0), f(8), f(4)];
-}
-
-/** Haritanın renkleri gezegenin kimyasından gelir: sıvının tonu çözücüden, zeminin tonu kabuktaki elementlerden. */
-export function mapPalette(chem: Chemistry): MapPalette {
-  const { hue, sat } = chem.solvent;
-  const g = chem.terrain.groundHue;
-  const gs = chem.terrain.groundSat;
-  return {
-    deep: hsl(hue + 12, sat * 0.75, 0.055),
-    shallow: hsl(hue, sat, 0.2),
-    beach: hsl(g, gs + 0.08, 0.23),
-    plainLow: hsl(g, gs, 0.105),
-    plainHigh: hsl(g + 14, gs + 0.04, 0.17),
-    mountain: hsl(g + 190, 0.14, 0.3),
-    peak: hsl(g + 190, 0.12, 0.56),
-    contour: 1.22,
-  };
-}
-
 /** Üreticilerin rengi ışık pigmentinden gelir. */
 export function plantColors(chem: Chemistry): [string, string] {
   const h = chem.pigment.hue;
   return [`hsl(${h} 78% 66%)`, `hsl(${(h + 22) % 360} 66% 58%)`];
 }
-
-const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 
 /** Haritayı bir kez boyar: suda kıyıya uzaklıkla derinleşen ton ve eş-derinlik
  *  çizgileri; karada yükseklik tonu, hafif kabartma ve sıradağ sırtları. */
@@ -114,56 +74,16 @@ export function renderTerrain(world: World, dark: boolean, width = 1600): HTMLCa
   const image = ctx.createImageData(width, height);
   const data = image.data;
   const pal = dark ? mapPalette(world.chem) : MAP_LIGHT;
-  const ridgeWidth = world.ridgeWidth;
-  const leaf = hsl(world.chem.pigment.hue, 0.55, dark ? 0.3 : 0.45);
+  const leaf = leafColor(world.chem, dark);
   const sx = MAP_W / width;
-  const sea = world.seaLevel;
-  const mount = world.mountainLevel;
-  const hasQuakes = world.quakes.length > 0;
 
+  // Renk, kamuflaj mekaniğiyle ortak kaynaktan gelir (bkz. ground.ts).
   for (let py = 0; py < height; py++) {
     const y = (py + 0.5) * sx;
     for (let px = 0; px < width; px++) {
       const x = (px + 0.5) * sx;
-      let h = world.sample(world.height, x, y);
-      let c = world.sample(world.coast, x, y);
-      let ridge = 1;
-      if (hasQuakes) {
-        const q = world.quakeAt(x, y);
-        if (q !== null) {
-          h = q ? sea - 0.1 : sea + 0.1;
-          c = 3;
-        } else ridge = world.sample(world.ridge, x, y);
-      } else ridge = world.sample(world.ridge, x, y);
-      let rgb: RGB;
-      if (h < sea) {
-        const t = Math.min(1, c / 26);
-        rgb = mix(pal.shallow, pal.deep, t * t * (3 - 2 * t));
-        const f = (c / 7) % 1;
-        if (c > 1.5 && f < 0.07) rgb = [rgb[0] * pal.contour, rgb[1] * pal.contour, rgb[2] * pal.contour];
-      } else {
-        let base: RGB;
-        if (h > mount && c > 5) base = mix(pal.mountain, pal.peak, Math.min(1, (h - mount) / 1.2));
-        else base = mix(pal.plainLow, pal.plainHigh, Math.min(1, Math.max(0, (h - sea) / Math.max(0.01, mount - sea))));
-        // Sıradağ: sırta yaklaştıkça koyulaşan bant, tam sırtta ince bir çizgi.
-        if (ridge < ridgeWidth && c > 3.2) {
-          const t = 1 - ridge / ridgeWidth;
-          base = mix(base, ridge < 0.016 ? pal.peak : pal.mountain, Math.min(1, 0.55 + t * 0.45));
-        }
-        // Kumsal geçişi yükseklikten türetilir (hücre ızgarasının basamakları görünmesin).
-        const bt = Math.min(1, Math.max(0, (h - sea) / 0.2));
-        const beach = bt * bt * (3 - 2 * bt);
-        const slope = world.sample(world.height, x + 5, y + 5) - world.sample(world.height, x - 5, y - 5);
-        const shade = Math.min(1.1, Math.max(0.86, 1 - slope * 1.4)) * beach + (1 - beach);
-        rgb = mix(pal.beach, base, beach);
-        rgb = [rgb[0] * shade, rgb[1] * shade, rgb[2] * shade];
-      }
-      // Sık örtü (sığınak): üretici pigmentinin renginde, benekli bir doku.
-      const cover = world.sample(world.thicket, x, y) - world.thicketLevel;
-      if (cover > 0 && !(h >= sea && ((h > mount && c > 5) || (ridge < ridgeWidth && c > 3.2)))) {
-        const speck = (px * 7 + py * 13) % 11 === 0 || (px * 5 + py * 3) % 17 === 0;
-        rgb = mix(rgb, leaf, Math.min(0.42, 0.16 + cover * 0.5) + (speck ? 0.3 : 0));
-      }
+      const speck = (px * 7 + py * 13) % 11 === 0 || (px * 5 + py * 3) % 17 === 0;
+      const rgb = groundRGB(world, pal, leaf, x, y, speck);
       const i = (py * width + px) * 4;
       data[i] = rgb[0];
       data[i + 1] = rgb[1];
@@ -189,9 +109,9 @@ function bodyPalette(g: Genome, dark: boolean): BodyPalette {
   const cache = paletteCache[dark ? 1 : 0];
   let p = cache.get(g);
   if (!p) {
-    const h = Math.round(g.hue);
-    const s = Math.round(g.saturation * 0.85);
-    const l = Math.round(dark ? 50 + (g.lightness - 30) * 0.36 : 62 + (g.lightness - 30) * 0.42);
+    const { h, s: sat, l: lit } = bodyHSL(g, dark);
+    const s = Math.round(sat * 100);
+    const l = Math.round(lit * 100);
     p = {
       fill: `hsl(${h} ${s}% ${l}%)`,
       edge: `hsl(${h} ${Math.round(s * 0.9)}% ${dark ? l + 34 : l - 36}%)`,
