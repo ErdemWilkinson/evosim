@@ -1564,27 +1564,48 @@ export class OriginFilm {
     } else {
       ctx.fillStyle = liquid(8);
       ctx.fillRect(0, 0, w, h);
-      const split = Math.min(1, Math.max(0, (p - 0.25) * 2));
-      const ease = split * split * (3 - 2 * split);
-      const r = R * (0.75 - ease * 0.18);
-      const dx = ease * R * 0.95;
-      if (!this.founder) {
-        cell(cx - dx, cy, r, 1, 1);
-        if (ease > 0.02) cell(cx + dx, cy, r, 1, 1);
+      // Bölünme agar.io'daki "W" gibi: ana hücre gerilir, içinden küçük bir hücre fırlar,
+      // hızla uzaklaşıp yavaşlar; ikisi de kütlenin yarısıyla jöle gibi titreyerek oturur.
+      const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+      const out3 = (k: number): number => 1 - Math.pow(1 - clamp01(k), 3);
+      const rBig = R * 0.78;
+      const rHalf = rBig * Math.SQRT1_2;
+      const charge = clamp01((p - 0.2) / 0.2);
+      const fire = clamp01((p - 0.4) / 0.35);
+      const settle = clamp01((p - 0.4) / 0.6);
+      const gap = rHalf * 2.7;
+      const body = (x: number, r: number, stretch: number, alpha: number, facing: number): void => {
+        if (this.founder) living(x, cy, r, alpha, facing, stretch);
+        else cell(x, cy, r, 1, 1);
+      };
+      if (fire <= 0) {
+        // Büyür, sonra fırlatmadan önce yönüne doğru gerilip titrer.
+        const r0 = rBig * (0.55 + 0.45 * out3(p / 0.2));
+        const tense = Math.sin(charge * Math.PI);
+        body(cx, r0 * (1 + 0.04 * Math.sin(charge * Math.PI * 6) * charge), 1 + 0.2 * tense, 1, 1);
       } else {
-        // Bölünme: gövde uzar, ortadan boğumlanır ve iki kardeş ayrılır.
-        const stretch = 1 + Math.sin(Math.min(1, split * 2) * Math.PI) * 0.22;
-        if (ease < 0.5) living(cx, cy, r, 1, 1, stretch);
-        else {
-          living(cx - dx, cy, r, 1, 1);
-          living(cx + dx, cy, r, 1, -1);
+        const shrink = out3(fire * 2.5);
+        const wobble = 1 + 0.08 * Math.sin(settle * 30) * (1 - settle);
+        const rMother = (rBig + (rHalf - rBig) * shrink) * (1 / wobble);
+        const rDaughter = (rBig + (rHalf - rBig) * shrink) * wobble;
+        const dist = gap * out3(fire);
+        const speed = Math.pow(1 - fire, 2);
+        // Fırlayan hücrenin ardında solan izler.
+        for (let g = 3; g >= 1; g--) {
+          const f = fire - g * 0.06;
+          if (f <= 0) continue;
+          body(cx + (gap * out3(f)) / 2, rDaughter * 0.95, 1 + 0.4 * Math.pow(1 - f, 2), 0.2 / g, 1);
         }
-        if (ease > 0.05 && ease < 0.5) {
-          ctx.strokeStyle = liquid(8);
-          ctx.lineWidth = r * 0.5 * (ease / 0.5);
+        // Yeni hücre ana hücrenin gövdesinin altından çıkar: önce o, sonra üstüne ana hücre çizilir.
+        body(cx + dist / 2, rDaughter, 1 + 0.4 * speed, 1, 1);
+        body(cx - dist / 2, rMother, 1 - 0.1 * speed, 1, 1);
+        // Fırlama anında yayılan halka.
+        const ring = clamp01((p - 0.4) / 0.25);
+        if (ring < 1) {
+          ctx.strokeStyle = liquid(70, (1 - ring) * 0.55);
+          ctx.lineWidth = Math.max(2, rBig * 0.08 * (1 - ring));
           ctx.beginPath();
-          ctx.moveTo(cx, cy - r * 1.2);
-          ctx.lineTo(cx, cy + r * 1.2);
+          ctx.arc(cx, cy, rBig * (0.9 + out3(ring) * 1.7), 0, Math.PI * 2);
           ctx.stroke();
         }
       }
