@@ -1,5 +1,6 @@
 import { rng } from "./rng";
 import { ORGANS, ORGAN_SLOTS, Organ, OrganType, pickOrganType } from "./organs";
+import { CATALYSTS, Chemistry, ENERGIES, GENETICS, MEMBRANES, Option, WALLS } from "./chemistry";
 
 export type Diet = "phototroph" | "herbivore" | "parasite" | "filter_feeder" | "omnivore" | "scavenger" | "carnivore" | "chemotroph";
 
@@ -62,6 +63,75 @@ export function defaultBrain(): number[] {
   return w;
 }
 
+// ---------------------------------------------------------------- hücrenin kimyası
+
+/**
+ * Her hücrenin duvarı, zarı, kalıtım polimeri, enerji taşıyıcısı ve katalizör merkezi kendi genomundadır.
+ * İlk hücre gezegenin seçtiği yapıyla başlar; uzun sürede yavrular, gezegenin elementlerinin kurmaya
+ * yettiği başka bir seçeneğe geçebilir (gezegende bulunmayan elementi isteyen seçenek hiçbir zaman çıkmaz).
+ * Etkiler verideki gerçek farklardan gelir: duvar can, hız ve metabolizmayı, kalıtım polimeri kopyalama
+ * hatasını (mutasyon sıklığını) değiştirir; zar, enerji ve katalizör farkı ise nötrdür, yalnızca sürüklenir.
+ */
+export const CELL_KINDS = ["wall", "membrane", "genetic", "energy", "catalyst"] as const;
+export type CellKind = (typeof CELL_KINDS)[number];
+
+const CELL_TABLE: Record<CellKind, readonly Option[]> = { wall: WALLS, membrane: MEMBRANES, genetic: GENETICS, energy: ENERGIES, catalyst: CATALYSTS };
+
+interface PlanetCell {
+  def: Record<CellKind, string>;
+  options: Record<CellKind, string[]>;
+  error: number;
+}
+let planetCell: PlanetCell = {
+  def: { wall: "none", membrane: "phospholipid", genetic: "phosphodiester", energy: "polyphosphate", catalyst: "fes" },
+  options: { wall: ["none"], membrane: ["phospholipid"], genetic: ["phosphodiester"], energy: ["polyphosphate"], catalyst: ["fes"] },
+  error: 0.9,
+};
+
+/** Gezegenin elementlerinin (ana ve iz) kurmaya yettiği seçenekleri ve ilk hücrenin yapısını belirler. */
+export function setPlanetCell(chem: Chemistry): void {
+  const syms = new Set<string>(["H", ...chem.elements.map((e) => e.sym), ...chem.trace.map((t) => t.sym)]);
+  const fits = (o: Option): boolean => o.needs.every((n) => syms.has(n));
+  const ids = (list: readonly Option[], extra: (o: Option) => boolean = () => true): string[] => list.filter((o) => fits(o) && extra(o)).map((o) => o.id);
+  const def: Record<CellKind, string> = { wall: chem.wall.id, membrane: chem.membrane.id, genetic: chem.genetic.id, energy: chem.energy.id, catalyst: chem.catalyst.id };
+  const options: Record<CellKind, string[]> = {
+    wall: ids(WALLS),
+    membrane: ids(MEMBRANES, (o) => {
+      const m = o as (typeof MEMBRANES)[number];
+      return (m.polar === null || m.polar === chem.solvent.polar) && (m.scaffold === undefined || m.scaffold === chem.scaffold.id || (chem.scaffold.id === "boron" && m.scaffold === "carbon" && syms.has("C")));
+    }),
+    genetic: ids(GENETICS, (o) => (chem.scaffold.id === "silicon" ? o.id === "polysilane" || o.id === "clay" || o.id === "compositional" : o.id !== "polysilane")),
+    energy: ids(ENERGIES),
+    catalyst: ids(CATALYSTS),
+  };
+  for (const k of CELL_KINDS) if (!options[k].includes(def[k])) options[k].push(def[k]);
+  planetCell = { def, options, error: chem.genetic.error };
+}
+
+/** Bu gezegende bir yapı türü için seçilebilen seçenekler. */
+export function cellChoices(kind: CellKind): readonly string[] {
+  return planetCell.options[kind];
+}
+
+export function cellOption(kind: CellKind, id: string): Option | undefined {
+  return CELL_TABLE[kind].find((o) => o.id === id);
+}
+
+/** Bir hücrenin duvarının çarpanları (verideki gerçek farklar). */
+export function wallStats(g: { wall: string }): { hp: number; speed: number; meta: number } {
+  const w = WALLS.find((o) => o.id === g.wall);
+  return w ? { hp: w.hp, speed: w.speed, meta: w.meta } : { hp: 1, speed: 1, meta: 1 };
+}
+
+/** Bir hücrenin kopyalama hatasının gezegenin ilk polimerine oranı: mutasyon sıklığını ölçekler. */
+function copyErrorRatio(g: { genetic: string }): number {
+  const o = GENETICS.find((x) => x.id === g.genetic);
+  return o ? o.error / planetCell.error : 1;
+}
+
+/** Tek bir mutasyonda yapı değiştirme olasılığı: yapısal yeniliklerin en nadirlerindendir. */
+const CELL_SWITCH_CHANCE = 0.004;
+
 // ---------------------------------------------------------------- genom
 
 export interface Genome {
@@ -88,6 +158,13 @@ export interface Genome {
   virulence: number;
   /** Hepçil ve çürükçülde sindirimin yönü: 0 ete, 1 bitkiye uzmanlaşmış; ikisi birden en iyi olamaz. */
   gutBias: number;
+
+  /** Hücre kimyası: seçenek kimlikleri (bkz. CELL_KINDS). */
+  wall: string;
+  membrane: string;
+  genetic: string;
+  energy: string;
+  catalyst: string;
 
   organs: Organ[];
   brain: number[];
@@ -194,6 +271,7 @@ export function randomGenome(id: number): Genome {
     ornament: rng.range(0, 0.2),
     virulence: 1,
     gutBias: 0.5,
+    ...planetCell.def,
     organs: [],
     brain: defaultBrain(),
     reproductionStrategy: "asexual",
@@ -234,9 +312,12 @@ export function fitToStage(g: Genome): void {
 }
 
 function mutate(g: Genome, stress: number): Genome {
-  const chance = Math.min(1, MUTATION_CHANCE * stress * numericScale);
+  // Kopyalama hatası hücrenin kendi polimerine bağlıdır (gezegenin ilk polimerine göre oran).
+  const k = copyErrorRatio(g);
+  const nScale = numericScale * k;
+  const chance = Math.min(1, MUTATION_CHANCE * stress * nScale);
   const strength = MUTATION_STRENGTH * stress * strengthScale;
-  const rare = (p: number): boolean => rng.chance(Math.min(1, p * structuralScale));
+  const rare = (p: number): boolean => rng.chance(Math.min(1, p * structuralScale * k));
 
   for (const key of NUMERIC_GENES) {
     if (rng.next() > chance) continue;
@@ -246,7 +327,7 @@ function mutate(g: Genome, stress: number): Genome {
   if (rng.next() < chance * 1.3) g.hue = (((g.hue + (rng.next() - 0.5) * 50) % 360) + 360) % 360;
 
   for (let i = 0; i < g.brain.length; i++) {
-    if (rng.next() < BRAIN_MUTATION_CHANCE * numericScale) g.brain[i] = clamp(g.brain[i] + (rng.next() - 0.5) * 2 * BRAIN_MUTATION_STRENGTH * strengthScale, -8, 8);
+    if (rng.next() < BRAIN_MUTATION_CHANCE * nScale) g.brain[i] = clamp(g.brain[i] + (rng.next() - 0.5) * 2 * BRAIN_MUTATION_STRENGTH * strengthScale, -8, 8);
   }
 
   // Örgütlenme düzeyi: nadir, büyük bir geçiş. Geri dönüş daha da nadirdir.
@@ -254,7 +335,7 @@ function mutate(g: Genome, stress: number): Genome {
   else if (g.stage > 0 && rare(STAGE_DOWN_CHANCE)) g.stage--;
 
   for (const organ of g.organs) {
-    if (rng.next() > ORGAN_POWER_MUTATION_CHANCE * numericScale) continue;
+    if (rng.next() > ORGAN_POWER_MUTATION_CHANCE * nScale) continue;
     organ.power = clamp(organ.power + (rng.next() - 0.5) * 2 * ORGAN_POWER_MUTATION_STRENGTH * strengthScale, 0.05, 1);
   }
   // Organ kaybı: kullanılmayan yapıların körelmesi.
@@ -276,6 +357,11 @@ function mutate(g: Genome, stress: number): Genome {
     if (rare(PACK_HUNTER_FLIP_CHANCE)) g.packHunter = !g.packHunter;
   }
   if (rare(DIET_FLIP_CHANCE)) g.diet = pickOtherDiet(g.diet, stress > 1);
+  for (const kind of CELL_KINDS) {
+    if (!rare(CELL_SWITCH_CHANCE)) continue;
+    const others = planetCell.options[kind].filter((id) => id !== g[kind]);
+    if (others.length > 0) g[kind] = others[rng.int(others.length)];
+  }
   g.sex = rng.chance(0.5) ? "f" : "m";
   return g;
 }
@@ -324,6 +410,11 @@ export function crossoverGenomes(a: Genome, b: Genome, id: number, stress = 1): 
     ornament: pick(a.ornament, b.ornament),
     virulence: pick(a.virulence, b.virulence),
     gutBias: pick(a.gutBias, b.gutBias),
+    wall: pick(a.wall, b.wall),
+    membrane: pick(a.membrane, b.membrane),
+    genetic: pick(a.genetic, b.genetic),
+    energy: pick(a.energy, b.energy),
+    catalyst: pick(a.catalyst, b.catalyst),
     organs,
     brain: a.brain.map((w, i) => pick(w, b.brain[i] ?? w)),
     reproductionStrategy: pick(a.reproductionStrategy, b.reproductionStrategy),
@@ -366,6 +457,7 @@ export function geneticDistance(a: Genome, b: Genome): number {
   d += Math.abs(a.stage - b.stage) * 0.5;
   if (a.reproductionStrategy !== b.reproductionStrategy) d += 0.08;
   if (a.laysEggs !== b.laysEggs) d += 0.05;
+  for (const kind of CELL_KINDS) if (a[kind] !== b[kind]) d += 0.04;
   return d;
 }
 
@@ -385,6 +477,7 @@ export function sanitizeGenome(raw: unknown): Genome {
       if (type && !organs.some((x) => x.type === type)) organs.push({ type, power: num(o.power, 0.05, 1, 0.3) });
     }
   }
+  const cellId = (kind: CellKind, v: unknown): string => (typeof v === "string" && CELL_TABLE[kind].some((o) => o.id === v) ? v : planetCell.def[kind]);
   const brain = defaultBrain();
   if (Array.isArray(r.brain) && r.brain.length === OLD_IN * OLD_ACTIONS) {
     // Eski düzen (sürüm 8 öncesi): ağırlıklar yeni ızgaraya taşınır; yeni girdi ve satırlar 0 kalır.
@@ -409,6 +502,11 @@ export function sanitizeGenome(raw: unknown): Genome {
     ornament: num(r.ornament, ...GENE_BOUNDS.ornament, 0),
     virulence: num(r.virulence, ...GENE_BOUNDS.virulence, 1),
     gutBias: num(r.gutBias, ...GENE_BOUNDS.gutBias, 0.5),
+    wall: cellId("wall", r.wall),
+    membrane: cellId("membrane", r.membrane),
+    genetic: cellId("genetic", r.genetic),
+    energy: cellId("energy", r.energy),
+    catalyst: cellId("catalyst", r.catalyst),
     organs,
     brain,
     reproductionStrategy: r.reproductionStrategy === "sexual" ? "sexual" : "asexual",

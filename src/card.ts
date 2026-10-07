@@ -93,21 +93,24 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
   ctx.fillText(fit(ctx, `${tr(c.origin.name)} · ${c.temperature} K · ${tr(`yüzeyin %${Math.round(p.liquidPercent)} sıvı`)}`, mapW), pad, pad + 56);
 
   // Elementler: haritanın altında.
-  let x = pad;
   const ey = pad + 60 + mapH + 22;
-  for (const e of c.elements) {
+  const chips = [...c.elements.map((e) => ({ ...e, trace: false })), ...c.trace.map((t) => ({ ...t, trace: true }))];
+  chips.forEach((e, i) => {
     const info = ELEMENTS[e.sym];
+    const x = pad + (i % 7) * 86;
+    const y = ey + Math.floor(i / 7) * 48;
+    ctx.globalAlpha = e.trace ? 0.7 : 1;
     ctx.fillStyle = info.color;
     ctx.beginPath();
-    ctx.roundRect(x, ey, 54, 40, 8);
+    ctx.roundRect(x, y, 78, 40, 8);
     ctx.fill();
+    ctx.globalAlpha = 1;
     ctx.fillStyle = "#0b0f19";
     ctx.font = font(17, 700);
-    ctx.fillText(e.sym, x + 8, ey + 18);
+    ctx.fillText(e.sym, x + 8, y + 18);
     ctx.font = font(12);
-    ctx.fillText(`${Math.round(e.share * 100)}%`, x + 8, ey + 33);
-    x += 59;
-  }
+    ctx.fillText(e.trace ? tr("iz") : `${Math.round(e.share * 100)}%`, x + 8, y + 33);
+  });
 
   // Sağ sütun: kimya.
   const rx = pad + mapW + 40;

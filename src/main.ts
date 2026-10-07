@@ -18,7 +18,7 @@ import { dietClass, drawTimelapse, recordTimelapse, resetTimelapse, timelapseSec
 import { dailySeed, drawCard, encodeShare, parseShare, Share } from "./card";
 import { atlasHtml, observeAtlas, resetAtlasWorld } from "./atlas";
 import { tr } from "./i18n";
-import { answerPredict, predictEnabled, predictHtml, resetPredict, setPredictEnabled, tickPredict } from "./predict";
+import { answerPredict, predictHtml, resetPredict, setPredictEnabled, tickPredict } from "./predict";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
@@ -614,6 +614,8 @@ document.querySelector(".panel")!.addEventListener("change", (event) => {
 const GAME_KEY = "evosim-game-mode";
 function setGameMode(on: boolean): void {
   document.documentElement.toggleAttribute("data-game", on);
+  $("btn-game").setAttribute("aria-pressed", String(on));
+  setPredictEnabled(on);
   $<HTMLInputElement>("set-game").checked = on;
   if (!on && tool !== "select") setTool("select");
   try {
@@ -623,14 +625,14 @@ function setGameMode(on: boolean): void {
   }
 }
 $<HTMLInputElement>("set-game").addEventListener("change", (e) => setGameMode((e.target as HTMLInputElement).checked));
+$("btn-game").addEventListener("click", () => {
+  const on = !document.documentElement.hasAttribute("data-game");
+  setGameMode(on);
+  toast(on ? "Oyun modu açık: müdahale araçları ve tahmin soruları kullanılabilir." : "Oyun modu kapalı: yalnızca gözlem.");
+});
 $<HTMLInputElement>("set-events").addEventListener("change", (e) => client.send({ type: "set", autoEvents: (e.target as HTMLInputElement).checked }));
 $<HTMLSelectElement>("set-evo").addEventListener("change", (e) => client.send({ type: "set", evolutionSpeed: (e.target as HTMLSelectElement).value as EvolutionSpeed }));
 $<HTMLInputElement>("set-flow").addEventListener("change", (e) => (scene.showFlow = (e.target as HTMLInputElement).checked));
-{
-  const box = $<HTMLInputElement>("set-predict");
-  box.checked = predictEnabled();
-  box.addEventListener("change", () => setPredictEnabled(box.checked));
-}
 $<HTMLInputElement>("set-rescue").addEventListener("change", (e) => client.send({ type: "set", rescueEnabled: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("set-plants").addEventListener("input", (e) => client.send({ type: "set", nutrientMultiplier: Number((e.target as HTMLInputElement).value) }));
 

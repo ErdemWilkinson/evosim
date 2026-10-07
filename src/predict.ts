@@ -11,7 +11,6 @@ const WINDOW = 120;
 const COOLDOWN = 45;
 const FIRST_AT = 90;
 const NEUTRAL = 0.1;
-const STORE = "evosim.predict";
 
 type Kind = "grow" | "survive";
 type Guess = "up" | "down" | "yes" | "no";
@@ -38,12 +37,8 @@ interface Result {
   guess: Guess;
 }
 
-let enabled = true;
-try {
-  enabled = localStorage.getItem(STORE) !== "0";
-} catch {
-  /* depolama kapalıysa varsayılan açık */
-}
+/** Tahmin soruları Oyun moduyla birlikte açılır (bkz. main.ts setGameMode). */
+let enabled = false;
 
 let active: Active | null = null;
 let last: Result | null = null;
@@ -59,11 +54,6 @@ export function predictEnabled(): boolean {
 export function setPredictEnabled(on: boolean): void {
   enabled = on;
   if (!on) active = null;
-  try {
-    localStorage.setItem(STORE, on ? "1" : "0");
-  } catch {
-    /* kalıcı yazılamazsa oturum boyunca geçerli */
-  }
 }
 
 /** Yeni dünya, kayıt yükleme veya geri sarma: bekleyen soru anlamını yitirir. */
@@ -130,7 +120,7 @@ export function tickPredict(ui: UiPayload, time: number): void {
 const GUESS_LABEL: Record<Guess, string> = { up: "Artar", down: "Azalır", yes: "Yaşar", no: "Tükenir" };
 
 export function predictHtml(time: number): string {
-  if (!enabled) return `<p class="note" style="padding:8px">Tahmin soruları kapalı. Ayarlardan açabilirsiniz.</p>`;
+  if (!enabled) return `<p class="note" style="padding:8px">Tahmin soruları Oyun modunda çıkar. Üstteki "Oyun" düğmesine basarak açın.</p>`;
   const score = total > 0 ? `<p class="foot pred-score" style="margin:0"><span>Doğru tahmin:</span> <b>${right} / ${total}</b></p>` : "";
   let body = "";
   if (active) {

@@ -254,7 +254,15 @@ export interface ChemistryBase {
   pigment: Pigment;
 }
 
+/** İz element: ana ölçüsü yüzdelik altındadır (kabukta ve çözeltide bulunur, yapı seçimini belirlemez). */
+export interface TraceElement {
+  sym: string;
+  share: number;
+}
+
 export interface Chemistry extends ChemistryBase {
+  /** Ana on elementin dışında, gezegende iz miktarda bulunan dört element. Yapı seçimi yalnızca ana on elemente bakar. */
+  trace: TraceElement[];
   origin: Origin;
   /** Simülasyona etkiler: çözücünün sıcaklığı tepkime hızını, duvar bedeni belirler. */
   mods: { metabolism: number; speed: number; hp: number; plant: number; mutation: number };
@@ -366,7 +374,27 @@ export function generateChemistry(seedRaw: number): Chemistry {
   const gasTotal = top.reduce((a, b) => a + b.share, 0);
   const atmosphere = top.map((g) => ({ gas: g.gas, share: g.share / gasTotal }));
 
-  const chem: Chemistry = { ...base, origin, mods, terrain, atmosphere };
+  // İz elementler: ana çekilişten ayrı bir üreteçle seçilir, bu yüzden hiçbir gezegenin yapısı değişmez.
+  const tr = makeRng(seed ^ 0x2b7e1516);
+  const rest = Object.values(ELEMENTS).filter((e) => !has.has(e.sym));
+  const trace: TraceElement[] = [];
+  while (trace.length < 4 && rest.length > 0) {
+    let total = 0;
+    for (const e of rest) total += e.weight;
+    let roll = tr.next() * total;
+    let at = 0;
+    for (let i = 0; i < rest.length; i++) {
+      roll -= rest[i].weight;
+      if (roll <= 0) {
+        at = i;
+        break;
+      }
+    }
+    const e = rest.splice(at, 1)[0];
+    trace.push({ sym: e.sym, share: (0.0005 + tr.next() * 0.0045) * (0.5 + e.weight / 15) });
+  }
+  trace.sort((a, b) => b.share - a.share);
+  const chem: Chemistry = { ...base, origin, mods, terrain, atmosphere, trace };
   if (cache.size > 64) cache.clear();
   cache.set(seed, chem);
   return chem;

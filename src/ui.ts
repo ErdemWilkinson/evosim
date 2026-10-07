@@ -318,7 +318,7 @@ export function planetHtml(planet: PlanetProfile, actions = true): string {
   const mult = (v: number): string => `×${nf(v, 2)}`;
   const refs = [c.solvent, c.scaffold, c.membrane, c.wall, c.genetic, c.energy, c.catalyst, c.pigment];
   return (
-    `<div class="elements">${c.elements.map((e) => `<span class="el" style="--c:${ELEMENTS[e.sym].color}" title="${ELEMENTS[e.sym].name}"><b>${e.sym}</b><small>${pct(e.share)}</small></span>`).join("")}</div>` +
+    `<div class="elements">${c.elements.map((e) => `<span class="el" style="--c:${ELEMENTS[e.sym].color}" title="${ELEMENTS[e.sym].name}"><b>${e.sym}</b><small>${pct(e.share)}</small></span>`).join("")}${c.trace.map((e) => `<span class="el trace" style="--c:${ELEMENTS[e.sym].color}" title="${ELEMENTS[e.sym].name} (iz element)"><b>${e.sym}</b><small>iz</small></span>`).join("")}</div>` +
     `<div class="facts" style="margin-top:9px">` +
     fact("Yüzey sıvısı", esc(c.solvent.name), `${c.temperature} K · yüzeyin ${pct(planet.liquidPercent / 100)}`) +
     fact("İskelet", esc(c.scaffold.name)) +

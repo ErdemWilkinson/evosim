@@ -1,4 +1,4 @@
-import { Chemistry, ELEMENTS, Option, originSteps } from "./chemistry";
+import { CATALYSTS, Chemistry, ELEMENTS, ENERGIES, GENETICS, MEMBRANES, Option, WALLS, originSteps } from "./chemistry";
 import { Genome } from "./genome";
 import { ORGANS, OrganType } from "./organs";
 import { Theme, drawCreature } from "./render";
@@ -254,6 +254,8 @@ function inkOn(color: string): string {
   return lum > 150 ? "#0a0e1c" : "#f3f5fc";
 }
 
+const esc2 = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 function fitCanvas(canvas: HTMLCanvasElement): { ctx: CanvasRenderingContext2D; w: number; h: number } | null {
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const w = canvas.clientWidth;
@@ -330,6 +332,72 @@ function drawMolecule(ctx: CanvasRenderingContext2D, m: Mol, cx: number, cy: num
     ctx.fillText(a.sym, p.x, p.y + 0.5);
   });
   return pos;
+}
+
+/** Tipik bağ sayısı (değerlik): bağları sayılan atomun eksik kalan kısmı hidrojenle tamamlanır. */
+const VALENCE: Record<string, number> = { C: 4, N: 3, O: 2, S: 2, Si: 4, B: 3 };
+
+/** Bir atomun bağlı olduğu atomlar: çizimdeki komşular ile çizilmeyen (örtük) hidrojenler. */
+function neighboursOf(m: Mol, i: number): { syms: string[]; hydrogens: number; chain: boolean } {
+  const syms: string[] = [];
+  let used = 0;
+  let chain = false;
+  for (const b of m.bonds) {
+    if (b.a !== i && b.b !== i) continue;
+    const other = m.atoms[b.a === i ? b.b : b.a];
+    if (b.order === 0) {
+      syms.push(other.sym);
+      continue;
+    }
+    used += b.order;
+    if (other.sym === "R") chain = true;
+    else syms.push(other.sym);
+  }
+  const v = VALENCE[m.atoms[i].sym];
+  return { syms, hydrogens: v === undefined ? 0 : Math.max(0, v - used), chain };
+}
+
+/** Molekülün bütün atomları (çizilmeyen hidrojenler dâhil), sembole göre sayılmış. */
+function compositionOf(m: Mol): [string, number][] {
+  const count = new Map<string, number>();
+  m.atoms.forEach((a, i) => {
+    if (a.sym === "R") return;
+    count.set(a.sym, (count.get(a.sym) ?? 0) + 1);
+    const h = neighboursOf(m, i).hydrogens;
+    if (h > 0) count.set("H", (count.get("H") ?? 0) + h);
+  });
+  return [...count.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/** Seçili atomun çevresine bağlı olduğu atomları küçük kürelerle çizer. */
+function drawNeighbours(ctx: CanvasRenderingContext2D, m: Mol, i: number, w: number, h: number): void {
+  const n = neighboursOf(m, i);
+  const items: string[] = [...n.syms, ...Array.from({ length: n.hydrogens }, () => "H")];
+  if (n.chain) items.push("R");
+  if (items.length === 0) return;
+  const r = Math.min(20, (w - 40) / (items.length * 2.6));
+  const gap = r * 2.6;
+  const x0 = w / 2 - ((items.length - 1) * gap) / 2;
+  const y = h - r - 14;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  items.forEach((sym, k) => {
+    const x = x0 + k * gap;
+    const color = elementColor(sym);
+    ctx.strokeStyle = "rgba(200, 208, 235, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y - r);
+    ctx.lineTo(w / 2, h / 2 + Math.min(w, h) * 0.34);
+    ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = inkOn(color);
+    ctx.font = `600 ${Math.round(r * 0.95)}px Onest, system-ui, sans-serif`;
+    ctx.fillText(sym, x, y + 0.5);
+  });
 }
 
 function drawAtom(ctx: CanvasRenderingContext2D, sym: string, cx: number, cy: number, size: number, t: number): void {
@@ -553,6 +621,7 @@ export class StructureViewer {
   private atom = -1;
   private parts: Part[] = [];
   private chem: Chemistry | null = null;
+  private base: Chemistry | null = null;
   private genome: Genome | null = null;
   private hits: { x: number; y: number; r: number }[] = [];
   private raf = 0;
@@ -594,6 +663,12 @@ export class StructureViewer {
   }
 
   public open(chem: Chemistry, genome: Genome | null): void {
+    // Hücrenin kendi yapısı: duvar, zar, kalıtım polimeri, enerji taşıyıcısı ve katalizör genomdan gelir.
+    const pickOpt = <T extends Option>(list: readonly T[], id: string | undefined, fallback: T): T => list.find((o) => o.id === id) ?? fallback;
+    this.base = chem;
+    chem = genome
+      ? { ...chem, wall: pickOpt(WALLS, genome.wall, chem.wall), membrane: pickOpt(MEMBRANES, genome.membrane, chem.membrane), genetic: pickOpt(GENETICS, genome.genetic, chem.genetic), energy: pickOpt(ENERGIES, genome.energy, chem.energy), catalyst: pickOpt(CATALYSTS, genome.catalyst, chem.catalyst) }
+      : chem;
     this.chem = chem;
     this.genome = genome;
     this.parts = partsOf(chem, genome);
@@ -630,22 +705,23 @@ export class StructureViewer {
     const chem = this.chem!;
     if (this.level === 0) {
       this.caption.textContent = "Canlının bütünü. Yakınlaşmak için görüntüye ya da üstteki düzeylere dokunun.";
-      this.info.innerHTML = `<b>Bu canlı nasıl kurulu?</b><p>${esc(chem.scaffold.name)} iskeleti üzerine kurulu, ${esc(chem.solvent.name.toLocaleLowerCase("tr"))} içinde yaşıyor. ${esc(chem.scaffold.note)}</p><p class="ref">${esc(chem.scaffold.ref)}</p>`;
+      this.info.innerHTML = `<b>Bu canlı nasıl kurulu?</b><p>${esc(chem.scaffold.name)} iskeleti üzerine kurulu, ${esc(chem.solvent.name.toLocaleLowerCase("tr"))} içinde yaşıyor. ${esc(chem.scaffold.note)}</p><p class="ref">${esc(chem.scaffold.ref)}</p>${this.differences()}`;
     } else if (this.level === 1) {
       this.caption.textContent = "Hücre kabuğunun kesiti: üstte dış ortam, altta hücrenin içi.";
       this.info.innerHTML =
         `<b>Zar: ${esc(chem.membrane.name)}</b><p>${esc(chem.membrane.note)}</p><p class="ref">${esc(chem.membrane.ref)}</p>` +
-        `<b>Duvar: ${esc(chem.wall.name)}</b><p>${esc(chem.wall.note)} Simülasyondaki etkisi: can ×${chem.wall.hp.toFixed(2)}, hız ×${chem.wall.speed.toFixed(2)}, metabolizma ×${chem.wall.meta.toFixed(2)}.</p><p class="ref">${esc(chem.wall.ref)}</p>`;
+        `<b>Duvar: ${esc(chem.wall.name)}</b><p>${esc(chem.wall.note)} Simülasyondaki etkisi: can ×${chem.wall.hp.toFixed(2)}, hız ×${chem.wall.speed.toFixed(2)}, metabolizma ×${chem.wall.meta.toFixed(2)}.</p><p class="ref">${esc(chem.wall.ref)}</p>` +
+        this.differences();
     } else if (this.level === 2) {
-      this.caption.textContent = "Top-çubuk modeli. Hidrojenler çizilmez; R zincirin devamıdır. Bir atoma dokununca o atom açılır.";
-      this.info.innerHTML = `<b>${esc(p.label)}: ${esc(p.option.name)}</b><p class="mono">${esc(p.mol.formula)}</p><p>${esc(p.option.note)}</p>${p.option.ref ? `<p class="ref">${esc(p.option.ref)}</p>` : ""}`;
+      this.caption.textContent = "Top-çubuk modeli. R zincirin devamıdır; çizilmeyen hidrojenler aşağıdaki bileşimde sayılır. Bir atoma dokununca o atom açılır.";
+      this.info.innerHTML = `<b>${esc(p.label)}: ${esc(p.option.name)}</b><p class="mono">${esc(p.mol.formula)}</p><p>${esc(p.option.note)}</p>${this.composition(p.mol)}${p.option.ref ? `<p class="ref">${esc(p.option.ref)}</p>` : ""}`;
     } else {
       const e = ELEMENTS[this.pickedSym()];
       const share = chem.elements.find((x) => x.sym === e.sym);
       this.caption.textContent = "Bohr şeması: çekirdek ve elektron kabukları. Gerçekte elektronlar yörüngede dönmez, bulut olarak dağılır.";
       this.info.innerHTML =
         `<b>${esc(e.name)} (${e.sym})</b><p>Atom numarası ${e.z}: çekirdekte ${e.z} proton, çevresinde ${e.z} elektron. Kabuk dizilimi ${e.shells.join("–")}; en dış kabuktaki ${e.shells[e.shells.length - 1]} elektron bağ yapar.</p>` +
-        `<p>${share ? `Bu gezegenin kabuğundaki payı %${(share.share * 100).toFixed(1)}.` : "Bu gezegenin 10 temel elementi arasında değil; iz miktarda bulunur."} Burada ${esc(p.label.toLocaleLowerCase("tr"))} yapısının (${esc(p.option.name.toLocaleLowerCase("tr"))}) parçası.</p>`;
+        `<p>${share ? `Bu gezegenin kabuğundaki payı %${(share.share * 100).toFixed(1)}.` : "Bu gezegenin 10 temel elementi arasında değil; iz miktarda bulunur."} Burada ${esc(p.label.toLocaleLowerCase("tr"))} yapısının (${esc(p.option.name.toLocaleLowerCase("tr"))}) parçası.</p>${this.neighbourInfo(p.mol)}`;
     }
   }
 
@@ -663,7 +739,56 @@ export class StructureViewer {
       ctx.restore();
     } else if (this.level === 1) drawEnvelope(ctx, this.chem, w, h, t);
     else if (this.level === 2) this.hits = drawMolecule(ctx, this.parts[this.part].mol, w / 2, h / 2, w, h, t, this.atom);
-    else drawAtom(ctx, this.pickedSym(), w / 2, h / 2, Math.min(w, h), t);
+    else {
+      drawAtom(ctx, this.pickedSym(), w / 2, h / 2 - 14, Math.min(w, h) * 0.8, t);
+      const m = this.parts[this.part].mol;
+      const i = this.pickedIndex();
+      if (i >= 0) drawNeighbours(ctx, m, i, w, h);
+    }
+  }
+
+  private pickedIndex(): number {
+    const m = this.parts[this.part].mol;
+    if (this.atom >= 0 && m.atoms[this.atom]) return this.atom;
+    const special = m.atoms.findIndex((a) => !["C", "H", "O", "R"].includes(a.sym));
+    if (special >= 0) return special;
+    return m.atoms.findIndex((a) => a.sym !== "R");
+  }
+
+  /** Molekülün içerdiği bütün atomlar (hidrojenler dâhil). */
+  private composition(m: Mol): string {
+    const parts = compositionOf(m).map(([sym, n]) => `<span class="comp">${sym}<small>×${n}</small></span>`);
+    return parts.length ? `<p>İçerdiği atomlar:</p><p class="mono">${parts.join(" ")}</p>` : "";
+  }
+
+  /** Seçili atomun bağlı olduğu komşular. */
+  private neighbourInfo(m: Mol): string {
+    const i = this.pickedIndex();
+    if (i < 0) return "";
+    const n = neighboursOf(m, i);
+    const bits = [...n.syms.map((s) => ELEMENTS[s]?.name ?? s)];
+    if (n.hydrogens > 0) bits.push(n.hydrogens === 1 ? "Hidrojen" : `Hidrojen ×${n.hydrogens}`);
+    if (n.chain) bits.push("zincirin devamı");
+    return bits.length ? `<p>Bağlı olduğu atomlar:</p><p class="mono">${bits.map((b) => `<span class="comp">${esc2(b)}</span>`).join(" ")}</p>` : "";
+  }
+
+  /** Bu hücrenin yapısı gezegenin ilk hücresinden ayrıldıysa hangi bakımlardan ayrıldığını söyler. */
+  private differences(): string {
+    const g = this.genome;
+    const base = this.base;
+    const chem = this.chem;
+    if (!g || !base || !chem) return "";
+    const rows: string[] = [];
+    const check = (label: string, a: Option, b: Option): void => {
+      if (a.id !== b.id) rows.push(`<li><b>${esc2(label)}</b>: <span>${esc2(b.name)}</span> <span class="dim">ilk hücrede</span> <span>${esc2(a.name)}</span></li>`);
+    };
+    check("Duvar", base.wall, chem.wall);
+    check("Zar", base.membrane, chem.membrane);
+    check("Kalıtım polimeri", base.genetic, chem.genetic);
+    check("Enerji taşıyıcısı", base.energy, chem.energy);
+    check("Katalizör", base.catalyst, chem.catalyst);
+    if (rows.length === 0) return `<p class="dim">Bu hücrenin yapısı gezegenin ilk hücresininkiyle aynı.</p>`;
+    return `<p>İlk hücreden ayrışan yapılar:</p><ul class="diff">${rows.join("")}</ul>`;
   }
 }
 

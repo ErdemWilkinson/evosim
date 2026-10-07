@@ -3,7 +3,7 @@ import { OrganType } from "./organs";
 import { FLAG, PLANT_LAND_BIT, PLANT_SCALE, STRIDE } from "./protocol";
 import { View } from "./client";
 import { MAP_H, MAP_W, World } from "./world";
-import { Chemistry } from "./chemistry";
+import { CATALYSTS, Chemistry, ELEMENTS } from "./chemistry";
 import { MAP_LIGHT, bodyHSL, groundRGB, leafColor, mapPalette } from "./ground";
 import { tr } from "./i18n";
 import { BEHAVIORS, INITIAL_CREATURES, METEOR_FALL, SOUP_COLS, SOUP_ROWS } from "./sim";
@@ -405,6 +405,96 @@ export interface CreatureAnim {
 const FAST = new Set(["flee", "escape", "hunt"]);
 const STILL = new Set(["rest", "bask", "attached"]);
 
+// ------------------------------------------------------------------ hücre kabuğu
+
+/** Zarın boncuklarının rengi: zarı kuran ana atomun rengi (fosfolipit: fosfor başlık, azotozom: azot, siloksan: silisyum). */
+const MEMBRANE_BEAD: Record<string, string> = { phospholipid: "P", fattyacid: "C", etherlipid: "O", azotosome: "N", peptide: "N", pah: "C", siloxane: "Si", pore: "S" };
+
+/** Duvarın rengi ve şeması: [renk, kesik uzunluğu, boşluk]. Oranlar yarıçapa göredir. Renkler maddenin gerçek görünümüdür. */
+const WALL_LOOK: Record<string, [string, number, number]> = {
+  peptidoglycan: ["232,226,200", 0.16, 0.05],
+  silica: ["178,214,236", 0.07, 0.03],
+  calcite: ["246,244,236", 0.3, 0.07],
+  ironsulfide: ["170,150,92", 0.2, 0.1],
+  cellulose: ["186,222,170", 0.12, 0.02],
+  borate: ["206,196,238", 0.14, 0.06],
+  slayer: ["214,206,222", 0.05, 0.05],
+  manganese: ["112,96,92", 0.22, 0.04],
+};
+
+/** Kalıtım polimerinin spiral rengi (ton açısı): her polimer ailesi kendi tonunu taşır. */
+const GENETIC_HUE: Record<string, number> = { phosphodiester: 255, hachimoji: 275, tna: 290, gna: 305, pna: 320, amyloid: 340, pahstack: 190, clay: 30, polysilane: 205, compositional: 150 };
+
+function memberColor(id: string): string {
+  return ELEMENTS[MEMBRANE_BEAD[id] ?? "O"]?.color ?? "#b7bed6";
+}
+
+/**
+ * Şematik hücre görünümü (açılış filmindeki hücreyle aynı): koyu içeriği olan gövde, zarın boncuk halkası,
+ * varsa kesikli duvar halkası, kalıtım spirali ve katalizör metalinin noktaları. Duvar, zar, kalıtım polimeri
+ * ve katalizör her hücrenin kendi genomundan gelir; farklı hücre farklı görünür.
+ */
+function drawShell(ctx: CanvasRenderingContext2D, g: Genome, r: number, pal: BodyPalette, dark: boolean, full: boolean, t: number): void {
+  const stage = g.stage;
+  ctx.save();
+  if (stage === 2) ctx.scale(1.25, 0.85);
+  // Koyu iç: gövdenin tonu korunur, iç karanlık bir zeminle örtülür; kenarda renkli şerit kalır.
+  ctx.fillStyle = dark ? "rgba(6,8,18,0.58)" : "rgba(18,22,40,0.4)";
+  ctx.beginPath();
+  ctx.arc(0, 0, r * 0.84, 0, Math.PI * 2);
+  ctx.fill();
+  if (full) {
+    // Zar boncukları.
+    const n = Math.max(12, Math.min(26, Math.round(r * 2.2)));
+    const bead = Math.max(0.28, r * 0.075);
+    ctx.fillStyle = memberColor(g.membrane);
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + t * 0.12;
+      const x = Math.cos(a) * r * 0.97;
+      const y = Math.sin(a) * r * 0.97;
+      ctx.moveTo(x + bead, y);
+      ctx.arc(x, y, bead, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    // Duvar: kesikli halka (duvarsız hücrede yok).
+    const look = WALL_LOOK[g.wall];
+    if (look) {
+      ctx.strokeStyle = `rgba(${look[0]},0.85)`;
+      ctx.lineWidth = Math.max(0.35, r * 0.09);
+      ctx.setLineDash([r * look[1], r * look[2]]);
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 1.1, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    // Kalıtım spirali.
+    ctx.strokeStyle = `hsla(${GENETIC_HUE[g.genetic] ?? 255},70%,${dark ? 68 : 52}%,0.9)`;
+    ctx.lineWidth = Math.max(0.3, r * 0.06);
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    for (let i = 0; i <= 22; i++) {
+      const a = (i / 22) * Math.PI * 3 + t * 0.3;
+      const rr = r * 0.1 + (i / 22) * r * 0.46;
+      ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.stroke();
+    // Katalizör metali: küçük noktalar.
+    const metal = CATALYSTS.find((o) => o.id === g.catalyst)?.needs[0];
+    ctx.fillStyle = metal ? (ELEMENTS[metal]?.color ?? "#b7bed6") : "#b7bed6";
+    ctx.beginPath();
+    for (let i = 0; i < 4; i++) {
+      const x = Math.cos(i * 1.3 + t * 0.25) * r * 0.62;
+      const y = Math.sin(i * 2.1 + t * 0.2) * r * 0.62;
+      ctx.moveTo(x + r * 0.07, y);
+      ctx.arc(x, y, Math.max(0.3, r * 0.07), 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+  ctx.restore();
+  void pal;
+}
+
 export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Theme, full: boolean, anim?: CreatureAnim): void {
   const r = g.radius;
   // Hareket: gövde yüzme vuruşuyla esneyip büzülür, arkadaki uzantılar (kamçı, yüzgeç,
@@ -457,6 +547,9 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
       }
       ctx.globalAlpha /= 0.5;
     }
+  }
+  drawShell(ctx, g, r, pal, theme.dark, full, anim ? anim.t : 0);
+  if (full) {
     for (const organ of g.organs) if (!BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
   }
   // Çekirdek: beslenme biçiminin rengi.

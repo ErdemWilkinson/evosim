@@ -121,6 +121,12 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
   hızlıyken de izlenebilir.
 - **Türleşme:** genetik uzaklığa dayalı; tür adları, soy ağacı ve tür başına nüfus eğrisi.
 
+### Hücreden hücreye değişen yapı
+
+Duvar, zar, kalıtım polimeri, enerji taşıyıcısı ve katalizör merkezi artık her hücrenin kendi genomundadır. İlk hücre gezegenin seçtiği yapıyla başlar; yavrular çok nadir (mutasyon başına %0,4, kalıtım polimerinin kopyalama hatasıyla ölçeklenir) gezegenin elementlerinin kurmaya yettiği başka bir seçeneğe geçer. Gezegende olmayan elementi isteyen seçenek hiç çıkmaz. Etkiler verideki gerçek farklardır: duvar can, hız ve metabolizmayı, kalıtım polimeri mutasyon sıklığını değiştirir; zar, enerji ve katalizör farkı nötrdür, yalnızca sürüklenir. "Yapıyı incele" her hücrenin kendi yapısını gösterir ve ilk hücreden hangi bakımlardan ayrıştığını yazar; molekül düzeyi çizilmeyen hidrojenler dâhil bütün atomları sayar, atom düzeyi seçili atomun bağlı olduğu atomları gösterir. Oyun içi hücre, açılış filmindeki şematik hücreyle aynı çizilir (koyu iç, zar boncukları, kesikli duvar halkası, kalıtım spirali, katalizör metali noktaları).
+
+Ölçüm (`node scripts/census.mjs`, hızlı mod, 6000 sn, 4 tohum): her koşuda 3–5 farklı duvar, 2–5 farklı zar ve 2–4 farklı kalıtım polimeri yaşıyor; çoğu zaman bir türü baskın, ötekiler az sayıda. Çekirdek testi (belirlenimcilik ve kayıt gidiş-dönüşü) geçti. Kayıt sürümü 10; sürüm 2–9 kayıtlar eksik alanları gezegenin ilk yapısıyla doldurarak yüklenir.
+
 ## Arayüz
 
 Varsayılan görünüm yalnızca gözlem içindir. Elle müdahale araçları (bitki ek, canlı yerleştir,

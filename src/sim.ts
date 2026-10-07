@@ -1,5 +1,6 @@
+import { generateChemistry } from "./chemistry";
 import { rng } from "./rng";
-import { ACT, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
+import { ACT, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, setPlanetCell, wallStats, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, Quake, World } from "./world";
 import { GroundTone, Tone, bodyHSL, toneMatch, toneOfHSL } from "./ground";
@@ -341,8 +342,8 @@ export function derive(g: Genome): Derived {
 
   // Pleiotropi: büyük beden yavaştır (üs −0,2) ama Kleiber yasasıyla birim kütle
   // başına daha az harcar (üs −0,25). İkisi aynı referans yarıçapı (5,5) kullanır.
-  const base = g.moveSpeed * Math.pow(g.radius / 5.5, -0.2) * chemMods.speed;
-  let meta = Math.pow(g.radius / 5.5, -0.25) * (1 + STAGE_METABOLISM * g.stage) * chemMods.metabolism;
+  const base = g.moveSpeed * Math.pow(g.radius / 5.5, -0.2) * chemMods.speed * wallStats(g).speed;
+  let meta = Math.pow(g.radius / 5.5, -0.25) * (1 + STAGE_METABOLISM * g.stage) * chemMods.metabolism * wallStats(g).meta;
   if (shell !== undefined) meta *= 1 + shell * 0.2;
   if (heart !== undefined) meta *= 1 - (0.1 + heart * 0.15);
   if (nitro !== undefined) meta *= 1 - (0.08 + nitro * 0.12);
@@ -395,7 +396,7 @@ export function maxEnergyOf(g: Genome): number {
 }
 
 export function maxHpOf(g: Genome): number {
-  return (g.radius * 1.6 + (organPower(g.organs, "shell") ?? 0) * 4) * chemMods.hp;
+  return (g.radius * 1.6 + (organPower(g.organs, "shell") ?? 0) * 4) * chemMods.hp * wallStats(g).hp;
 }
 
 export interface Creature {
@@ -767,7 +768,11 @@ export class Sim {
     this.world = new World(seed);
     this.planet = generatePlanetProfile(this.world);
     setForbiddenOrgans(this.planet.forbiddenOrgans);
-    chemMods = this.world.chem.mods;
+    // Duvarın çarpanları her hücrenin kendi duvarından gelir (bkz. genome.ts); burada yalnızca sıcaklık payı kalır.
+    const mods = this.world.chem.mods;
+    const wall = this.world.chem.wall;
+    chemMods = { ...mods, metabolism: mods.metabolism / wall.meta, speed: mods.speed / wall.speed, hp: mods.hp / wall.hp };
+    setPlanetCell(this.world.chem);
     setMutationScale(this.evolutionSpeed, chemMods.mutation);
     rng.seed(this.world.seed ^ 0x51ed270b);
     this.buildSoup();
@@ -3022,6 +3027,7 @@ export class Sim {
  * (diyet, organ, olay türü, ölüm nedeni) yalnızca bilinen değerlerden biri olur.
  */
 function cleanSave(raw: SaveData): SaveData {
+  if (Number.isFinite(raw.seed)) setPlanetCell(generateChemistry(raw.seed));
   const num = (v: unknown, fallback = 0): number => (typeof v === "number" && Number.isFinite(v) ? v : fallback);
   const str = (v: unknown): string => (typeof v === "string" ? v.slice(0, 240) : "");
   const list = <T,>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -3202,8 +3208,8 @@ function cleanSave(raw: SaveData): SaveData {
 /** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar).
  *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi.
  *  Sürüm 7: dönüm noktaları ve olaylarda isteğe bağlı `ms`/`id` alanları (yalnızca gözlem verisi; eski kayıtlar olduğu gibi yüklenir). */
-export const SAVE_VERSION = 9;
-const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, 8, SAVE_VERSION];
+export const SAVE_VERSION = 10;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
 const CREATURE_REST = ["size", "mem", "signal", "heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
