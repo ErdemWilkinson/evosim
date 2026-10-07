@@ -443,7 +443,7 @@ export class Tour {
   private async show(quick = false): Promise<void> {
     const token = ++this.run;
     const step = this.steps[this.index];
-    if (!step.planet && !step.anyStage && !this.ctx.ready()) {
+    if (!step.planet && !step.anyStage && (!this.ctx.ready() || document.querySelector("#film:not([hidden])"))) {
       await this.untilReady(token);
       if (token !== this.run) return;
     }
@@ -556,9 +556,10 @@ export class Tour {
 
   /** Oyun hazır olana kadar bekler; köken filmi görünürse atlar. */
   private async untilReady(token: number): Promise<void> {
-    for (let i = 0; i < 60 && token === this.run; i++) {
-      if (this.ctx.ready()) return;
-      document.querySelector<HTMLElement>("#film:not([hidden]) #film-skip")?.click();
+    for (let i = 0; i < 80 && token === this.run; i++) {
+      const film = document.querySelector<HTMLElement>("#film:not([hidden])");
+      if (this.ctx.ready() && !film) return;
+      film?.querySelector<HTMLElement>("#film-skip")?.click();
       await sleep(250);
     }
   }

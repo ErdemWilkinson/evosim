@@ -2770,3 +2770,9 @@ textarea {
   bottom: auto;
   transform: translate(-50%, -50%);
 }
+
+/* Köken filmi (anlatım) sürerken rehber imleci ve kartı görünmez. */
+body:has(#film:not([hidden])) #tour,
+body:has(#film:not([hidden])) #greet {
+  visibility: hidden;
+}
