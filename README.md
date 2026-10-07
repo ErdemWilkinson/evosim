@@ -148,6 +148,16 @@ meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve 
 - **Olay sesleri:** doğum, av, yeni tür ve yok oluş, müziğin dizisinden notalarla kısa sesler olarak karışır. Aynı tür ses için en kısa aralık hızla uzar; iki saniyede en çok dört ses çalar. "Ses" düğmesi müzikle birlikte hepsini susturur.
 - **Zaman atlamalı kayıt:** her 6 benzetim saniyesinde canlıların konumu (9 bayt/canlı) ve beslenme sınıfı kaydedilir; 600 kareye gelince her ikinci kare atılır ve aralık ikiye katlanır. En kötü durumda (500 canlı, 600 kare) hesaplanan bellek yaklaşık 2,6 MB'tır; bu bir hesaptır, tarayıcıda ölçülmedi. Gerçek değer oynatma penceresinde yazar. Yaklaşık 60 saniyede oynatılır.
 
+**Yeni mekanikler (Bölüm C).** Altısı da çekirdek testini geçti (belirlenimcilik ve kayıt gidiş-dönüşü, 3 tohum × 600 sn). 24 tohumluk önce/sonra ölçümü yalnızca C1 için tamamlandı; C2–C7 ölçümleri koşuyor, sonuçları henüz yazılmadı. Kayıt sürümü 9; eski kayıtlar ve eski karar ağları yeni düzene taşınır.
+
+- **Renk kamuflajı (C1):** avcının algı menzili, avın gövde tonu o an bulunduğu zeminin tonuna uyduğu ölçüde en çok %35 kısalır (uyumun karesiyle; örtüde söner). Zemin rengi haritayı çizenle aynı koddan (`src/ground.ts`) okunur. Ton farkı çembersel. Organ kamuflajıyla bağımsız çarpılır, örtü dışında toplam gizlenme en çok %54,5. Ölçüm: eşikler geçti, ama canlıların tonunun yaşam alanının tonuna yaklaştığı görülmedi (önce ve sonra aynı eğri); etkisi bu sürede ölçülebilir değil. Mekanik koyu temadaki palete bağlıdır.
+- **Yaşamla değişen atmosfer (C2):** oksijen artık üreticilerin (bitki ve ışıkla beslenen canlılar) enerji stokunun tüketicilere oranının kendi uzun vadeli ortalamasından sapmasına tepki verir (±0,15). Önceki saf salınım kalktı.
+- **Simbiyoz (C3):** tehdit altındaki ışıkla beslenen küçük canlı, yakındaki daha büyük (etçil ve parazit olmayan) bir konağa tutunabilir; konak onu avcıdan saklar, o fazla enerjisini konağa verir; konak yavaşlar.
+- **Gerçek büyüme (C4):** yavru küçük doğar, yeterince tokken büyür ve bunun bedelini enerjiyle öder; aç kalan yavru bodur kalır ve geç ürer. Boy, metabolizmayı, hızı ve av-avcı boy karşılaştırmasını etkiler.
+- **Akıntılar (C5):** sıvıda eş-derinlik eğrileri boyunca dolanan bir akıntı alanı canlıları (küçüklere daha çok) ve çözünmüş besini taşır. "Akıntıları göster" ayarı okları çizer.
+- **Koku izi (C6):** avcı olmayan canlılar gövdeleriyle orantılı iz bırakır; iz zamanla söner, sıvıda ve sık örtüde daha çabuk. Av göremeyen aç avcı en güçlü iz yönüne döner.
+- **Hafıza ve çağrı (C7):** karar ağına hafıza ve çağrı girdileri, "çağır" eylemi ve bir hafıza satırı eklendi. Başlangıçta bağlantıların hepsi 0'dır; davranış mutasyonla evrimleşir. Bedeller: çağıran durur, 1,5 kat enerji yakar ve avcıya daha uzaktan görünür. Çağrının gerçekten evrimleşip evrimleşmediği henüz ölçülmedi.
+
 ## Testler ve ölçüm
 
 İki ayrı test vardır; ikisi de simülasyonu tarayıcısız, Node'da koşturur.
