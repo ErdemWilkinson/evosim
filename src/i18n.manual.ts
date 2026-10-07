@@ -5,6 +5,9 @@
  */
 export const MANUAL: Record<string, string> = {
   // ---- app.html
+  "Gezegeni kendin seç: tohumu yaz, rastgele aç ya da günün gezegenini al.": "Pick your own planet: type a seed, roll a random one or take the planet of the day.",
+  "“Önce arayüzü gezdir” hemen rastgele bir gezegen açar ve Developer her düğmeyi sana gösterir.": "“Show me around first” opens a random planet right away and Developer shows you every button.",
+  "Rastgele bir gezegen açar, Developer arayüzü baştan sona gezdirir": "Opens a random planet and Developer walks you through the whole interface",
   "Bir hücreyle başlayan, kendi kendine evrilen gezegen.": "A planet that starts with one cell and evolves on its own.",
   "Bu nedir?": "What is this?",
   "Evosim bir evrim simülasyonudur. Rastgele bir gezegen kurulur, üzerinde tek bir hücre belirir; geri kalan her şeyi doğal seçilim yapar. Hiçbir canlı önceden çizilmemiştir.": "Evosim is an evolution simulation. A random planet is built, a single cell appears on it, and natural selection does the rest. No creature is drawn in advance.",

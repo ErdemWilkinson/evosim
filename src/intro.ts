@@ -29,6 +29,7 @@ export class StartMenu {
   }
 
   public open(): void {
+    document.body.classList.add("at-start");
     this.root.hidden = false;
     this.show(0, false);
     this.draw();

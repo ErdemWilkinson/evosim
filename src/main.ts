@@ -89,6 +89,8 @@ let lastHash = "";
 /** Paylaşım bağlantısıyla açılışta mevcut otomatik kayıt: oyuncu açıkça yeni gezegen başlatmadıkça silinmez. */
 let keepSave: SaveData | null = null;
 let tourAfterFilm = false;
+let menuOrigin = false;
+let startMenu: StartMenu | null = null;
 let soundTime = 0;
 let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
@@ -195,7 +197,14 @@ function onEpoch(v: View): void {
   timelinePinned = true;
   setTool("select");
   scene.fit();
-  if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES) {
+  document.body.classList.remove("at-start");
+  menuOrigin = false;
+  if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES && tourAfterFilm) {
+    // "Önce arayüzü gezdir": köken filmi atlanır, Developer hemen başlar.
+    tourAfterFilm = false;
+    scene.beginGenesis();
+    window.setTimeout(() => tour.start(), 1400);
+  } else if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES) {
     // Yeni gezegen: önce köken filmi oynar (simülasyon bekler). Film, hücrenin ikiye bölündüğü
     // sahnede haritaya erir; alttaki harita o sırada iki kardeş hücreye yakınlaşmış durur.
     client.send({ type: "speed", value: 0 });
@@ -754,6 +763,11 @@ $("planet-form").addEventListener("submit", (e) => {
 // İlk açılışta pencere başlatmadan kapatılırsa da gösterilen gezegen başlar.
 $("dlg-planet").addEventListener("close", () => {
   if (started) return;
+  if (menuOrigin && startMenu) {
+    // Gezegen penceresi menüden açıldıysa çarpı ya da Esc menüye döner; gezegen başlamaz.
+    startMenu.open();
+    return;
+  }
   if (keepSave) {
     // Bağlantıyla gelinip pencere başlatılmadan kapatıldı: kayıt geri yüklenir, hiçbir şey silinmez.
     started = true;
@@ -1068,13 +1082,22 @@ if (restored) {
   pendingShare = sharedAtStart;
   $("share-note").hidden = keepSave === null;
   openPlanet(sharedAtStart.seed);
-} else
-  new StartMenu($("start"), (what) => {
+} else {
+  startMenu = new StartMenu($("start"), (what) => {
     if (what === "refs") {
       if (!$("refs-body").firstChild) setHtml($("refs-body"), refsHtml());
       $<HTMLDialogElement>("dlg-refs").showModal();
       return;
     }
-    tourAfterFilm = what === "tour";
+    if (what === "tour") {
+      // Gezegen penceresine uğramadan rastgele bir gezegen açılır; rehber hemen başlar.
+      tourAfterFilm = true;
+      $<HTMLInputElement>("seed-input").value = String(randomSeed());
+      startPlanet();
+      return;
+    }
+    menuOrigin = true;
     openPlanet();
-  }).open();
+  });
+  startMenu.open();
+}
