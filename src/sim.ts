@@ -64,6 +64,15 @@ const DIVIDE_COOLDOWN: [number, number] = [4, 8];
 const DIVIDE_COST = 0.5;
 const NEWBORN_ENERGY = 0.5;
 export const JUVENILE_AGE = 10;
+/**
+ * Gerçek büyüme: yavru küçük doğar (GROWTH_BIRTH), beslendikçe yetişkin boyuta (1) ulaşır. Büyümek enerji
+ * harcar: enerjisi GROWTH_MIN_FED'in altındaki yavru büyümez, yani aç kalan yavru bodur kalır ve geç ürer.
+ * Küçük beden daha az enerji yakar ve daha yavaştır; avcı ile av arasındaki boy karşılaştırması etkin boyla yapılır.
+ */
+export const GROWTH_BIRTH = 0.55;
+const GROWTH_MIN_FED = 0.25;
+const GROWTH_COST = 0.3;
+const GROWTH_ADULT = 0.98;
 const MATING_RADIUS = 70;
 const MATE_WAIT_BEFORE_SELFING = 12;
 const FEMALE_COST = 0.4;
@@ -116,6 +125,20 @@ const CHEMO_RATE = [0.25, 0.35];
 const PARASITE_DRAIN = 1.5;
 const PARASITE_EFFICIENCY = 0.7;
 const PARASITES_PER_HOST = 3;
+/**
+ * Simbiyoz: tehdit altındaki ışıkla beslenen küçük bir canlı, yakındaki daha büyük (etçil ve parazit olmayan) bir konağa
+ * tutunabilir. Konak onu korur (avcı için örtü gibi görünmez olur); o da fazla enerjisini konağa verir.
+ * Bedeller iki yandadır: konak yavaşlar (taşıdığı her ortak için DRAG), ortak da kendi üremesinden ve
+ * hareketinden vazgeçer ve enerjisinin KEEP payının üstünü verir. Konak çok zayıflarsa ortak ayrılır.
+ */
+const SYMBIONT_PER_HOST = 2;
+const SYMBIONT_KEEP = 0.5;
+const SYMBIONT_RATE = 1.2;
+const SYMBIONT_EFFICIENCY = 0.8;
+const SYMBIONT_DRAG = 0.08;
+const SYMBIONT_HOLD = 90;
+const SYMBIONT_HOST_MIN = 0.15;
+const SYMBIONT_SIZE = 1.4;
 /** Konak, tutunan paraziti bu kadar saniye sonra atar; bağışıklık organı süreyi kısaltır. */
 const PARASITE_HOLD = 60;
 /** Parazitini atan konak bu süre boyunca yeniden tutunmaya dirençlidir. */
@@ -369,7 +392,11 @@ export interface Creature {
   tK: Corpse | null;
   host: Creature | null;
   hostAngle: number;
+  /** Büyüme düzeyi: GROWTH_BIRTH–1 (1 = yetişkin boy). */
+  size: number;
   parasites: number;
+  /** Konağın taşıdığı simbiyont sayısı (her adımda yeniden sayılır). */
+  symbionts: number;
   attachT: number;
   resistT: number;
   /** Sindirim süresi: sıfırdan büyükken etçil ve hepçil avlanamaz, parazit ememez. */
@@ -524,6 +551,7 @@ const MILESTONE_FLAGS: Record<string, string> = {
   "diet:phototroph": "photosynth",
   "diet:carnivore": "predator",
   parasite: "parasite",
+  symbiosis: "symbiosis",
   stage2: "multicellular",
   land: "land",
   sexual: "sexual",
@@ -875,7 +903,9 @@ export class Sim {
       tK: null,
       host: null,
       hostAngle: 0,
+      size: parent ? GROWTH_BIRTH : 1,
       parasites: 0,
+      symbionts: 0,
       attachT: 0,
       resistT: 0,
       digestT: 0,
@@ -1204,7 +1234,7 @@ export class Sim {
     const weights: number[] = [];
     this.cHash.query(female.x, female.y, MATING_RADIUS, (m) => {
       if (m === female || !m.alive || m.g.speciesId !== female.g.speciesId || m.g.reproductionStrategy !== "sexual" || m.g.sex !== "m") return;
-      if (m.divideCd > 0 || m.age < JUVENILE_AGE || m.energy < m.maxEnergy * 0.35) return;
+      if (m.divideCd > 0 || m.age < JUVENILE_AGE || m.size < GROWTH_ADULT || m.energy < m.maxEnergy * 0.35) return;
       const dx = m.x - female.x;
       const dy = m.y - female.y;
       if (dx * dx + dy * dy > MATING_RADIUS * MATING_RADIUS) return;
@@ -1355,7 +1385,7 @@ export class Sim {
     const diet = pred.g.diet;
     if (diet !== "carnivore" && diet !== "omnivore") return false;
     if (pred.g.speciesId === prey.g.speciesId && (diet !== "carnivore" || pred.energy > pred.maxEnergy * CANNIBALISM_ENERGY)) return false;
-    return prey.g.radius <= pred.g.radius * PREY_SIZE_LIMIT[diet];
+    return prey.g.radius * prey.size <= pred.g.radius * pred.size * PREY_SIZE_LIMIT[diet];
   }
 
   private findThreat(c: Creature, radius: number): Creature | null {
@@ -1403,10 +1433,26 @@ export class Sim {
       const dy = o.y - c.y;
       const d = dx * dx + dy * dy;
       // Kamuflaj menzili kısaltır; süslü erkek daha uzaktan görülür.
-      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - this.colorHide(o)) * (1 - o.cover * (1 - c.d.cutter)));
+      let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - this.colorHide(o)) * (1 - (o.host && o.g.diet === "phototroph" ? 1 : o.cover) * (1 - c.d.cutter)));
       if (o.g.reproductionStrategy === "sexual" && o.g.sex === "m") reach *= 1 + ORNAMENT_VISIBILITY * o.g.ornament;
       if (d > reach * reach || d >= bestD || !this.passable(c, o.x, o.y)) return;
       bestD = d;
+      best = o;
+    });
+    return best;
+  }
+
+  private findSymbiontHost(c: Creature, range: number): Creature | null {
+    let best: Creature | null = null;
+    let bestD = range * range;
+    this.cHash.query(c.x, c.y, range, (o) => {
+      if (!o.alive || o === c || o.g.speciesId === c.g.speciesId || o.g.diet === "carnivore" || o.g.diet === "parasite" || o.g.diet === "phototroph") return;
+      if (o.g.radius < c.g.radius * SYMBIONT_SIZE || o.symbionts >= SYMBIONT_PER_HOST || o.parasites >= PARASITES_PER_HOST || o.onLand !== c.onLand) return;
+      const dx = o.x - c.x;
+      const dy = o.y - c.y;
+      const d2 = dx * dx + dy * dy;
+      if (d2 >= bestD) return;
+      bestD = d2;
       best = o;
     });
     return best;
@@ -1480,6 +1526,8 @@ export class Sim {
 
     if (c.host) {
       if (c.host.alive) {
+        // Simbiyont tutunmuşken de fotosentez yapar.
+        if (g.diet === "phototroph") c.passive += PHOTO_RATE * d.photo * this.lightAt(c.x, c.y) * env.light;
         c.state = "attached";
         return;
       }
@@ -1602,10 +1650,23 @@ export class Sim {
     }
 
     switch (best) {
-      case ACT.flee:
+      case ACT.flee: {
+        // Tehdit altındaki küçük üretici, yakındaki uygun bir konağa sığınabilir.
+        const refuge = g.diet === "phototroph" && c.attackCd <= 0 ? this.findSymbiontHost(c, threatRange * 0.5) : null;
+        if (refuge) {
+          c.host = refuge;
+          c.hostAngle = rng.range(0, Math.PI * 2);
+          c.attachT = 0;
+          refuge.symbionts++;
+          refuge.parasites++;
+          c.state = "attached";
+          this.once("symbiosis", "diet", () => `İlk simbiyoz: ışıkla beslenen #${c.id}, daha büyük bir konağa tutundu; konak onu koruyor, o da konağa enerji veriyor.`, c.id);
+          return;
+        }
         c.state = "flee";
         c.tC = threat;
         return;
+      }
       case ACT.hunt:
         c.state = "hunt";
         c.tC = prey;
@@ -1751,7 +1812,13 @@ export class Sim {
 
     // --- metabolizma ---
     const active = c.state === "flee" || c.state === "hunt";
-    let m = g.metabolism * d.meta * c.crowd;
+    // Büyüme: yeterince tok yavru boyunu uzatır ve bunun bedelini enerjiyle öder.
+    if (c.size < 1 && c.energy >= c.maxEnergy * GROWTH_MIN_FED) {
+      const grown = Math.min(1 - c.size, ((1 - GROWTH_BIRTH) / JUVENILE_AGE) * dt);
+      c.size += grown;
+      c.energy -= grown * c.maxEnergy * GROWTH_COST;
+    }
+    let m = g.metabolism * d.meta * c.crowd * (0.4 + 0.6 * c.size);
     const torpor = organPower(g.organs, "torpor");
     if (torpor !== undefined && c.energy <= c.maxEnergy * 0.2) m *= 1 - (0.35 + torpor * 0.35);
     const thermal = this.climate ? this.climate.meta - 1 : 0;
@@ -1783,6 +1850,8 @@ export class Sim {
 
     // --- hareket ve eylem ---
     let speed = c.onLand ? (d.walk > 0 ? d.walk : d.base * 0.35) : d.swim;
+    if (c.symbionts > 0) speed *= 1 - SYMBIONT_DRAG * c.symbionts;
+    speed *= 0.6 + 0.4 * c.size;
     if (active) speed *= 1 + d.sprint;
     // Sık örtü büyük bedeni yavaşlatır; küçük beden aralardan geçer.
     if (d.thicket < 1 && this.world.inThicket(c.x, c.y)) speed *= d.thicket;
@@ -1795,6 +1864,28 @@ export class Sim {
         if (!host || !host.alive) {
           c.host = null;
           c.thinkT = 0;
+          break;
+        }
+        if (g.diet === "phototroph") {
+          // Simbiyont: fazla enerjisini konağa verir; konak zayıflarsa ya da süre dolarsa ayrılır.
+          c.attachT += dt;
+          if (host.energy < host.maxEnergy * SYMBIONT_HOST_MIN || c.attachT >= SYMBIONT_HOLD) {
+            c.host = null;
+            c.attackCd = PARASITE_REATTACH_DELAY;
+            c.thinkT = 0;
+            break;
+          }
+          const spare = c.energy - c.maxEnergy * SYMBIONT_KEEP;
+          if (spare > 0) {
+            const give = Math.min(spare, SYMBIONT_RATE * dt, (host.maxEnergy - host.energy) / SYMBIONT_EFFICIENCY);
+            c.energy -= give;
+            host.energy += give * SYMBIONT_EFFICIENCY;
+          }
+          const sa = host.heading + c.hostAngle;
+          c.x = host.x + Math.cos(sa) * (host.g.radius + g.radius * 0.5);
+          c.y = host.y + Math.sin(sa) * (host.g.radius + g.radius * 0.5);
+          c.heading = sa + Math.PI;
+          speed = 0;
           break;
         }
         // Konağın bağışıklığı paraziti bir süre sonra atar ve konak bir süre dirençli kalır.
@@ -1940,7 +2031,7 @@ export class Sim {
     }
 
     // --- üreme ---
-    if (c.divideCd <= 0 && c.age >= JUVENILE_AGE && c.energy >= this.divideThreshold(c) && this.creatures.length + this.newborns.length + this.eggs.length < MAX_CREATURES) {
+    if (c.divideCd <= 0 && c.age >= JUVENILE_AGE && c.size >= GROWTH_ADULT && c.energy >= this.divideThreshold(c) && this.creatures.length + this.newborns.length + this.eggs.length < MAX_CREATURES) {
       if (g.reproductionStrategy !== "sexual") this.divide(c);
       else if (g.sex === "f") {
         const male = this.findMale(c);
@@ -2444,9 +2535,15 @@ export class Sim {
     this.cHash.clear();
     for (const c of this.creatures) {
       c.parasites = 0;
+      c.symbionts = 0;
       this.cHash.add(c);
     }
-    for (const c of this.creatures) if (c.host && c.host.alive) c.host.parasites++;
+    for (const c of this.creatures) {
+      if (c.host && c.host.alive) {
+        c.host.parasites++;
+        if (c.g.diet === "phototroph") c.host.symbionts++;
+      }
+    }
     this.nHash.clear();
     for (const n of this.nutrients) this.nHash.add(n);
 
@@ -2983,7 +3080,7 @@ function cleanSave(raw: SaveData): SaveData {
 export const SAVE_VERSION = 8;
 const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
-const CREATURE_REST = ["heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
+const CREATURE_REST = ["size", "heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
 export interface SaveData {
   version: number;

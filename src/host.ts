@@ -1,4 +1,4 @@
-import { BEHAVIORS, Creature, JUVENILE_AGE, MAX_CREATURES, SOUP_CAPACITY, STEP, SaveData, Sim } from "./sim";
+import { BEHAVIORS, Creature, GROWTH_BIRTH, MAX_CREATURES, SOUP_CAPACITY, STEP, SaveData, Sim } from "./sim";
 import { Command, CreatureDetail, FLAG, Frame, HostMessage, PLANT_LAND_BIT, PLANT_SCALE, STRIDE, SpeciesInfo, UiPayload } from "./protocol";
 import { EVOLUTION_SPEEDS, Genome, cloneGenome } from "./genome";
 
@@ -189,7 +189,7 @@ export class SimHost {
       c[o + 6] =
         (k.onLand ? FLAG.land : 0) | (k.infectedT > 0 ? FLAG.infected : 0) | (k.flashT > 0 ? FLAG.flash : 0) | (k.hurtT > 0 ? FLAG.hurt : 0) | (k.bornT > 0 ? FLAG.born : 0) | (k.immuneT > 0 ? FLAG.immune : 0) | (k.host ? FLAG.attached : 0) | (k.cover >= 0.5 ? FLAG.hidden : 0) | (sim.isInLine(k.id) ? FLAG.line : 0);
       c[o + 7] = BEHAVIORS.indexOf(k.state);
-      c[o + 8] = Math.min(1, k.age / JUVENILE_AGE);
+      c[o + 8] = Math.min(1, Math.max(0, (k.size - GROWTH_BIRTH) / (1 - GROWTH_BIRTH)));
       if (this.sent.get(k.id) !== k.gv) {
         this.sent.set(k.id, k.gv);
         genomes.push([k.id, k.gv, k.g]);

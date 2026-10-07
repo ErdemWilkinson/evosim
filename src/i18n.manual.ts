@@ -15,6 +15,7 @@ export const MANUAL: Record<string, string> = {
   "Yeni gezegen": "New planet",
   Ses: "Sound",
   Tarih: "History",
+  "İlk simbiyoz": "First symbiosis",
   "Zaman atlamalı kayıt": "Time-lapse",
   "hızlandırılmış gösterim": "sped-up playback",
   "Yaklaşık bir dakikada izle": "Watch in about a minute",

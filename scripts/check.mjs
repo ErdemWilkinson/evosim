@@ -38,6 +38,7 @@ if (!isMainThread) {
     const b = sim.world.band(c.x, c.y);
     return b === 0 ? 0 : b === 1 ? 1 : b === 4 ? 3 : 2;
   };
+  const symb = { samples: 0, sym: 0, hosts: 0, symSamples: 0, hostE: 0, hostN: 0, otherE: 0, otherN: 0 };
   const oxy = { n: 0, sum: 0, sq: 0, min: 1, max: 0 };
   const tone = Array.from({ length: 3 }, () => HABITATS.map(() => ({ n: 0, match: 0, bs: 0, bc: 0, ga: 0, gb: 0, dh: 0, dhn: 0 })));
   const bodyOf = (c) => {
@@ -126,6 +127,19 @@ if (!isMainThread) {
     samples++;
     const pop = sim.creatures;
     {
+      symb.samples++;
+      let sy = 0;
+      for (const c of pop) {
+        if (c.host && c.g.diet === "phototroph") sy++;
+        const sized = c.g.diet !== "phototroph" && c.g.diet !== "carnivore" && c.g.diet !== "parasite";
+        if (!sized) continue;
+        if ((c.symbionts ?? 0) > 0) { symb.hosts++; symb.hostE += c.energy / c.maxEnergy; symb.hostN++; }
+        else { symb.otherE += c.energy / c.maxEnergy; symb.otherN++; }
+      }
+      symb.sym += sy;
+      if (sy > 0) symb.symSamples++;
+    }
+    {
       const o = sim.oxygen();
       oxy.n++; oxy.sum += o; oxy.sq += o * o; oxy.min = Math.min(oxy.min, o); oxy.max = Math.max(oxy.max, o);
     }
@@ -211,6 +225,7 @@ if (!isMainThread) {
     species: sim.livingSpecies().length,
     tone,
     oxy,
+    symb,
     clusters: (() => {
       const bins = new Array(12).fill(0);
       for (const c of sim.creatures) bins[Math.floor((((c.g.hue % 360) + 360) % 360) / 30)]++;
@@ -302,6 +317,13 @@ if (!isMainThread) {
     }
   }
 
+  if (process.argv.includes("--symb")) {
+    const tot = (k) => results.reduce((a, r) => a + r.symb[k], 0);
+    console.log(`
+Simbiyoz (24 tohum): simbiyont görülen örnek payı ${(tot("symSamples") / tot("samples")).toFixed(3)} · örnek başına ortalama simbiyont ${(tot("sym") / tot("samples")).toFixed(2)}`);
+    console.log(`simbiyonlu tohum: ${results.filter((r) => r.symb.symSamples > 0).length}/${results.length}`);
+    console.log(`konak enerji doluluğu: simbiyontlu ${(tot("hostN") ? tot("hostE") / tot("hostN") : 0).toFixed(3)} (n=${tot("hostN")}) · simbiyontsuz ${(tot("otherN") ? tot("otherE") / tot("otherN") : 0).toFixed(3)} (n=${tot("otherN")})`);
+  }
   if (process.argv.includes("--atmo")) {
     const rows = results.map((r) => { const m = r.oxy.sum / r.oxy.n; return { m, sd: Math.sqrt(Math.max(0, r.oxy.sq / r.oxy.n - m * m)), lo: r.oxy.min, hi: r.oxy.max }; });
     const avg = (f) => rows.reduce((a, r) => a + f(r), 0) / rows.length;

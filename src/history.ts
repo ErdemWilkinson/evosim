@@ -8,6 +8,7 @@ export const MS_LABEL: Record<string, string> = {
   photosynth: "İlk fotosentetik",
   predator: "İlk avcı",
   parasite: "İlk parazit",
+  symbiosis: "İlk simbiyoz",
   multicellular: "İlk çok hücreli",
   land: "İlk karaya çıkış",
   sexual: "İlk eşeyli üreme",
