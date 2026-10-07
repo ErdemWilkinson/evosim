@@ -2651,7 +2651,7 @@ textarea {
 .start-actions .btn-primary { min-width: 220px; }
 /* Başlangıç menüsü açıkken oyun arayüzü gizlidir; oyun açılınca yumuşakça gelir. */
 #app { transition: opacity 0.8s; }
-body.at-start #app { opacity: 0; pointer-events: none; }
+#app.hold { opacity: 0; pointer-events: none; }
 .start-actions .btn-primary { height: 46px; padding: 0 34px; border-radius: 23px; font-size: 15px; }
 .start .lang-pick { align-self: flex-end; }
 .start .copyright { text-align: center; }

@@ -196,7 +196,7 @@ function onEpoch(v: View): void {
   timelinePinned = true;
   setTool("select");
   scene.fit();
-  document.body.classList.remove("at-start");
+  $("app").classList.remove("hold");
   menuOrigin = false;
   if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES) {
     // Yeni gezegen: önce köken filmi oynar (simülasyon bekler). Film, hücrenin ikiye bölündüğü
@@ -1063,9 +1063,12 @@ try {
     localStorage.removeItem(LEGACY_SAVE_KEY);
   }
   const saved = localStorage.getItem(SAVE_KEY);
-  if (saved && sharedAtStart) keepSave = JSON.parse(saved) as SaveData;
-  else if (saved) {
-    client.send({ type: "load", data: JSON.parse(saved) as SaveData });
+  // Adres çubuğu hep çalışan dünyanın tohumunu taşır; sayfa yenilenince aynı tohum geliyorsa bu bir paylaşım
+  // değil, devam eden oyundur: kayıt doğrudan geri yüklenir.
+  const savedData = saved ? (JSON.parse(saved) as SaveData) : null;
+  if (savedData && sharedAtStart && savedData.seed !== sharedAtStart.seed) keepSave = savedData;
+  else if (savedData) {
+    client.send({ type: "load", data: savedData });
     restored = true;
   }
 } catch {
