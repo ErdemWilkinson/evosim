@@ -2699,6 +2699,66 @@ textarea {
   transition-duration: 1.4s;
 }
 
+/* Yeni gezegen penceresi geniş ekranda yatay açılır: solda tohum ve harita, sağda gezegenin bilgileri; kaydırma gerekmez. */
+@media (min-width: 900px) {
+  .dialog-hero:has(#planet-form) .dialog-body {
+    padding: 22px 26px;
+  }
+
+  .dialog-hero:has(#planet-form) {
+    width: min(1280px, calc(100vw - 32px));
+  }
+
+  #planet-form {
+    display: grid;
+    grid-template-columns: minmax(340px, 0.78fr) minmax(0, 1.7fr);
+    grid-template-rows: auto auto auto auto auto 1fr auto;
+    column-gap: 26px;
+    row-gap: 10px;
+    align-items: start;
+  }
+
+  #planet-form > .dialog-head {
+    grid-column: 1 / -1;
+  }
+
+  #planet-form > .hero-title {
+    grid-column: 1;
+    font-size: clamp(26px, 3vw, 40px);
+  }
+
+  #planet-form > .note,
+  #planet-form > .seed-row,
+  #planet-form > .dialog-foot {
+    grid-column: 1;
+  }
+
+  #planet-form .planet-preview {
+    display: contents;
+  }
+
+  #planet-form #planet-map {
+    grid-column: 1;
+    grid-row: 6;
+    align-self: start;
+  }
+
+  #planet-form #planet-preview-facts {
+    grid-column: 2;
+    grid-row: 2 / span 5;
+    min-width: 0;
+  }
+
+  #planet-form #planet-preview-facts .facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  #planet-form > .dialog-foot {
+    grid-row: 7;
+    justify-content: space-between;
+  }
+}
+
 </style>
 <div class="app hold" id="app">
   <header class="bar">
