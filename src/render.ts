@@ -5,7 +5,7 @@ import { View } from "./client";
 import { MAP_H, MAP_W, World } from "./world";
 import { Chemistry } from "./chemistry";
 import { tr } from "./i18n";
-import { BEHAVIORS, INITIAL_CREATURES, SOUP_COLS, SOUP_ROWS } from "./sim";
+import { BEHAVIORS, INITIAL_CREATURES, METEOR_FALL, SOUP_COLS, SOUP_ROWS } from "./sim";
 
 /** Sahne çizimi (Canvas 2D). Simülasyondan gelen kareleri yalnızca okur. */
 
@@ -561,14 +561,14 @@ const EFFECT_SECONDS: Record<string, number> = { meteor: 2.8, quake: 2.4, climat
 const easeOut = (k: number): number => 1 - (1 - k) * (1 - k) * (1 - k);
 
 /** Dünya olayı canlandırması. `s` olayın başından beri geçen gerçek saniye, `px` bir ekran pikselinin harita birimi. */
-function drawEffect(ctx: CanvasRenderingContext2D, e: { x: number; y: number; r: number; kind: string; warm: boolean }, s: number, px: number, theme: Theme): void {
+function drawEffect(ctx: CanvasRenderingContext2D, e: { x: number; y: number; r: number; kind: string; warm: boolean; fall: number }, s: number, px: number, theme: Theme): void {
   const { x, y, r } = e;
   const noise = (i: number): number => {
     const v = Math.sin(i * 127.1 + x * 0.37 + y * 0.71) * 43758.5453;
     return v - Math.floor(v);
   };
   if (e.kind === "meteor") {
-    const FALL = 0.42;
+    const FALL = e.fall;
     if (s < FALL) {
       // Düşüş: sağ üstten gelen, başı akkor, kuyruğu sönen bir iz.
       const q = s / FALL;
@@ -593,7 +593,7 @@ function drawEffect(ctx: CanvasRenderingContext2D, e: { x: number; y: number; r:
       ctx.fill();
       return;
     }
-    const k = Math.min(1, (s - FALL) / (EFFECT_SECONDS.meteor - FALL));
+    const k = Math.min(1, (s - FALL) / EFFECT_SECONDS.meteor);
     const out = easeOut(k);
     // Yanık izi: çarpma yerinde koyu, yavaş sönen bir leke.
     const scorch = ctx.createRadialGradient(x, y, 0, x, y, r * 0.75);
@@ -720,7 +720,7 @@ export class Scene {
   /** Her canlının çizim ölçeği: hedefe yumuşakça yaklaşır, böylece büyüme ve küçülme sıçramaz. */
   private sizes = new Map<number, number>();
   /** Dünya olaylarının canlandırması gerçek zamanla akar: simülasyon hızlıyken de izlenebilir. */
-  private effects: { key: string; x: number; y: number; r: number; kind: string; t0: number; warm: boolean }[] = [];
+  private effects: { key: string; x: number; y: number; r: number; kind: string; t0: number; warm: boolean; fall: number }[] = [];
   private effectKeys = new Set<string>();
   private readonly ctx: CanvasRenderingContext2D;
   private terrain: HTMLCanvasElement | null = null;
@@ -731,6 +731,11 @@ export class Scene {
   private pointers = new Map<number, { x: number; y: number }>();
   private dragged = 0;
   private pinch = 0;
+  private painting = false;
+  private lastPaint = { x: 0, y: 0 };
+  /** Boyama aracı (bitki ekme) etkinse basılı tutup sürüklemek kaydırmak yerine boyar. */
+  public paint: () => boolean = () => false;
+  public onPaint: (x: number, y: number) => void = () => {};
 
   constructor(
     public readonly canvas: HTMLCanvasElement,
@@ -743,6 +748,14 @@ export class Scene {
       this.genesis = null;
       if (this.pointers.size === 1) this.dragged = 0;
       this.pinch = 0;
+      if (this.pointers.size === 1 && this.paint()) {
+        const rect = canvas.getBoundingClientRect();
+        const p = this.toWorld(e.clientX - rect.left, e.clientY - rect.top);
+        this.painting = true;
+        this.dragged = 99;
+        this.lastPaint = p;
+        this.onPaint(p.x, p.y);
+      }
     });
     canvas.addEventListener("pointermove", (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -752,6 +765,17 @@ export class Scene {
       const dx = e.clientX - prev.x;
       const dy = e.clientY - prev.y;
       this.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (this.painting) {
+        if (this.pointers.size > 1 || !this.paint()) this.painting = false;
+        else {
+          const p = this.hover!;
+          if (Math.hypot(p.x - this.lastPaint.x, p.y - this.lastPaint.y) >= Math.max(5, 12 / this.zoom)) {
+            this.lastPaint = p;
+            this.onPaint(p.x, p.y);
+          }
+          return;
+        }
+      }
       if (this.pointers.size === 1) {
         this.dragged += Math.abs(dx) + Math.abs(dy);
         if (this.dragged > 4) {
@@ -770,6 +794,7 @@ export class Scene {
     });
     const release = (e: PointerEvent): void => {
       const had = this.pointers.delete(e.pointerId);
+      this.painting = false;
       this.pinch = 0;
       if (had && e.type === "pointerup" && this.pointers.size === 0 && this.dragged <= 4) {
         const rect = canvas.getBoundingClientRect();
@@ -1145,10 +1170,10 @@ export class Scene {
       present.add(key);
       if (this.effectKeys.has(key)) continue;
       this.effectKeys.add(key);
-      this.effects.push({ key, x: f.x, y: f.y, r: f.r, kind: f.kind, t0: nowMs, warm: view.ui?.climate?.warm ?? true });
+      this.effects.push({ key, x: f.x, y: f.y, r: f.r, kind: f.kind, t0: nowMs, warm: view.ui?.climate?.warm ?? true, fall: f.kind === "meteor" ? Math.min(1.2, METEOR_FALL / Math.max(0.5, view.ui?.speed ?? 1)) : 0 });
     }
     for (const key of this.effectKeys) if (!present.has(key)) this.effectKeys.delete(key);
-    this.effects = this.effects.filter((e) => nowMs - e.t0 < EFFECT_SECONDS[e.kind] * 1000 && e.key.startsWith(`${view.epoch}:`));
+    this.effects = this.effects.filter((e) => nowMs - e.t0 < (EFFECT_SECONDS[e.kind] + e.fall) * 1000 && e.key.startsWith(`${view.epoch}:`));
     for (const e of this.effects) drawEffect(ctx, e, (nowMs - e.t0) / 1000, 1 / zoom, theme);
     ctx.globalAlpha = 1;
 

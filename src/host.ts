@@ -82,7 +82,7 @@ export class SimHost {
         if (!sim.trigger(cmd.kind, cmd.x !== undefined && cmd.y !== undefined ? { x: cmd.x, y: cmd.y } : undefined)) this.emit({ type: "note", text: "Bu olay zaten sürüyor." });
         break;
       case "plants":
-        if (sim.addPlants(cmd.x, cmd.y) === 0) this.emit({ type: "note", text: "Buraya bitki ekilemez." });
+        if (sim.addPlants(cmd.x, cmd.y) === 0 && !cmd.drag) this.emit({ type: "note", text: "Buraya bitki ekilemez." });
         break;
       case "place": {
         const id = sim.placeCreature(cmd.x, cmd.y, cmd.template);

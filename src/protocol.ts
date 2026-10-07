@@ -21,7 +21,7 @@ export type Command =
   | { type: "select"; id: number }
   | { type: "species"; id: number }
   | { type: "trigger"; kind: WorldEventKind; x?: number; y?: number }
-  | { type: "plants"; x: number; y: number }
+  | { type: "plants"; x: number; y: number; drag?: boolean }
   | { type: "place"; x: number; y: number; template: number }
   | { type: "remove"; id: number }
   | { type: "organ"; id: number; organ: OrganType; power: number | null }

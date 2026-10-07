@@ -16,6 +16,8 @@ export const MAX_CREATURES = 480;
 /** Bütün yaşam tek bir ortak atadan türer: simülasyon, ilk hücrenin ilk bölünmesinden hemen
  *  sonra, özdeş iki kardeş hücreyle başlar (köken filminin son sahnesi). */
 export const INITIAL_CREATURES = 2;
+/** Meteorun düşmeye başlamasından çarpmasına kadar geçen benzetim süresi (sn); çizim bu süreye göre düşüş oynatır. */
+export const METEOR_FALL = 0.6;
 
 // --- Zaman: gün (mevsim yoktur; koşullar yalnızca gün–gece ve iklim dalgalarıyla değişir) ---
 export const DAY_LENGTH = 90;
@@ -546,6 +548,7 @@ export class Sim {
   public corpses: Corpse[] = [];
   public eggs: Egg[] = [];
   public flashes: Flash[] = [];
+  private pendingMeteors: { x: number; y: number; r: number; left: number }[] = [];
   /** Çözünmüş kimyasal besin: ızgara hücresi başına derişim ve kapasite (bkz. SOUP_*). */
   public soup = new Float32Array(SOUP_COLS * SOUP_ROWS);
   public readonly soupCap = new Float32Array(SOUP_COLS * SOUP_ROWS);
@@ -1837,6 +1840,14 @@ export class Sim {
     }
     if (this.wind && (this.wind.left -= dt) <= 0) this.wind = null;
     if (this.quakeLeft > 0 && (this.quakeLeft -= dt) <= 0) this.world.clearQuakes();
+    if (this.pendingMeteors.length > 0) {
+      for (const m of this.pendingMeteors) m.left -= dt;
+      const landed = this.pendingMeteors.filter((m) => m.left <= 0);
+      if (landed.length > 0) {
+        this.pendingMeteors = this.pendingMeteors.filter((m) => m.left > 0);
+        for (const m of landed) this.meteorImpact(m.x, m.y, m.r);
+      }
+    }
     for (const f of this.flashes) f.age += dt;
     if (this.flashes.length > 0) this.flashes = this.flashes.filter((f) => f.age < 1.6);
 
@@ -1850,29 +1861,34 @@ export class Sim {
     if (this.quakeLeft <= 0 && rng.chance(EVENT_CHANCE.quake)) this.trigger("quake");
   }
 
+  private meteorImpact(x: number, y: number, r: number): void {
+    let killed = 0;
+    let burned = 0;
+    for (const c of this.creatures) {
+      if (c.alive && Math.hypot(c.x - x, c.y - y) <= r && rng.chance(0.6)) {
+        this.kill(c, "meteor");
+        killed++;
+      }
+    }
+    for (const n of this.nutrients) {
+      if (!n.dead && Math.hypot(n.x - x, n.y - y) <= r && rng.chance(0.6)) {
+        n.dead = true;
+        burned++;
+      }
+    }
+    this.pushEvent("world", killed > 0 ? `Meteor çarptı: ${killed} canlı ve ${burned} bitki yok oldu.` : `Meteor çarptı; bölgede canlı yoktu.`);
+  }
+
   /** Bir dünya olayını tetikler. Süreli olaylar zaten etkinse `false` döner. */
   public trigger(kind: WorldEventKind, at?: { x: number; y: number }): boolean {
     const x = at ? at.x : rng.range(0, MAP_W);
     const y = at ? at.y : rng.range(0, MAP_H);
     switch (kind) {
       case "meteor": {
+        // Meteor önce düşer, hasar çarpma anında verilir (METEOR_FALL sonra).
         const r = rng.range(40, 90);
-        let killed = 0;
-        let burned = 0;
-        for (const c of this.creatures) {
-          if (c.alive && Math.hypot(c.x - x, c.y - y) <= r && rng.chance(0.6)) {
-            this.kill(c, "meteor");
-            killed++;
-          }
-        }
-        for (const n of this.nutrients) {
-          if (!n.dead && Math.hypot(n.x - x, n.y - y) <= r && rng.chance(0.6)) {
-            n.dead = true;
-            burned++;
-          }
-        }
+        this.pendingMeteors.push({ x, y, r, left: METEOR_FALL });
         this.flashes.push({ x, y, r, kind, age: 0 });
-        this.pushEvent("world", killed > 0 ? `Meteor çarptı: ${killed} canlı ve ${burned} bitki yok oldu.` : `Meteor çarptı; bölgede canlı yoktu.`);
         return true;
       }
       case "climate": {

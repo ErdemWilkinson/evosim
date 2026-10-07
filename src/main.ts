@@ -311,6 +311,8 @@ requestAnimationFrame(frame);
 // ------------------------------------------------------------------ harita etkileşimi
 
 scene.onUserPan = () => (following = false);
+scene.paint = () => tool === "plants";
+scene.onPaint = (x, y) => client.send({ type: "plants", x, y, drag: true });
 scene.onTap = (x, y, tolerance) => {
   if (!view) return;
   if (tool === "plants") client.send({ type: "plants", x, y });
