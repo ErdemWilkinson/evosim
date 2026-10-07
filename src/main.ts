@@ -80,6 +80,8 @@ let lineToldFor = 0;
 let soundEpoch = -1;
 let pendingShare: Share | null = null;
 let lastHash = "";
+/** Paylaşım bağlantısıyla açılışta mevcut otomatik kayıt: oyuncu açıkça yeni gezegen başlatmadıkça silinmez. */
+let keepSave: SaveData | null = null;
 let soundTime = 0;
 let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
@@ -655,6 +657,7 @@ function openPlanet(seed?: number): void {
 }
 
 function startPlanet(): void {
+  keepSave = null;
   try {
     localStorage.removeItem(SAVE_KEY);
   } catch {
@@ -696,7 +699,16 @@ $("planet-form").addEventListener("submit", (e) => {
 });
 // İlk açılışta pencere başlatmadan kapatılırsa da gösterilen gezegen başlar.
 $("dlg-planet").addEventListener("close", () => {
-  if (!started) startPlanet();
+  if (started) return;
+  if (keepSave) {
+    // Bağlantıyla gelinip pencere başlatılmadan kapatıldı: kayıt geri yüklenir, hiçbir şey silinmez.
+    started = true;
+    pendingShare = null;
+    client.send({ type: "load", data: keepSave });
+    keepSave = null;
+    return;
+  }
+  startPlanet();
 });
 
 // Gezegen kartı
@@ -885,8 +897,9 @@ try {
     if (!localStorage.getItem(SAVE_KEY)) localStorage.setItem(SAVE_KEY, legacy);
     localStorage.removeItem(LEGACY_SAVE_KEY);
   }
-  const saved = sharedAtStart ? null : localStorage.getItem(SAVE_KEY);
-  if (saved) {
+  const saved = localStorage.getItem(SAVE_KEY);
+  if (saved && sharedAtStart) keepSave = JSON.parse(saved) as SaveData;
+  else if (saved) {
     client.send({ type: "load", data: JSON.parse(saved) as SaveData });
     restored = true;
   }
@@ -901,5 +914,6 @@ if (restored) {
 } else if (sharedAtStart) {
   // Paylaşılan bağlantı: kayıt silinmez; gezegen penceresi o tohumla açılır, başlatmak oyuncuya kalır.
   pendingShare = sharedAtStart;
+  $("share-note").hidden = keepSave === null;
   openPlanet(sharedAtStart.seed);
 } else openPlanet();

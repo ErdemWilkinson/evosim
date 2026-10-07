@@ -15,6 +15,7 @@ export const MANUAL: Record<string, string> = {
   "Yeni gezegen": "New planet",
   Ses: "Sound",
   Tarih: "History",
+  'Bu bir paylaşım bağlantısı. Kayıtlı oyununuz duruyor: pencereyi kapatırsanız geri yüklenir, "Simülasyonu başlat"a basarsanız bu gezegenle değiştirilir.': 'This is a shared link. Your saved game is untouched: closing this window restores it, and pressing "Start simulation" replaces it with this planet.',
   "Gezegen kartı": "Planet card",
   "Günün gezegeni": "Planet of the day",
   "Kartı resim olarak kaydedebilirsiniz. Bağlantı, tohumu ve ayarları taşır; açan kişi aynı gezegeni kendi tarayıcısında başlatır, sizin canlılarınızı değil.": "You can save the card as an image. The link carries the seed and settings; whoever opens it starts the same planet in their own browser, not your creatures.",
