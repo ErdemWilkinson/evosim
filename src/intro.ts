@@ -117,7 +117,7 @@ export class StartMenu {
     let pull: { x: number; y: number } | null = null;
     let pressed = false;
     let releasedAt = 0;
-    // Basılan noktada büyüyen, dalgalanan uzuvlar (yaklaşık 3 sn yaşar, son 0,8 sn'de söner).
+    // Basılan noktada saçılan daire ve kare biçimleri (uzuvlar yalnızca Başla dizisinde çıkar).
     // "Başla" dizisi: toplar titrer, organ çıkarır, bazıları mutasyonla renk değiştirir; düğmeden çıkan uzuvlar birkaç
     // hücreye saplanıp enerjilerini çekmeye başlar.
     let seq: { t0: number; targets: Ball[]; ox: number; oy: number } | null = null;
@@ -131,8 +131,8 @@ export class StartMenu {
       const targets = [...balls].sort((a, b) => Math.hypot(a.x - ox, a.y - oy) - Math.hypot(b.x - ox, b.y - oy)).slice(0, 4);
       seq = { t0: performance.now(), targets, ox, oy };
     };
-    const limbs: { x: number; y: number; t0: number; base: number }[] = [];
-    const LIMB_LIFE = 3000;
+    const shapes: { x: number; y: number; t0: number; items: { ang: number; dist: number; size: number; kind: number; rot: number; h: number }[] }[] = [];
+    const SHAPE_LIFE = 1500;
     const where = (e: PointerEvent): { x: number; y: number } => {
       const r = canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -151,7 +151,19 @@ export class StartMenu {
       pressed = true;
       // Uzuvlar toplanma noktasında değil, basılan noktada çıkar.
       const at = where(e);
-      limbs.push({ x: at.x, y: at.y, t0: performance.now(), base: Math.random() * 6.28 });
+      shapes.push({
+        x: at.x,
+        y: at.y,
+        t0: performance.now(),
+        items: Array.from({ length: 7 }, (_, k) => ({
+          ang: (k * Math.PI * 2) / 7 + Math.random() * 0.5,
+          dist: 34 + Math.random() * 40,
+          size: 4 + Math.random() * 7,
+          kind: Math.random() < 0.5 ? 0 : 1,
+          rot: Math.random() * 3,
+          h: Math.random() < 0.5 ? 168 : 252,
+        })),
+      });
     };
     const onMove = (e: PointerEvent): void => {
       if (pressed && !(e.target as HTMLElement).closest("button, a, input, select")) pull = where(e);
@@ -367,48 +379,42 @@ export class StartMenu {
         });
       }
       const now = performance.now();
-      for (let li = limbs.length - 1; li >= 0; li--) {
-        const L = limbs[li];
-        const age = now - L.t0;
-        if (age > LIMB_LIFE) {
-          limbs.splice(li, 1);
+      for (let li = shapes.length - 1; li >= 0; li--) {
+        const S = shapes[li];
+        const age = now - S.t0;
+        if (age > SHAPE_LIFE) {
+          shapes.splice(li, 1);
           continue;
         }
-        const grow = 1 - Math.pow(1 - Math.min(1, age / 1300), 3);
-        const fade = age > LIMB_LIFE - 800 ? (LIMB_LIFE - age) / 800 : 1;
-        const arms = 8;
-        for (let k = 0; k < arms; k++) {
-          const ang = L.base + (k * Math.PI * 2) / arms + 0.22 * Math.sin(t / 650 + k * 1.7);
-          const len = (46 + (k % 3) * 22) * grow;
-          const dx = Math.cos(ang);
-          const dy = Math.sin(ang);
-          const segs = 16;
-          let px = L.x;
-          let py = L.y;
-          for (let sIdx = 1; sIdx <= segs; sIdx++) {
-            const f = sIdx / segs;
-            const wave = Math.sin(f * 5 - t / 240 + k) * 9 * f;
-            const x = L.x + dx * len * f - dy * wave;
-            const y = L.y + dy * len * f + dx * wave;
+        const p = age / SHAPE_LIFE;
+        const out = 1 - Math.pow(1 - Math.min(1, age / 700), 3);
+        const fade = 1 - p;
+        // Basılan noktadan saçılan daire ve kare biçimleri.
+        for (const it of S.items) {
+          const x = S.x + Math.cos(it.ang) * it.dist * out;
+          const y = S.y + Math.sin(it.ang) * it.dist * out;
+          ctx.strokeStyle = `hsla(${it.h},80%,72%,${0.75 * fade})`;
+          ctx.fillStyle = `hsla(${it.h},80%,72%,${0.16 * fade})`;
+          ctx.lineWidth = 1.6;
+          if (it.kind === 0) {
             ctx.beginPath();
-            ctx.moveTo(px, py);
-            ctx.lineTo(x, y);
-            ctx.lineWidth = Math.max(0.8, 5.5 * (1 - f) + 0.8);
-            ctx.lineCap = "round";
-            ctx.strokeStyle = `hsla(${k % 2 ? 168 : 252},80%,72%,${0.55 * fade})`;
+            ctx.arc(x, y, it.size, 0, 6.2832);
+            ctx.fill();
             ctx.stroke();
-            px = x;
-            py = y;
+          } else {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(it.rot + p * 1.6);
+            ctx.fillRect(-it.size, -it.size, it.size * 2, it.size * 2);
+            ctx.strokeRect(-it.size, -it.size, it.size * 2, it.size * 2);
+            ctx.restore();
           }
-          ctx.beginPath();
-          ctx.arc(px, py, 2.6, 0, 6.2832);
-          ctx.fillStyle = `hsla(168,90%,80%,${0.8 * fade})`;
-          ctx.fill();
         }
         ctx.beginPath();
-        ctx.arc(L.x, L.y, 9 + 2 * Math.sin(t / 200), 0, 6.2832);
-        ctx.fillStyle = `hsla(168,80%,70%,${0.35 * fade})`;
-        ctx.fill();
+        ctx.arc(S.x, S.y, 6 + 26 * out, 0, 6.2832);
+        ctx.strokeStyle = `hsla(168,85%,75%,${0.5 * fade})`;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
       }
       this.raf = requestAnimationFrame(step);
     };
