@@ -197,6 +197,22 @@ otçuldur ve birincil tüketici besin ağının tabanıdır):
 6. Çöküş: nüfusun 8'in altına düşüp dışarıdan göç gerektirdiği tohumlar yarıyı geçmez. İlk
    ölçümden sonra eklendi: göç yaşamı yeniden başlattığı için 3. eşik çöküşü göremiyordu.
 
+### 24 tohumluk ölçümler (7 Ekim 2026)
+
+Hepsi 24 tohum × 6000 sn; 1–12 geliştirme, 13–24 doğrulama. Hücreler: geliştirme / doğrulama / tümü sonucu. Ham çıktılar `out/` altındadır (git dışı); koşucu `scripts/check.mjs`.
+
+| Koşu | Kademe | Sonuç |
+| --- | --- | --- |
+| Bölüm B | Hızlı | GEÇTİ / GEÇTİ / GEÇTİ |
+| Bölüm B | Orta | GEÇTİ / GEÇTİ / GEÇTİ |
+| Bölüm B | Gerçekçi (yavaş) | KALDI (2) / KALDI (1) / GEÇTİ |
+| C1–C7 (her mekanik eklendikten sonra) | Hızlı | hepsi GEÇTİ / GEÇTİ / GEÇTİ |
+| Güncel kod (hücre kimyası geni, basınç, kaçış düzeltmesi) | Hızlı | GEÇTİ / GEÇTİ / GEÇTİ |
+
+*Gerçekçi kademe:* geliştirme kümesinde parazit kalıcılığı (4/12) ve çok hücreli görülme (5/12) kaldı; doğrulama kümesinde etçil kalıcılığı (5/12) kaldı; 24 tohumun tümünde geçti. Yani bu kademede eşiklere yakın ve kümeye göre oynuyor. Gerçekçi kademede ilk görülme zamanları uzun: çok hücrelilik ve karaya çıkış birçok tohumda 3000–5800. saniyelerde ya da hiç görülmüyor; bu kademe 6000 sn'de yeterince koşmamış sayılabilir.
+
+*Gürültü (`scripts/noise.mjs`, güncel koddan önceki 96 tohumluk Hızlı koşu, 4 küme × 24):* eşik sayıları kümeler arasında en çok 2–5 tohum oynadı (ör. otçul kalıcılığı 19–23/24, göç gereken tohum 0–2). 96 tohumun 1'inde (tohum 80) yaşam bir ara tükendi olarak işaretlendi (koşu sonunda nüfus 262; dışarıdan göçle toparlanmış olabilir, ayrıca incelenmedi). Rastgele 24'lük bir çekilişin bütün eşikleri geçme olasılığı bu veride %74. Bu, "24 tohumda geçti" sonucunun tek bir çekilişte yaklaşık dörtte üç olasılıkla yinelendiği anlamına gelir.
+
 ### Taban ölçümü ve güncel durum
 
 > Aşağıdaki tablo eski 8 tohumluk ölçümdür ve iki kardeş hücreli başlangıçtan (680829e) öncesine

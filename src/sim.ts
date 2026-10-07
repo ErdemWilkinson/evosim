@@ -257,6 +257,9 @@ export type DeathCause = "starvation" | "old_age" | "predation" | "venom" | "met
 export type WorldEventKind = "meteor" | "climate" | "wind" | "quake";
 export type EventKind = "organ" | "diet" | "species" | "world" | "population" | "gene" | "stage" | "disease";
 
+/** Kaçış yönü engellenince denenen sapmalar (rad): önce 45°, sonra 90° ve 135°, iki yana. */
+const FLEE_WALL_TURNS = [Math.PI / 4, -Math.PI / 4, Math.PI / 2, -Math.PI / 2, (3 * Math.PI) / 4, (-3 * Math.PI) / 4];
+
 export const BEHAVIORS: readonly Behavior[] = ["wander", "seek", "flee", "hunt", "scavenge", "graze", "bask", "escape", "rest", "attached", "absorb", "call"];
 
 export const BEHAVIOR_LABEL: Record<Behavior, string> = {
@@ -1453,11 +1456,11 @@ export class Sim {
     if (this.passable(c, nx, ny)) {
       c.x = nx;
       c.y = ny;
-    } else if (this.passable(c, nx, c.y)) {
+    } else if (Math.abs(vx) > 1e-3 && this.passable(c, nx, c.y)) {
       c.x = nx;
       c.heading = vx >= 0 ? 0 : Math.PI;
       c.blockedT = 0.35;
-    } else if (this.passable(c, c.x, ny)) {
+    } else if (Math.abs(vy) > 1e-3 && this.passable(c, c.x, ny)) {
       c.y = ny;
       c.heading = vy >= 0 ? Math.PI / 2 : -Math.PI / 2;
       c.blockedT = 0.35;
@@ -2056,6 +2059,16 @@ export class Sim {
           break;
         }
         heading = Math.atan2(c.y - t.y, c.x - t.x);
+        // Kaçış yönü bir duvara (kıyı, harita kenarı, geçilmez bölge) çıkıyorsa duvar boyunca kaç: köşeye sıkışan canlı yerinde saymasın.
+        if (!this.passable(c, c.x + Math.cos(heading) * 18, c.y + Math.sin(heading) * 18)) {
+          for (const turn of FLEE_WALL_TURNS) {
+            const h = heading + turn;
+            if (this.passable(c, c.x + Math.cos(h) * 18, c.y + Math.sin(h) * 18)) {
+              heading = h;
+              break;
+            }
+          }
+        }
         // Örtüye kaçış: kaçış yönünün yakınında sık örtü varsa oraya yönelir.
         if (!this.world.inThicket(c.x, c.y)) {
           seek: for (const reach of COVER_SEEK_REACH) {
