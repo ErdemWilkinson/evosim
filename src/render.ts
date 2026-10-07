@@ -1100,6 +1100,16 @@ export class Scene {
         ctx.setLineDash([]);
         ctx.globalAlpha = 1;
       }
+      if (flags & FLAG.line) {
+        // Oyuncunun soyu: altın renkli ince halka.
+        ctx.strokeStyle = "#ffd166";
+        ctx.lineWidth = 1.2 * boost;
+        ctx.globalAlpha = 0.95;
+        ctx.beginPath();
+        ctx.arc(x, y, rr * 1.2 + 1.5, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+      }
       if (flags & FLAG.infected) {
         ctx.strokeStyle = theme.warn;
         ctx.lineWidth = 0.9 * boost;

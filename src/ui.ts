@@ -732,6 +732,7 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
     d.alive
       ? `<button type="button" class="btn btn-small" data-action="follow" aria-pressed="${state.following}">Takip et</button>` +
           `<button type="button" class="btn btn-small" data-action="inspect">Yapıyı incele</button>` +
+          `<button type="button" class="btn btn-small" data-action="line-mark">Soyumu işaretle</button>` +
           `<button type="button" class="btn btn-small game-only" data-action="clone" aria-pressed="${state.placing}">Kopyasını yerleştir</button>` +
           `<button type="button" class="btn btn-small btn-danger game-only" data-action="remove">Kaldır</button>`
       : `<button type="button" class="btn btn-small" data-action="inspect">Yapıyı incele</button><span class="foot">Bu birey artık yaşamıyor; genomu son hâliyle gösteriliyor.</span>`

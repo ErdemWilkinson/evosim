@@ -467,6 +467,37 @@ export interface Milestone {
   text: string;
 }
 
+/** Oyuncunun "benim soyum" diye işaretlediği canlının soyu. Yalnızca gözlem verisidir; benzetimi etkilemez. */
+export interface LineTrack {
+  root: number;
+  rootName: string;
+  rootGenome: Genome;
+  t0: number;
+  /** Yaşayan üyelerin kimlikleri (kök ve torunları). */
+  members: number[];
+  /** Soyun üyesi bulunmuş türler. */
+  species: number[];
+  /** İşaretlendiğinden beri soyda doğan birey sayısı. */
+  born: number;
+  /** Soyun tükendiği an; sürüyorsa -1. */
+  extinctAt: number;
+  maxDist: number;
+  maxGen: number;
+}
+
+export interface LineStats {
+  root: number;
+  rootName: string;
+  t0: number;
+  alive: number;
+  born: number;
+  arms: { id: number; name: string; alive: number }[];
+  extinctArms: number;
+  maxDist: number;
+  maxGen: number;
+  extinctAt: number;
+}
+
 /** `once` bayraklarından dönüm noktası anahtarlarına eşleme. */
 const MILESTONE_FLAGS: Record<string, string> = {
   "diet:phototroph": "photosynth",
@@ -573,6 +604,7 @@ export class Sim {
   public eggs: Egg[] = [];
   public flashes: Flash[] = [];
   public milestones: Milestone[] = [];
+  private line: { track: LineTrack; members: Set<number>; species: Set<number>; eggParents: Set<number> } | null = null;
   private pendingMeteors: { x: number; y: number; r: number; left: number }[] = [];
   /** Çözünmüş kimyasal besin: ızgara hücresi başına derişim ve kapasite (bkz. SOUP_*). */
   public soup = new Float32Array(SOUP_COLS * SOUP_ROWS);
@@ -895,6 +927,89 @@ export class Sim {
     }
   }
 
+  // ------------------------------------------------------------------ oyuncunun soyu (yalnızca gözlem)
+
+  public isInLine(id: number): boolean {
+    return this.line !== null && this.line.members.has(id);
+  }
+
+  /** Bir canlıyı "benim soyum" diye işaretler; `id` 0 ise işareti kaldırır. */
+  public markLine(id: number): boolean {
+    if (id === 0) {
+      this.line = null;
+      return true;
+    }
+    const c = this.findCreature(id);
+    if (!c) return false;
+    const sp = this.species.get(c.g.speciesId);
+    this.line = {
+      track: { root: c.id, rootName: sp?.name ?? "", rootGenome: cloneGenome(c.g), t0: this.time, members: [c.id], species: [c.g.speciesId], born: 0, extinctAt: -1, maxDist: 0, maxGen: c.g.generation },
+      members: new Set([c.id]),
+      species: new Set([c.g.speciesId]),
+      eggParents: new Set(),
+    };
+    return true;
+  }
+
+  private trackBirth(g: Genome, sp: Species): void {
+    const line = this.line;
+    if (!line || line.track.extinctAt >= 0 || !g.parentIds) return;
+    const [a, b] = g.parentIds;
+    if (!line.members.has(a) && !line.members.has(b) && !line.eggParents.has(a) && !line.eggParents.has(b)) return;
+    line.members.add(g.id);
+    line.species.add(sp.id);
+    line.track.born++;
+    if (g.generation > line.track.maxGen) line.track.maxGen = g.generation;
+  }
+
+  private trackDeath(c: Creature): void {
+    const line = this.line;
+    if (!line || !line.members.delete(c.id)) return;
+    // Yumurtası henüz çatlamamış bir üyenin soyu sürer: yumurtadan çıkan yavru soya katılır.
+    if (this.eggs.some((e) => e.parentIds.includes(c.id))) line.eggParents.add(c.id);
+    this.lineMaybeExtinct(line);
+  }
+
+  private lineMaybeExtinct(line: { track: LineTrack; members: Set<number>; eggParents: Set<number> }): void {
+    if (line.members.size > 0 || line.track.extinctAt >= 0) return;
+    if (this.eggs.some((e) => e.parentIds.some((p) => line.eggParents.has(p)))) return;
+    line.track.extinctAt = this.time;
+  }
+
+  /** Arayüz için soy özeti; yaşayan üyeler üzerinden hesaplanır. */
+  public lineStats(): LineStats | null {
+    const line = this.line;
+    if (!line) return null;
+    const t = line.track;
+    const alive = new Map<number, number>();
+    let maxDist = t.maxDist;
+    let maxGen = t.maxGen;
+    for (const c of this.creatures) {
+      if (!c.alive || !line.members.has(c.id)) continue;
+      alive.set(c.g.speciesId, (alive.get(c.g.speciesId) ?? 0) + 1);
+      const d = geneticDistance(c.g, t.rootGenome);
+      if (d > maxDist) maxDist = d;
+      if (c.g.generation > maxGen) maxGen = c.g.generation;
+    }
+    t.maxDist = maxDist;
+    t.maxGen = maxGen;
+    this.lineMaybeExtinct(line);
+    const arms = Array.from(line.species).map((id) => ({ id, name: this.species.get(id)?.name ?? "", alive: alive.get(id) ?? 0 }));
+    const count = Array.from(alive.values()).reduce((a, b) => a + b, 0);
+    return {
+      root: t.root,
+      rootName: t.rootName,
+      t0: t.t0,
+      alive: count,
+      born: t.born,
+      arms: arms.filter((a) => a.alive > 0).sort((a, b) => b.alive - a.alive),
+      extinctArms: arms.filter((a) => a.alive === 0).length,
+      maxDist,
+      maxGen: maxGen - t.rootGenome.generation,
+      extinctAt: t.extinctAt,
+    };
+  }
+
   /** Bireyden geriye doğru ata zinciri (eşeyli üremede anne izlenir). */
   public ancestry(id: number, limit = 600): LineageRec[] {
     const chain: LineageRec[] = [];
@@ -938,6 +1053,7 @@ export class Sim {
     this.births++;
     if (g.generation > this.maxGeneration) this.maxGeneration = g.generation;
     this.enroll(sp);
+    this.trackBirth(g, sp);
 
     for (const organ of g.organs) {
       this.once(`organ:${organ.type}`, "organ", () => `İlk ${lower(ORGANS[organ.type].label)}: #${g.id} bireyinde mutasyonla ortaya çıktı (${g.generation}. nesil).`);
@@ -1040,6 +1156,7 @@ export class Sim {
     if (cause === "starvation" && c.infectedT > 0) cause = "disease";
     c.alive = false;
     this.deaths[cause]++;
+    this.trackDeath(c);
     const rec = this.lineage.get(c.id);
     if (rec) {
       rec.died = this.time;
@@ -2399,6 +2516,7 @@ export class Sim {
         .filter((rec): rec is LineageRec => rec !== undefined),
       events: this.events.slice(-120),
       milestones: this.milestones,
+      line: this.line ? { ...this.line.track, members: Array.from(this.line.members), species: Array.from(this.line.species) } : undefined,
       history: this.history,
       sampleInterval: this.sampleInterval,
       flags: this.flags,
@@ -2511,6 +2629,7 @@ export class Sim {
     sim.eggs = data.eggs ?? [];
     sim.events = data.events ?? [];
     sim.milestones = data.milestones ?? [];
+    if (data.line) sim.line = { track: data.line, members: new Set(data.line.members), species: new Set(data.line.species), eggParents: new Set(sim.eggs.flatMap((e) => e.parentIds).filter((p) => !data.line!.members.includes(p))) };
     sim.eventSeq = sim.events.reduce((m, e) => Math.max(m, e.seq), 0);
     sim.history = data.history ?? [];
     sim.sampleInterval = data.sampleInterval ?? 2;
@@ -2672,6 +2791,20 @@ function cleanSave(raw: SaveData): SaveData {
         if (num(e?.id) > 0) out.id = Math.floor(num(e?.id));
         return out;
       }),
+    line: raw.line
+      ? {
+          root: Math.floor(num(raw.line.root)),
+          rootName: str(raw.line.rootName),
+          rootGenome: sanitizeGenome(raw.line.rootGenome),
+          t0: num(raw.line.t0),
+          members: list<number>(raw.line.members).slice(0, MAX_CREATURES + 200).map((v) => Math.floor(num(v))),
+          species: list<number>(raw.line.species).slice(0, 1000).map((v) => Math.floor(num(v))),
+          born: Math.max(0, Math.floor(num(raw.line.born))),
+          extinctAt: num(raw.line.extinctAt, -1),
+          maxDist: Math.max(0, num(raw.line.maxDist)),
+          maxGen: Math.max(0, Math.floor(num(raw.line.maxGen))),
+        }
+      : undefined,
     milestones: list<Milestone>(raw.milestones)
       .slice(0, 40)
       .map((m) => ({ key: str(m?.key).slice(0, 24), t: num(m?.t), id: Math.max(0, Math.floor(num(m?.id))), seq: Math.floor(num(m?.seq)), text: str(m?.text) })),
@@ -2738,6 +2871,7 @@ export interface SaveData {
   lineage: LineageRec[];
   events: SimEvent[];
   milestones?: Milestone[];
+  line?: LineTrack;
   history: HistorySample[];
   sampleInterval: number;
   flags: Record<string, boolean>;

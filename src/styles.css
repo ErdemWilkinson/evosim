@@ -687,6 +687,41 @@ input[type="range"] {
   line-height: 1.55;
 }
 
+.line-arms {
+  display: grid;
+  gap: 4px;
+}
+
+.line-arm {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: var(--r-sm, 8px);
+  background: rgba(255, 209, 102, 0.07);
+  font-style: italic;
+}
+
+.line-arm b {
+  font-style: normal;
+  color: #ffd166;
+}
+
+.line-dead {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 209, 102, 0.35);
+  border-radius: var(--r-md);
+  background: rgba(255, 209, 102, 0.06);
+}
+
+.line-dead p {
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
 /* ------------------------------------------------------------ panel içerikleri */
 
 .kpis {

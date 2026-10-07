@@ -12,7 +12,7 @@ import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, 
 import { World } from "./world";
 import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
-import { MS_LABEL, milestoneStrip } from "./history";
+import { MS_LABEL, lineBlock, milestoneStrip } from "./history";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
@@ -71,6 +71,7 @@ let timelinePinned = true;
 let msPick = "0";
 let msSeen = -1;
 let msEpoch = -1;
+let lineToldFor = 0;
 let started = false;
 
 // ------------------------------------------------------------------ küçük yardımcılar
@@ -228,6 +229,12 @@ function refresh(v: View, ui: UiPayload): void {
     msSeen = msTop;
   }
 
+  // Oyuncunun soyu tükendiyse bir kez haber verilir.
+  if (ui.line && ui.line.alive === 0 && ui.line.extinctAt >= 0 && lineToldFor !== ui.line.root) {
+    lineToldFor = ui.line.root;
+    toast("Soyun tükendi. Tarih sekmesinden yeni bir soy seçebilirsiniz.");
+  }
+
   if (selected && !ui.selected && performance.now() - selectedAt > 600) {
     selected = 0;
     following = false;
@@ -256,6 +263,7 @@ function refreshTab(v: View, ui: UiPayload): void {
       ` · gerçekleşen hız ×${nf(ui.rate)} · eşeyli üreyen ${ui.sexual} · dışarıdan göç ${ui.immigrants}`;
   } else if (tab === "history") {
     setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t)));
+    setHtml($("history-line"), lineBlock(ui.line));
   } else if (tab === "species") {
     const info = speciesCard ? ui.species.find((s) => s.id === speciesCard) : undefined;
     $("species-list-view").hidden = info !== undefined;
@@ -409,6 +417,27 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
   const button = target.closest<HTMLElement>("[data-action]");
   if (!button) return;
   switch (button.dataset.action) {
+    case "line-mark":
+      if (selected) {
+        client.send({ type: "line", id: selected });
+        toast("Soyun işaretlendi: torunları haritada altın halkayla görünür.");
+      }
+      break;
+    case "line-clear":
+      client.send({ type: "line", id: 0 });
+      break;
+    case "line-find": {
+      if (!view) break;
+      const c = view.frame.c;
+      for (let i = 0; i < view.frame.n; i++) {
+        if (c[i * STRIDE + 6] & FLAG.line) {
+          scene.center(c[i * STRIDE + 1], c[i * STRIDE + 2]);
+          following = false;
+          break;
+        }
+      }
+      break;
+    }
     case "ms-pick":
       msPick = button.dataset.seq ?? "0";
       break;

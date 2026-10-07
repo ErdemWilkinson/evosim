@@ -95,6 +95,9 @@ export class SimHost {
         if (id === null && !cmd.drag) this.emit({ type: "note", text: sim.creatures.length >= MAX_CREATURES ? `Canlı sınırına ulaşıldı (${MAX_CREATURES}).` : "Bu canlı bu arazide yaşayamaz." });
         break;
       }
+      case "line":
+        if (!sim.markLine(cmd.id)) this.emit({ type: "note", text: "Bu canlı artık yaşamıyor." });
+        break;
       case "remove":
         sim.removeCreature(cmd.id);
         break;
@@ -182,7 +185,7 @@ export class SimHost {
       c[o + 4] = k.energy / k.maxEnergy;
       c[o + 5] = k.hp / k.maxHp;
       c[o + 6] =
-        (k.onLand ? FLAG.land : 0) | (k.infectedT > 0 ? FLAG.infected : 0) | (k.flashT > 0 ? FLAG.flash : 0) | (k.hurtT > 0 ? FLAG.hurt : 0) | (k.bornT > 0 ? FLAG.born : 0) | (k.immuneT > 0 ? FLAG.immune : 0) | (k.host ? FLAG.attached : 0) | (k.cover >= 0.5 ? FLAG.hidden : 0);
+        (k.onLand ? FLAG.land : 0) | (k.infectedT > 0 ? FLAG.infected : 0) | (k.flashT > 0 ? FLAG.flash : 0) | (k.hurtT > 0 ? FLAG.hurt : 0) | (k.bornT > 0 ? FLAG.born : 0) | (k.immuneT > 0 ? FLAG.immune : 0) | (k.host ? FLAG.attached : 0) | (k.cover >= 0.5 ? FLAG.hidden : 0) | (sim.isInLine(k.id) ? FLAG.line : 0);
       c[o + 7] = BEHAVIORS.indexOf(k.state);
       c[o + 8] = Math.min(1, k.age / JUVENILE_AGE);
       if (this.sent.get(k.id) !== k.gv) {
@@ -312,6 +315,7 @@ export class SimHost {
       history: sim.history,
       events,
       milestones: sim.milestones,
+      line: sim.lineStats(),
       snaps: this.snaps.map((s) => s.t),
       autoEvents: sim.autoEvents,
       rescueEnabled: sim.rescueEnabled,

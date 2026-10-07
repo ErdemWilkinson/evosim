@@ -1,6 +1,6 @@
 import { Diet, EvolutionSpeed, Genome } from "./genome";
 import { OrganType } from "./organs";
-import { Behavior, Flash, HistorySample, Inspection, Milestone, SaveData, SimEvent, SpeciesStats, WorldEventKind } from "./sim";
+import { Behavior, Flash, HistorySample, Inspection, LineStats, Milestone, SaveData, SimEvent, SpeciesStats, WorldEventKind } from "./sim";
 
 /**
  * Simülasyon (Web Worker) ile arayüz (ana iş parçacığı) arasındaki mesajlar.
@@ -9,7 +9,7 @@ import { Behavior, Flash, HistorySample, Inspection, Milestone, SaveData, SimEve
 
 /** Kare başına canlı verisi: id, x, y, yön, enerji oranı, can oranı, bayraklar, davranış, olgunluk (0 yeni doğmuş, 1 erişkin). */
 export const STRIDE = 9;
-export const FLAG = { land: 1, infected: 2, flash: 4, hurt: 8, born: 16, immune: 32, attached: 64, hidden: 128 } as const;
+export const FLAG = { land: 1, infected: 2, flash: 4, hurt: 8, born: 16, immune: 32, attached: 64, hidden: 128, line: 256 } as const;
 /** Bitki konumları Uint16 çiftleridir: x·8 ve y·8; karadaysa y'nin en üst biti 1. */
 export const PLANT_SCALE = 8;
 export const PLANT_LAND_BIT = 0x8000;
@@ -26,6 +26,7 @@ export type Command =
   | { type: "radiate"; x: number; y: number; drag?: boolean }
   | { type: "place"; x: number; y: number; template: number; drag?: boolean }
   | { type: "remove"; id: number }
+  | { type: "line"; id: number }
   | { type: "organ"; id: number; organ: OrganType; power: number | null }
   | { type: "stage"; id: number; stage: number }
   | { type: "set"; autoEvents?: boolean; rescueEnabled?: boolean; nutrientMultiplier?: number; evolutionSpeed?: EvolutionSpeed }
@@ -95,6 +96,7 @@ export interface UiPayload {
   history: HistorySample[];
   events: SimEvent[];
   milestones: Milestone[];
+  line: LineStats | null;
   snaps: number[];
   autoEvents: boolean;
   rescueEnabled: boolean;
