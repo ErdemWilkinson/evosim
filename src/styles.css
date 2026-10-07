@@ -2746,3 +2746,12 @@ textarea {
     justify-content: space-between;
   }
 }
+
+/* Karşılama kartındaki iki düğme aynı boyda; gezegen penceresinin büyük birincil düğme stili burada geçerli değildir. */
+#greet .greet-card .btn {
+  height: 34px;
+  min-width: 92px;
+  padding: 0 22px;
+  border-radius: 17px;
+  font-size: 13px;
+}

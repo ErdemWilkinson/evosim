@@ -32,7 +32,7 @@ export class StartMenu {
       window.setTimeout(() => {
         this.leaving = false;
         this.choose("go");
-      }, 650);
+      }, 450);
     });
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }

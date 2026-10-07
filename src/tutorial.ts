@@ -672,7 +672,7 @@ export function greet(tour: Tour): void {
   window.setTimeout(() => {
     const r = card.getBoundingClientRect();
     put(r.left + 36, r.top - 26);
-    card.style.transition = "opacity 0.6s";
+    card.style.transition = "opacity 0.35s";
     card.style.opacity = "1";
     root.querySelector<HTMLElement>('[data-g="yes"]')?.focus({ preventScroll: true });
   }, 60);

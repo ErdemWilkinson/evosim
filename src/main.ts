@@ -716,7 +716,7 @@ function openPlanet(seed?: number): void {
   requestAnimationFrame(top);
   window.setTimeout(top, 120);
   // İlk kez gelen oyuncuya Erdem imleci gezegen ekranında rehber ister.
-  if (!greeted()) window.setTimeout(() => dialog.open && greet(tour), 1100);
+  if (!greeted()) window.setTimeout(() => dialog.open && greet(tour), 250);
 }
 
 function startPlanet(): void {
