@@ -137,6 +137,17 @@ meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve 
 
 **Dil:** Türkçe ve İngilizce. Yeni gezegen penceresinin sağ üstündeki düğmelerden ya da "Dünya ayarları"ndan seçilir; seçim tarayıcıda saklanır; ilk açılışta oyun İngilizce başlar. Kaynak metinler Türkçedir ve simülasyon çekirdeği dili bilmez; çeviri yalnızca gösterimde yapılır (`src/i18n.ts`, sözlükler `src/i18n.auto.ts` ve `src/i18n.manual.ts`), bu yüzden kayıtlar ve olay günlüğü dilden bağımsızdır ve dil değişince eski günlük satırları da çevrilir. Sözlükte olmayan metin Türkçe kalır.
 
+**Oyuncu özellikleri (Tarih sekmesi ve çevresi).** Hepsi yalnızca gözlem verisini okur; benzetim durumunu değiştirmez. Bu bölümdeki hiçbir özellik için test koşulmadı ve tarayıcıda denenmedi: yalnızca tür denetimi (`tsc`) ve derleme yapıldı. Testler ayrı bir oturumda koşulacak.
+
+- **Dönüm noktaları:** ilk fotosentetik, avcı, parazit, çok hücreli, karaya çıkış, eşeyli üreme ve kitlesel yok oluş; haritada kısa süre vurgulanır, zaman şeridinde işaretlenir, "Bu ana dön" ile anlık görüntüye dönülür. Kayıt sürümü 7.
+- **Benim soyum:** canlı kartındaki "Soyumu işaretle" ile bir bireyin torunları haritada altın halkayla görünür; yaşayan torun, doğan toplam, tür kolları, atadan en büyük genetik uzaklık ve nesil sayısı izlenir. Soy tükenirse bildirim gelir. Soy kayıtla saklanır.
+- **Fosil kaydı:** kalıcılaşmış bir tür tükenince portresi, yaşadığı dönem, zirve nüfusu ve atası saklanır. Tükenme nedeni yalnızca ölçülmüş son 12 ölümden okunur: bir neden en az %60 payla baskınsa yazılır (en az 5 ölüm kaydı varken), yoksa "Tek bir belirgin neden yok" denir. Ölüm kayıtları türle birlikte saklanır; eski kayıtlarda boş başlar.
+- **Tahminler:** yaklaşık 90 benzetim saniyesinden sonra bir türün birey sayısı ya da hayatta kalması için iki dakikalık bir soru sorulur; sonuç sayılarla ve o sürede dünyada en çok ölüme yol açan nedenle açıklanır. Yüzde onun altındaki değişim sayılmaz. Ayarlardan kapatılabilir; tercih tarayıcıda saklanır. Soru sırası rastgelelik kullanmaz.
+- **Atlas ve başarımlar:** görülen organlar, beslenme biçimleri, dönüm noktaları ve gezegenlerde karşılaşılan kimya seçenekleri tarayıcı depolamasında tutulur; depolama kapalıysa yalnızca oturum boyunca tutulur ve bu belirtilir. 13 başarım yalnızca gözlemle kazanılır; Oyun modu açıkken kazanılanlar ayrıca işaretlenir.
+- **Gezegen kartı ve bağlantı:** kart bir tuvale çizilir (harita, elementler, kimya, varsa dünyanın özeti) ve PNG olarak kaydedilir. Adres çubuğunun `#` kısmı tohumu ve üç ayarı taşır; paylaşılan bağlantı açılınca gezegen penceresi o tohumla açılır, mevcut kayıt silinmez (pencere kapatılırsa kayıt geri yüklenir). "Günün gezegeni" UTC tarihinden türetilen bir tohum verir. Üçüncü taraf bir adrese hiçbir şey gönderilmez.
+- **Olay sesleri:** doğum, av, yeni tür ve yok oluş, müziğin dizisinden notalarla kısa sesler olarak karışır. Aynı tür ses için en kısa aralık hızla uzar; iki saniyede en çok dört ses çalar. "Ses" düğmesi müzikle birlikte hepsini susturur.
+- **Zaman atlamalı kayıt:** her 6 benzetim saniyesinde canlıların konumu (9 bayt/canlı) ve beslenme sınıfı kaydedilir; 600 kareye gelince her ikinci kare atılır ve aralık ikiye katlanır. En kötü durumda (500 canlı, 600 kare) hesaplanan bellek yaklaşık 2,6 MB'tır; bu bir hesaptır, tarayıcıda ölçülmedi. Gerçek değer oynatma penceresinde yazar. Yaklaşık 60 saniyede oynatılır.
+
 ## Testler ve ölçüm
 
 İki ayrı test vardır; ikisi de simülasyonu tarayıcısız, Node'da koşturur.
