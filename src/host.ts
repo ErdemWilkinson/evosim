@@ -311,6 +311,7 @@ export class SimHost {
       species,
       history: sim.history,
       events,
+      milestones: sim.milestones,
       snaps: this.snaps.map((s) => s.t),
       autoEvents: sim.autoEvents,
       rescueEnabled: sim.rescueEnabled,

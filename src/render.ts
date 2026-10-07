@@ -548,6 +548,7 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
 
 export type Tool = "select" | "plants" | "place" | "meteor" | "remove" | "soup" | "radiate";
 
+const PULSE_SECONDS = 5;
 const TOOL_RADIUS: Partial<Record<Tool, number>> = { plants: 34, meteor: 65, soup: 70, radiate: 45, remove: 14 };
 
 export interface SceneState {
@@ -731,6 +732,7 @@ export class Scene {
   private pointers = new Map<number, { x: number; y: number }>();
   private dragged = 0;
   private pinch = 0;
+  private pulses: { id: number; t0: number; label: string }[] = [];
   private painting = false;
   private lastPaint = { x: 0, y: 0 };
   /** Boyama aracı (bitki ekme) etkinse basılı tutup sürüklemek kaydırmak yerine boyar. */
@@ -1177,6 +1179,38 @@ export class Scene {
     for (const e of this.effects) drawEffect(ctx, e, (nowMs - e.t0) / 1000, 1 / zoom, theme);
     ctx.globalAlpha = 1;
 
+    // Dönüm noktası vurgusu: gerçek zamanda yayılan halka ve etiket; yüksek hızda da okunur.
+    if (this.pulses.length > 0) {
+      this.pulses = this.pulses.filter((p) => nowMs - p.t0 < PULSE_SECONDS * 1000);
+      const px = 1 / zoom;
+      for (const p of this.pulses) {
+        const at = this.position(view, p.id);
+        if (!at) continue;
+        const k = (nowMs - p.t0) / 1000 / PULSE_SECONDS;
+        const fade = k < 0.15 ? k / 0.15 : Math.max(0, 1 - (k - 0.15) / 0.85);
+        ctx.strokeStyle = theme.accent;
+        for (let w = 0; w < 3; w++) {
+          const q = (k * 3 + w / 3) % 1;
+          ctx.globalAlpha = (1 - q) * 0.8 * fade;
+          ctx.lineWidth = 2 * px;
+          ctx.beginPath();
+          ctx.arc(at.x, at.y, (8 + q * 46) * px * Math.max(1, 1 / Math.sqrt(zoom) * 1.6), 0, Math.PI * 2);
+          ctx.stroke();
+        }
+        ctx.globalAlpha = fade;
+        ctx.font = `600 ${12 * px}px "Onest", system-ui, sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "bottom";
+        const text = tr(p.label);
+        const tw = ctx.measureText(text).width;
+        ctx.fillStyle = "rgba(4, 8, 18, 0.78)";
+        ctx.fillRect(at.x - tw / 2 - 6 * px, at.y - 40 * px - 15 * px, tw + 12 * px, 20 * px);
+        ctx.fillStyle = theme.accent;
+        ctx.fillText(text, at.x, at.y - 40 * px);
+        ctx.globalAlpha = 1;
+      }
+    }
+
     // Seçim: nişangâh ve algı menzili
     if (!Number.isNaN(selX)) {
       const px = 1 / zoom;
@@ -1252,6 +1286,13 @@ export class Scene {
       }
     }
     return best;
+  }
+
+  /** Haritada bir canlıyı kısa süre vurgular (dönüm noktaları için). */
+  public pulse(id: number, label: string): void {
+    if (id <= 0) return;
+    this.pulses.push({ id, t0: performance.now(), label });
+    if (this.pulses.length > 4) this.pulses.shift();
   }
 
   public position(view: View, id: number): { x: number; y: number } | null {

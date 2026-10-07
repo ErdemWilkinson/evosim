@@ -1,6 +1,6 @@
 import { Diet, EvolutionSpeed, Genome } from "./genome";
 import { OrganType } from "./organs";
-import { Behavior, Flash, HistorySample, Inspection, SaveData, SimEvent, SpeciesStats, WorldEventKind } from "./sim";
+import { Behavior, Flash, HistorySample, Inspection, Milestone, SaveData, SimEvent, SpeciesStats, WorldEventKind } from "./sim";
 
 /**
  * Simülasyon (Web Worker) ile arayüz (ana iş parçacığı) arasındaki mesajlar.
@@ -94,6 +94,7 @@ export interface UiPayload {
   species: SpeciesInfo[];
   history: HistorySample[];
   events: SimEvent[];
+  milestones: Milestone[];
   snaps: number[];
   autoEvents: boolean;
   rescueEnabled: boolean;

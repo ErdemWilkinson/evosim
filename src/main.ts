@@ -12,6 +12,7 @@ import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, 
 import { World } from "./world";
 import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
+import { MS_LABEL, milestoneStrip } from "./history";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
@@ -20,7 +21,7 @@ const SAVE_KEY = "evosim-save-v2";
 const LEGACY_SAVE_KEY = "evosim-opus-save-v2";
 const AUTOSAVE_MS = 20000;
 
-type Tab = "overview" | "species" | "organs" | "log" | "creature";
+type Tab = "overview" | "history" | "species" | "organs" | "log" | "creature";
 
 // ------------------------------------------------------------------ yayın parçasının dosya indirme köprüsü (varsa)
 
@@ -67,6 +68,9 @@ let creaturePortraitKey = "";
 let logFilter: EventKind | "" = "";
 let lastSpeed = 1;
 let timelinePinned = true;
+let msPick = "0";
+let msSeen = -1;
+let msEpoch = -1;
 let started = false;
 
 // ------------------------------------------------------------------ küçük yardımcılar
@@ -110,7 +114,7 @@ function setTool(next: Tool): void {
 function setTab(next: Tab): void {
   tab = next;
   for (const b of document.querySelectorAll<HTMLElement>("[data-tab]")) b.setAttribute("aria-selected", String(b.dataset.tab === next));
-  for (const name of ["overview", "species", "organs", "log", "creature"]) $(`tab-${name}`).hidden = name !== next;
+  for (const name of ["overview", "history", "species", "organs", "log", "creature"]) $(`tab-${name}`).hidden = name !== next;
   if (view?.ui) refreshTab(view, view.ui);
 }
 
@@ -214,6 +218,16 @@ function refresh(v: View, ui: UiPayload): void {
     $("tl-label").textContent = `${fmtTime(at)} · ${fmtTime(time - at)} önce`;
   } else $("tl-label").textContent = "ilk kayıt 60. saniyede";
 
+  // Yeni dönüm noktası: ilk gerçekleştiren canlı haritada kısa süre vurgulanır.
+  const msTop = ui.milestones.reduce((m, x) => Math.max(m, x.seq), 0);
+  if (v.epoch !== msEpoch) {
+    msEpoch = v.epoch;
+    msSeen = msTop;
+  } else if (msTop > msSeen) {
+    for (const m of ui.milestones) if (m.seq > msSeen) scene.pulse(m.id, MS_LABEL[m.key] ?? m.key);
+    msSeen = msTop;
+  }
+
   if (selected && !ui.selected && performance.now() - selectedAt > 600) {
     selected = 0;
     following = false;
@@ -240,6 +254,8 @@ function refreshTab(v: View, ui: UiPayload): void {
     $("engine-note").textContent =
       `${client.threaded ? "Simülasyon ayrı bir iş parçacığında (Web Worker) çalışıyor" : "Simülasyon ana iş parçacığında çalışıyor"}` +
       ` · gerçekleşen hız ×${nf(ui.rate)} · eşeyli üreyen ${ui.sexual} · dışarıdan göç ${ui.immigrants}`;
+  } else if (tab === "history") {
+    setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t)));
   } else if (tab === "species") {
     const info = speciesCard ? ui.species.find((s) => s.id === speciesCard) : undefined;
     $("species-list-view").hidden = info !== undefined;
@@ -393,6 +409,32 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
   const button = target.closest<HTMLElement>("[data-action]");
   if (!button) return;
   switch (button.dataset.action) {
+    case "ms-pick":
+      msPick = button.dataset.seq ?? "0";
+      break;
+    case "ms-find": {
+      const at = view ? scene.position(view, Number(button.dataset.id)) : null;
+      if (at && view) {
+        scene.center(at.x, at.y);
+        following = false;
+        const m = view.ui?.milestones.find((x) => x.id === Number(button.dataset.id));
+        scene.pulse(Number(button.dataset.id), m ? MS_LABEL[m.key] ?? m.key : "");
+      } else toast("Bu canlı artık haritada değil.");
+      break;
+    }
+    case "ms-rewind": {
+      const snaps = view?.ui?.snaps ?? [];
+      const t = Number(button.dataset.t);
+      let index = -1;
+      snaps.forEach((s, i) => {
+        if (s <= t) index = i;
+      });
+      if (index >= 0) {
+        client.send({ type: "rewind", index });
+        toast(`${fmtTime(snaps[index])} anına dönüldü. Bundan sonrası yeniden yaşanacak.`);
+      }
+      break;
+    }
     case "species-back":
       speciesCard = 0;
       client.send({ type: "species", id: 0 });

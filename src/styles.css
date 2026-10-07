@@ -601,6 +601,92 @@ input[type="range"] {
   max-width: 100%;
 }
 
+/* ------------------------------------------------------------ gezegenin tarihi */
+
+.ms-strip {
+  position: relative;
+  height: 74px;
+  margin: 4px 6px 0;
+}
+
+.ms-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 30px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--line);
+}
+
+.ms-dot {
+  position: absolute;
+  top: calc(30px - 7px - var(--row) * 0px);
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  margin-top: calc((var(--row) - 1) * 22px);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.ms-dot i {
+  display: block;
+  width: 12px;
+  height: 12px;
+  margin: 5px;
+  border-radius: 50%;
+  background: var(--ms, var(--accent));
+  box-shadow: 0 0 0 3px rgba(5, 8, 18, 0.9), 0 0 12px color-mix(in srgb, var(--ms, var(--accent)) 60%, transparent);
+  transition: transform 0.18s ease;
+}
+
+.ms-dot:hover i,
+.ms-dot:focus-visible i,
+.ms-dot.on i {
+  transform: scale(1.35);
+}
+
+.ms-dot.on i {
+  box-shadow: 0 0 0 2px var(--ink), 0 0 14px var(--ms, var(--accent));
+}
+
+.ms-photosynth { --ms: #f1b24a; }
+.ms-predator { --ms: #ff6b5e; }
+.ms-parasite { --ms: #e0719f; }
+.ms-multicellular { --ms: #8a7dff; }
+.ms-land { --ms: #7ed87f; }
+.ms-sexual { --ms: #ff9fd6; }
+.ms-dieoff { --ms: #b7bed6; }
+
+.ms-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-between;
+  font: 11px/1 var(--mono, monospace);
+  color: var(--ink-3);
+}
+
+.ms-detail {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ms-detail p {
+  margin: 0;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
 /* ------------------------------------------------------------ panel içerikleri */
 
 .kpis {

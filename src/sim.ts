@@ -451,7 +451,31 @@ export interface SimEvent {
   t: number;
   kind: EventKind;
   text: string;
+  /** Dönüm noktası anahtarı (yalnızca gözlem verisi; benzetimi etkilemez). */
+  ms?: string;
+  /** Olayın öznesi olan canlı (varsa). */
+  id?: number;
 }
+
+/** Gezegenin tarihindeki dönüm noktası: ilk fotosentetik, ilk avcı, ilk karaya çıkış... */
+export interface Milestone {
+  key: string;
+  t: number;
+  /** İlk gerçekleştiren canlı; yoksa 0. */
+  id: number;
+  seq: number;
+  text: string;
+}
+
+/** `once` bayraklarından dönüm noktası anahtarlarına eşleme. */
+const MILESTONE_FLAGS: Record<string, string> = {
+  "diet:phototroph": "photosynth",
+  "diet:carnivore": "predator",
+  parasite: "parasite",
+  stage2: "multicellular",
+  land: "land",
+  sexual: "sexual",
+};
 
 export interface HistorySample {
   t: number;
@@ -548,6 +572,7 @@ export class Sim {
   public corpses: Corpse[] = [];
   public eggs: Egg[] = [];
   public flashes: Flash[] = [];
+  public milestones: Milestone[] = [];
   private pendingMeteors: { x: number; y: number; r: number; left: number }[] = [];
   /** Çözünmüş kimyasal besin: ızgara hücresi başına derişim ve kapasite (bkz. SOUP_*). */
   public soup = new Float32Array(SOUP_COLS * SOUP_ROWS);
@@ -789,15 +814,22 @@ export class Sim {
 
   // ------------------------------------------------------------------ olay günlüğü
 
-  private pushEvent(kind: EventKind, text: string): void {
-    this.events.push({ seq: ++this.eventSeq, t: this.time, kind, text });
+  private pushEvent(kind: EventKind, text: string, ms?: string, id?: number): void {
+    const seq = ++this.eventSeq;
+    const event: SimEvent = { seq, t: this.time, kind, text };
+    if (ms) {
+      event.ms = ms;
+      this.milestones.push({ key: ms, t: this.time, id: id ?? 0, seq, text });
+    }
+    if (id) event.id = id;
+    this.events.push(event);
     if (this.events.length > EVENT_LOG_CAP) this.events.splice(0, this.events.length - EVENT_LOG_CAP);
   }
 
-  private once(flag: string, kind: EventKind, text: () => string): void {
+  private once(flag: string, kind: EventKind, text: () => string, id?: number): void {
     if (this.flags[flag]) return;
     this.flags[flag] = true;
-    this.pushEvent(kind, text());
+    this.pushEvent(kind, text(), MILESTONE_FLAGS[flag], id);
   }
 
   // ------------------------------------------------------------------ türler ve soy kaydı
@@ -911,9 +943,9 @@ export class Sim {
       this.once(`organ:${organ.type}`, "organ", () => `İlk ${lower(ORGANS[organ.type].label)}: #${g.id} bireyinde mutasyonla ortaya çıktı (${g.generation}. nesil).`);
     }
     if (g.stage === 1) this.once("stage1", "stage", () => `İlk koloni: hücreler bölündükten sonra bir arada kaldı (#${g.id}). Yüzgeç, solungaç, kalp gibi organlar artık mümkün.`);
-    if (g.stage === 2) this.once("stage2", "stage", () => `İlk çok hücreli canlı (#${g.id}). Göz, akciğer, bacak ve kanat artık mümkün: kara ulaşılabilir.`);
-    if (g.diet !== "chemotroph") this.once(`diet:${g.diet}`, "diet", () => `İlk ${lower(DIET_LABEL[g.diet])} birey doğdu (#${g.id}, ${g.generation}. nesil).`);
-    if (g.reproductionStrategy === "sexual") this.once("sexual", "gene", () => `Eşeyli üreme ilk kez ortaya çıktı (#${g.id}): bu soyda artık dişiler ve erkekler var.`);
+    if (g.stage === 2) this.once("stage2", "stage", () => `İlk çok hücreli canlı (#${g.id}). Göz, akciğer, bacak ve kanat artık mümkün: kara ulaşılabilir.`, g.id);
+    if (g.diet !== "chemotroph") this.once(`diet:${g.diet}`, "diet", () => `İlk ${lower(DIET_LABEL[g.diet])} birey doğdu (#${g.id}, ${g.generation}. nesil).`, g.id);
+    if (g.reproductionStrategy === "sexual") this.once("sexual", "gene", () => `Eşeyli üreme ilk kez ortaya çıktı (#${g.id}): bu soyda artık dişiler ve erkekler var.`, g.id);
     if (g.laysEggs) this.once("eggs", "gene", () => `Yumurtlama ilk kez ortaya çıktı (#${g.id}).`);
   }
 
@@ -1470,7 +1502,7 @@ export class Sim {
 
     const wasOnLand = c.onLand;
     c.onLand = !this.world.isWater(c.x, c.y);
-    if (c.onLand && !wasOnLand && d.canLand) this.once("land", "population", () => `İlk karaya çıkış: bacaklı bir birey (#${c.id}) sudan ayrıldı.`);
+    if (c.onLand && !wasOnLand && d.canLand) this.once("land", "population", () => `İlk karaya çıkış: bacaklı bir birey (#${c.id}) sudan ayrıldı.`, c.id);
 
     c.thinkT -= dt;
     if (c.thinkT <= 0) {
@@ -1608,7 +1640,7 @@ export class Sim {
               c.attachT = 0;
               host.parasites++;
               c.state = "attached";
-              this.once("parasite", "diet", () => `İlk parazitlik: #${c.id}, başka türden bir konağa tutundu ve enerjisini emmeye başladı.`);
+              this.once("parasite", "diet", () => `İlk parazitlik: #${c.id}, başka türden bir konağa tutundu ve enerjisini emmeye başladı.`, c.id);
             } else c.attackCd = 3;
             c.thinkT = 0;
           }
@@ -2134,7 +2166,7 @@ export class Sim {
       const before = h[h.length - 1 - back].diets.reduce((a, b) => a + b, 0);
       const now = this.creatures.length;
       if (before >= 30 && now <= before * 0.65) {
-        if (!this.flags.dieoff) this.pushEvent("population", `Toplu ölüm: popülasyon kısa sürede ${before} → ${now} bireye düştü.`);
+        if (!this.flags.dieoff) this.pushEvent("population", `Toplu ölüm: popülasyon kısa sürede ${before} → ${now} bireye düştü.`, "dieoff");
         this.flags.dieoff = true;
       } else if (now >= before * 0.9) this.flags.dieoff = false;
     }
@@ -2366,6 +2398,7 @@ export class Sim {
         .map((id) => this.lineage.get(id))
         .filter((rec): rec is LineageRec => rec !== undefined),
       events: this.events.slice(-120),
+      milestones: this.milestones,
       history: this.history,
       sampleInterval: this.sampleInterval,
       flags: this.flags,
@@ -2477,6 +2510,7 @@ export class Sim {
     }
     sim.eggs = data.eggs ?? [];
     sim.events = data.events ?? [];
+    sim.milestones = data.milestones ?? [];
     sim.eventSeq = sim.events.reduce((m, e) => Math.max(m, e.seq), 0);
     sim.history = data.history ?? [];
     sim.sampleInterval = data.sampleInterval ?? 2;
@@ -2632,7 +2666,15 @@ function cleanSave(raw: SaveData): SaveData {
       })),
     events: list<SimEvent>(raw.events)
       .slice(-EVENT_LOG_CAP)
-      .map((e) => ({ seq: Math.floor(num(e?.seq)), t: num(e?.t), kind: KINDS.includes(e?.kind) ? e.kind : "world", text: str(e?.text) })),
+      .map((e) => {
+        const out: SimEvent = { seq: Math.floor(num(e?.seq)), t: num(e?.t), kind: KINDS.includes(e?.kind) ? e.kind : "world", text: str(e?.text) };
+        if (typeof e?.ms === "string") out.ms = e.ms.slice(0, 24);
+        if (num(e?.id) > 0) out.id = Math.floor(num(e?.id));
+        return out;
+      }),
+    milestones: list<Milestone>(raw.milestones)
+      .slice(0, 40)
+      .map((m) => ({ key: str(m?.key).slice(0, 24), t: num(m?.t), id: Math.max(0, Math.floor(num(m?.id))), seq: Math.floor(num(m?.seq)), text: str(m?.text) })),
     history: list<HistorySample>(raw.history)
       .slice(-HISTORY_CAP)
       .map((h) => ({ t: num(h?.t), diets: DIETS.map((_, i) => Math.floor(num(h?.diets?.[i]))), nutrients: Math.floor(num(h?.nutrients)), species: Math.floor(num(h?.species)), oxygen: num(h?.oxygen, 0.5) })),
@@ -2670,9 +2712,10 @@ function cleanSave(raw: SaveData): SaveData {
 }
 
 /** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar).
- *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi. */
-export const SAVE_VERSION = 6;
-const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, SAVE_VERSION];
+ *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi.
+ *  Sürüm 7: dönüm noktaları ve olaylarda isteğe bağlı `ms`/`id` alanları (yalnızca gözlem verisi; eski kayıtlar olduğu gibi yüklenir). */
+export const SAVE_VERSION = 7;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
 const CREATURE_REST = ["heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
@@ -2694,6 +2737,7 @@ export interface SaveData {
   species: Species[];
   lineage: LineageRec[];
   events: SimEvent[];
+  milestones?: Milestone[];
   history: HistorySample[];
   sampleInterval: number;
   flags: Record<string, boolean>;

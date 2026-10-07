@@ -103,6 +103,7 @@
     <aside class="panel">
       <nav class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="overview" aria-selected="true">Genel</button>
+        <button type="button" role="tab" data-tab="history" aria-selected="false">Tarih</button>
         <button type="button" role="tab" data-tab="species" aria-selected="false">Türler</button>
         <button type="button" role="tab" data-tab="organs" aria-selected="false">Organlar</button>
         <button type="button" role="tab" data-tab="log" aria-selected="false">Günlük</button>
@@ -151,6 +152,13 @@
         </section>
 
         <p class="foot" id="engine-note"></p>
+      </div>
+
+      <div class="tab-body" id="tab-history" hidden>
+        <section class="block">
+          <h3>Gezegenin tarihi <span>dönüm noktaları</span></h3>
+          <div id="history-ms"></div>
+        </section>
       </div>
 
       <div class="tab-body" id="tab-species" hidden>
