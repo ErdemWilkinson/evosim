@@ -92,6 +92,16 @@ const COLOR_HIDE_MAX = 0.35;
  * canlı ne kadar küçükse akıntıya o kadar kapılır (bağlaşım = 1 / (1 + (boy / 5,5)²)), büyük yüzücüler neredeyse etkilenmez.
  */
 const FLOW_SPEED = 5;
+/**
+ * İz: avcı olmayan her canlı gövdesiyle orantılı koku bırakır (dinlenirken azalır). İz zamanla söner; sıvıda
+ * dağıldığı ve sık örtüde emildiği için daha çabuk söner. Avı göremeyen aç avcı, çevresindeki en güçlü iz
+ * yönüne döner; koklama organı eşiği düşürür. Böylece sığınak iz de saklar, açıkta ise iz av ile avcıyı buluşturur.
+ */
+const TRACE_LIFE = 25;
+const TRACE_WATER_DECAY = 2;
+const TRACE_COVER_DECAY = 3;
+const TRACE_REST = 0.3;
+const TRACE_FOLLOW_MIN = 2;
 /** Atmosfer: yenileme aralığı (sn), ortalamanın hafızası, tepki kazancı, oksijenin salınım genliği ve gevşeme süresi. */
 const ATMOSPHERE_INTERVAL = 1;
 const ATMOSPHERE_MEMORY = 1200;
@@ -727,6 +737,7 @@ export class Sim {
   private groundTone: GroundTone | null = null;
   private readonly flowTmp = { x: 0, y: 0 };
   private soupTmp = new Float32Array(SOUP_COLS * SOUP_ROWS);
+  public readonly trace = new Float32Array(SOUP_COLS * SOUP_ROWS);
   private readonly bodyTones = new WeakMap<Genome, Tone>();
   private readonly nHash = new Hash<Nutrient>(64);
   /** Adım başına bir kez hesaplanan ortam değerleri. */
@@ -818,6 +829,23 @@ export class Sim {
     const gx = Math.min(SOUP_COLS - 1, Math.max(0, (x / SOUP_CELL) | 0));
     const gy = Math.min(SOUP_ROWS - 1, Math.max(0, (y / SOUP_CELL) | 0));
     return gy * SOUP_COLS + gx;
+  }
+
+  private stepTraces(dt: number): void {
+    const t = this.trace;
+    for (let gy = 0; gy < SOUP_ROWS; gy++) {
+      for (let gx = 0; gx < SOUP_COLS; gx++) {
+        const i = gy * SOUP_COLS + gx;
+        if (t[i] <= 0.001) {
+          t[i] = 0;
+          continue;
+        }
+        const x = (gx + 0.5) * SOUP_CELL;
+        const y = (gy + 0.5) * SOUP_CELL;
+        const rate = (this.world.isWater(x, y) ? TRACE_WATER_DECAY : 1) * (this.world.inThicket(x, y) ? TRACE_COVER_DECAY : 1);
+        t[i] *= Math.exp((-rate * dt) / TRACE_LIFE);
+      }
+    }
   }
 
   private stepSoup(dt: number): void {
@@ -1761,7 +1789,26 @@ export class Sim {
             }
             c.wanderT = 1.5;
           }
-        } else c.state = "wander";
+        } else {
+          c.state = "wander";
+          // Aç avcı, avı göremiyorsa çevresindeki en güçlü izin yönüne döner.
+          if ((g.diet === "carnivore" || g.diet === "omnivore") && c.energy < c.maxEnergy * 0.7) {
+            let strongest = TRACE_FOLLOW_MIN / d.smell;
+            const start = rng.range(0, Math.PI * 2);
+            for (let i = 0; i < 8; i++) {
+              const a = start + (i / 8) * Math.PI * 2;
+              const x = c.x + Math.cos(a) * SOUP_CELL;
+              const y = c.y + Math.sin(a) * SOUP_CELL;
+              if (!this.passable(c, x, y)) continue;
+              const there = this.trace[this.soupIndex(x, y)];
+              if (there > strongest) {
+                strongest = there;
+                c.heading = a;
+                c.wanderT = 1.5;
+              }
+            }
+          }
+        }
         return;
       default:
         c.state = "wander";
@@ -1825,6 +1872,7 @@ export class Sim {
     const d = c.d;
     const env = this.env;
     c.age += dt;
+    if (c.g.diet !== "carnivore" && c.state !== "attached") this.trace[this.soupIndex(c.x, c.y)] += ((c.g.radius * c.size) / 5.5) * (c.state === "rest" ? TRACE_REST : 1) * dt;
     if (c.bornT > 0) c.bornT = Math.max(0, c.bornT - dt);
     if (c.flashT > 0) c.flashT = Math.max(0, c.flashT - dt);
     if (c.hurtT > 0) c.hurtT = Math.max(0, c.hurtT - dt);
@@ -2588,6 +2636,7 @@ export class Sim {
     this.stepWorldEvents(dt);
     this.stepSoup(dt);
     this.stepAtmosphere(dt);
+    this.stepTraces(dt);
     for (const c of this.creatures) if (c.alive) this.stepCreature(c, dt);
 
     this.hgtT -= dt;
@@ -2766,6 +2815,7 @@ export class Sim {
       nutrients: this.nutrients.map((n) => [n.x, n.y, n.land ? 1 : 0, n.age] as [number, number, number, number]),
       corpses: this.corpses,
       soup: Array.from(this.soup),
+      trace: Array.from(this.trace),
       eggs: this.eggs,
       species: Array.from(this.species.values()),
       lineage: this.lineageOrder
@@ -2850,6 +2900,7 @@ export class Sim {
     sim.nutrients = data.nutrients.map(([x, y, land, age]) => ({ x, y, land: land === 1, age: age ?? 10, dead: false }));
     sim.corpses = data.corpses ?? [];
     if (data.soup) sim.soup.set(data.soup);
+    if (data.trace) sim.trace.set(data.trace);
     data.creatures.forEach((e, i) => {
       const c = sim.creatures[i];
       const parent = e.parent ? byId.get(e.parent) : undefined;
@@ -3000,6 +3051,7 @@ function cleanSave(raw: SaveData): SaveData {
         stage: Math.min(2, Math.max(0, Math.floor(num(k?.stage)))),
       }))
       .filter((k) => k.energy > 0),
+    trace: Array.isArray(raw.trace) && raw.trace.length === SOUP_COLS * SOUP_ROWS ? raw.trace.map((v) => Math.min(1e5, Math.max(0, num(v)))) : undefined,
     soup: Array.isArray(raw.soup) && raw.soup.length === SOUP_COLS * SOUP_ROWS ? raw.soup.map((v) => Math.min(1000, Math.max(0, num(v)))) : undefined,
     eggs: list<Egg>(raw.eggs)
       .slice(0, MAX_CREATURES)
@@ -3134,6 +3186,8 @@ export interface SaveData {
   corpses?: Corpse[];
   /** Çözünmüş besin: ızgara hücresi başına derişim (sürüm 6). */
   soup?: number[];
+  /** Koku izi: ızgara hücresi başına (sürüm 8). */
+  trace?: number[];
   eggs: Egg[];
   species: Species[];
   lineage: LineageRec[];
