@@ -323,7 +323,7 @@ export function planetHtml(planet: PlanetProfile, actions = true): string {
     fact("Yüzey sıvısı", esc(c.solvent.name), `${c.temperature} K · yüzeyin ${pct(planet.liquidPercent / 100)}`) +
     fact("İskelet", esc(c.scaffold.name)) +
     fact("Zar", esc(c.membrane.name)) +
-    fact("Hücre duvarı", esc(c.wall.name)) +
+    fact("Evrilebilecek hücre duvarı", esc(c.wall.name), "ilk hücre duvarsızdır") +
     fact("Kalıtım", esc(c.genetic.name), `kopyalama hatası ×${nf(c.genetic.error, 2)}`) +
     fact("Enerji", esc(c.energy.name)) +
     fact("Katalizör", esc(c.catalyst.name)) +

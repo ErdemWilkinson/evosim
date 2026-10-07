@@ -123,6 +123,8 @@ incele") canlıdan kabuk kesitine, tek bir moleküle ve atomun elektron kabuklar
 
 ### Hücreden hücreye değişen yapı
 
+**İlk hücre duvarsızdır.** Protohücrelerin çıplak zarla başladığı, duvarın sonradan evrildiği görüşüne uygun olarak (duvarsız L-formları: Errington 2013) her gezegende ilk hücre duvar taşımaz. Gezegenin seçtiği duvar "evrilebilecek duvar"dır; nadir yapı değiştirme mutasyonuyla (%0,4) ortaya çıkabilir. Duvarsız başlamak denge ölçümünü bozmadı (aşağıdaki tablo).
+
 Duvar, zar, kalıtım polimeri, enerji taşıyıcısı ve katalizör merkezi artık her hücrenin kendi genomundadır. İlk hücre gezegenin seçtiği yapıyla başlar; yavrular çok nadir (mutasyon başına %0,4, kalıtım polimerinin kopyalama hatasıyla ölçeklenir) gezegenin elementlerinin kurmaya yettiği başka bir seçeneğe geçer. Gezegende olmayan elementi isteyen seçenek hiç çıkmaz. Etkiler verideki gerçek farklardır: duvar can, hız ve metabolizmayı, kalıtım polimeri mutasyon sıklığını değiştirir; zar, enerji ve katalizör farkı nötrdür, yalnızca sürüklenir. "Yapıyı incele" her hücrenin kendi yapısını gösterir ve ilk hücreden hangi bakımlardan ayrıştığını yazar; molekül düzeyi çizilmeyen hidrojenler dâhil bütün atomları sayar, atom düzeyi seçili atomun bağlı olduğu atomları gösterir. Oyun içi hücre, açılış filmindeki şematik hücreyle aynı çizilir (koyu iç, zar boncukları, kesikli duvar halkası, kalıtım spirali, katalizör metali noktaları).
 
 Ölçüm (`node scripts/census.mjs`, hızlı mod, 6000 sn, 4 tohum): her koşuda 3–5 farklı duvar, 2–5 farklı zar ve 2–4 farklı kalıtım polimeri yaşıyor; çoğu zaman bir türü baskın, ötekiler az sayıda. Çekirdek testi (belirlenimcilik ve kayıt gidiş-dönüşü) geçti. Kayıt sürümü 10; sürüm 2–9 kayıtlar eksik alanları gezegenin ilk yapısıyla doldurarak yüklenir.
@@ -163,6 +165,10 @@ meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve 
 - **Akıntılar (C5):** sıvıda eş-derinlik eğrileri boyunca dolanan bir akıntı alanı canlıları (küçüklere daha çok) ve çözünmüş besini taşır. "Akıntıları göster" ayarı okları çizer. Ölçüm: eşikler geçti; akıntının dağılıma ayrıca bir etkisi ölçülmedi.
 - **Koku izi (C6):** avcı olmayan canlılar gövdeleriyle orantılı iz bırakır; iz zamanla söner, sıvıda ve sık örtüde daha çabuk. Av göremeyen aç avcı en güçlü iz yönüne döner. Ölçüm: eşikler geçti; izin avlanma başarısına etkisi ayrıca ölçülmedi.
 - **Hafıza ve çağrı (C7):** karar ağına hafıza ve çağrı girdileri, "çağır" eylemi ve bir hafıza satırı eklendi. Başlangıçta bağlantıların hepsi 0'dır; davranış mutasyonla evrimleşir. Bedeller: çağıran durur, 1,5 kat enerji yakar ve avcıya daha uzaktan görünür. Ölçüm: çağrı davranışı canlı-örneklerin %0,74'ünde görüldü (11 066 / 1 492 829). Bu yalnızca kullanıldığını gösterir; çağrının hayatta kalmaya yardım edip etmediği (çağrısız karşılaştırma) ölçülmedi.
+
+**Rehber.** Üst çubuktaki "Rehber" düğmesi, "Developer" yazılı hayalet bir fare imlecini başlatır (22 adım): imleç hız düğmelerine, yakınlaşmaya, bir canlıya, sekmelere ve Oyun düğmesine kendisi tıklar, ne işe yaradıklarını anlatır; "Yapıyı incele", Soy ağacı, Kaynakça, Kayıt ve Yeni gezegen gibi pencere açanları yalnızca gösterir. İleri/Geri/Kapat ve ok tuşları, Esc ile çıkış çalışır; bitince hız, oyun modu, sekme ve seçim eski hâline döner. İlk açılışta düğme parlar. Telefonda kart imlecin tersi yönde durur. Tarayıcıda masaüstü ve 390 px genişlikte 22 adımın tamamı otomatik gezildi, konsol hatası ve yatay taşma yok; gerçek telefonda denenmedi.
+
+**Yapı inceleme, yakınlaşmalı.** Düzeyler arası geçiş artık animasyonludur: kabuk kesitinde duvara, zara ya da hücre içine (kalıtım polimeri; katalizör noktalarına) dokununca görüntü o yapıya yakınlaşıp moleküle geçer; bir atoma dokununca atoma yakınlaşılır; üst düzey düğmeleriyle aynı yolla uzaklaşılır (hareket azaltma tercihinde geçiş anlıktır). Üstünden geçilen katman vurgulanır. Organlar da aynı yolu izler: parça listesinden bir organ seçilince "Organ kesiti" açılır (üstte organın canlıdaki yeri, altta malzemesinin doku düzeyinde nasıl dizildiği: mineral levhalar, lif demetleri ya da damlacıklar), dokuya dokununca molekül ve atom düzeyine inilir.
 
 ## Testler ve ölçüm
 
@@ -208,6 +214,7 @@ Hepsi 24 tohum × 6000 sn; 1–12 geliştirme, 13–24 doğrulama. Hücreler: ge
 | Bölüm B | Gerçekçi (yavaş) | KALDI (2) / KALDI (1) / GEÇTİ |
 | C1–C7 (her mekanik eklendikten sonra) | Hızlı | hepsi GEÇTİ / GEÇTİ / GEÇTİ |
 | Güncel kod (hücre kimyası geni, basınç, kaçış düzeltmesi) | Hızlı | GEÇTİ / GEÇTİ / GEÇTİ |
+| Güncel kod + ilk hücre duvarsız | Hızlı | GEÇTİ / GEÇTİ / GEÇTİ (tükenen 0, çok hücreli 24/24, karaya çıkış 24/24) |
 
 *Gerçekçi kademe:* geliştirme kümesinde parazit kalıcılığı (4/12) ve çok hücreli görülme (5/12) kaldı; doğrulama kümesinde etçil kalıcılığı (5/12) kaldı; 24 tohumun tümünde geçti. Yani bu kademede eşiklere yakın ve kümeye göre oynuyor. Gerçekçi kademede ilk görülme zamanları uzun: çok hücrelilik ve karaya çıkış birçok tohumda 3000–5800. saniyelerde ya da hiç görülmüyor; bu kademe 6000 sn'de yeterince koşmamış sayılabilir.
 

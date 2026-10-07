@@ -2406,3 +2406,195 @@ textarea {
     flex: 1 1 auto;
   }
 }
+
+/* ------------------------------------------------------------ rehber (hayalet imleç) */
+
+#tour {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  overflow: visible;
+  pointer-events: none;
+  color: var(--ink);
+}
+
+#tour::backdrop {
+  background: none;
+}
+
+.tour-ring {
+  position: fixed;
+  left: 0;
+  top: 0;
+  border-radius: 12px;
+  border: 2px solid var(--accent);
+  box-shadow: 0 0 0 4px var(--accent-soft), 0 0 24px rgba(109, 240, 210, 0.35);
+  opacity: 0;
+  transition: transform 0.7s cubic-bezier(0.22, 0.8, 0.2, 1), width 0.5s, height 0.5s, opacity 0.3s;
+}
+
+.tour-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2;
+  transition: transform 0.95s cubic-bezier(0.22, 0.8, 0.2, 1);
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55));
+}
+
+.tour-cursor svg {
+  display: block;
+}
+
+.tour-name {
+  position: absolute;
+  left: 16px;
+  top: 24px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tour-cursor::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 1px;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+}
+
+.tour-cursor.click::after {
+  animation: tour-ripple 0.55s ease-out;
+}
+
+@keyframes tour-ripple {
+  from {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+.tour-card {
+  position: fixed;
+  left: 50%;
+  width: min(520px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 16px 18px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(10, 13, 26, 0.96);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55);
+  pointer-events: auto;
+  text-align: left;
+}
+
+.tour-card[data-pos="bottom"] {
+  bottom: 18px;
+}
+
+.tour-card[data-pos="top"] {
+  top: 18px;
+}
+
+.tour-card h3 {
+  margin: 2px 0 6px;
+  font-size: 17px;
+}
+
+.tour-card p {
+  margin: 0 0 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.tour-step {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.tour-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.tour-dots i {
+  width: 14px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+
+.tour-dots i.past {
+  background: var(--accent-2);
+}
+
+.tour-dots i.on {
+  background: var(--accent);
+}
+
+.tour-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.tour-actions .btn {
+  min-width: 78px;
+}
+
+.tour-next {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+.btn.pulse {
+  box-shadow: 0 0 0 0 var(--accent);
+  animation: tour-pulse 1.8s infinite;
+}
+
+@keyframes tour-pulse {
+  70% {
+    box-shadow: 0 0 0 9px rgba(109, 240, 210, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(109, 240, 210, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-cursor,
+  .tour-ring {
+    transition-duration: 0.01s;
+  }
+  .btn.pulse {
+    animation: none;
+  }
+}
+
+.tour-cursor.flip .tour-name {
+  left: auto;
+  right: 10px;
+}

@@ -933,6 +933,11 @@ export class Scene {
     this.clamp();
   }
 
+  /** Dünya konumunun tuval içindeki ekran konumu (toWorld'ün tersi). */
+  public toScreen(wx: number, wy: number): { x: number; y: number } {
+    return { x: (wx - this.cx) * this.zoom + this.width / 2, y: (wy - this.cy) * this.zoom + this.height / 2 };
+  }
+
   public toWorld(sx: number, sy: number): { x: number; y: number } {
     return { x: this.cx + (sx - this.width / 2) / this.zoom, y: this.cy + (sy - this.height / 2) / this.zoom };
   }

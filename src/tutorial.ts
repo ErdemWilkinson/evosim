@@ -1,0 +1,382 @@
+import { getLang } from "./i18n";
+
+/**
+ * Rehber: "Developer" adlı hayalet bir fare imleci arayüzün bölümlerine gider, düğmelere tıklar ve ne işe
+ * yaradıklarını anlatır. Yalnızca arayüzdedir; benzetime dokunmaz. Rehber bitince ya da kapanınca hız, oyun modu,
+ * sekme ve seçili canlı başladığı hâle döner.
+ */
+
+export interface TourContext {
+  ready(): boolean;
+  speed(): number;
+  setSpeed(v: number): void;
+  gameMode(): boolean;
+  setGame(on: boolean): void;
+  tab(): string;
+  setTab(name: string): void;
+  /** Haritadan bir canlı seçer ve ekran konumunu verir; `pick` canlıyı gerçekten seçer. Canlı yoksa null. */
+  pickCreature(id?: number): { id: number; x: number; y: number; pick: () => void } | null;
+  clearSelection(): void;
+}
+
+type Pair = [string, string];
+
+interface Step {
+  tr: Pair;
+  en: Pair;
+  /** İmlecin gideceği öğe (CSS seçici) ya da konum işlevi; yoksa ekranın ortası. */
+  target?: string;
+  /** İmleç varınca tıklanacak öğe (varsayılan: hedefin kendisi); false ise yalnızca gösterir. */
+  click?: boolean | string;
+  /** Hedef yerine bir canlıyı gösterir ve seçer. */
+  creature?: boolean;
+  /** Doğruysa tıklama atlanır (ör. oyun modu zaten açıksa tekrar tıklayıp kapatma). */
+  skipIf?: (ctx: TourContext) => boolean;
+  /** Hedefin üstündeki halka yerine büyük bir bölgeyi vurgular. */
+  wide?: boolean;
+}
+
+const STEPS: Step[] = [
+  {
+    tr: ["Merhaba, ben Developer", "Bu oyunu ben yaptım. Şimdi ekranın her köşesini sırayla göstereceğim: düğmelere kendim tıklayacağım, siz yalnızca izleyin. “İleri” ile ilerleyin, “Geri” ile dönün, “Kapat” ile istediğiniz an çıkın."],
+    en: ["Hi, I'm Developer", "I made this game. I'll walk you through every corner of the screen: I'll click the buttons myself, you just watch. Use “Next” to go on, “Back” to return, and “Close” to leave any time."],
+  },
+  {
+    tr: ["Bu bir gezegen", "Tek bir hücreyle başlayan yaşamı izliyorsunuz. Kimya, sıvı, harita ve ilk hücre bir sayıdan, “tohumdan” üretilir. Aynı tohum herkeste aynı gezegeni açar; kartı paylaşırsanız arkadaşınız da aynısını görür."],
+    en: ["This is a planet", "You are watching life that began with one cell. The chemistry, liquid, map and first cell all come from one number, the “seed”. The same seed opens the same planet for everyone; share the card and a friend sees the same one."],
+    target: "#seed-chip",
+  },
+  {
+    tr: ["Hız düğmeleri", "Zamanı duraklatabilir (Boşluk tuşu da çalışır) ya da 24 kata kadar hızlandırabilirsiniz. Evrim yavaştır: gerçek bir şeyin olması için çoğu zaman 8× ya da 24× gerekir. Şimdi 4×'e basıyorum."],
+    en: ["Speed buttons", "You can pause time (the Space key works too) or speed it up to 24×. Evolution is slow: for anything real to happen you usually need 8× or 24×. I'm pressing 4× now."],
+    target: '[data-speed="4"]',
+    click: true,
+  },
+  {
+    tr: ["Saat ve gün ışığı", "Burada geçen süre, gün sayısı ve gün ışığı görünür. Işıkla beslenen canlılar gündüz daha çok enerji alır; gece ya da loş sularda zorlanırlar."],
+    en: ["Clock and daylight", "Here you see the elapsed time, the day count and the daylight. Light-feeding creatures gain more energy by day; they struggle at night or in dim water."],
+    target: ".clock",
+  },
+  {
+    tr: ["Harita", "Burası dünya. Sürükleyerek kaydırır, tekerlekle yakınlaşırsınız. Her renkli leke bir canlıdır; renk beslenme biçimini gösterir. Şimdi yakınlaşma düğmesine basıyorum."],
+    en: ["The map", "This is the world. Drag to pan and use the wheel to zoom. Each coloured blob is a creature; the colour shows how it feeds. I'm pressing the zoom button now."],
+    target: "#zoom-in",
+    click: true,
+  },
+  {
+    tr: ["Tüm harita", "Bu düğme bütün haritayı yeniden sığdırır. Yakınlaşınca kaybolursanız buraya basın."],
+    en: ["Whole map", "This button fits the whole map back in view. If you get lost when zoomed in, press it."],
+    target: "#zoom-fit",
+    click: true,
+  },
+  {
+    tr: ["Bir canlı seçelim", "Bir canlıya tıklayınca onu seçersiniz. Sağdaki panel “Birey” sekmesine geçer: enerjisi, canı, yaşı, nasıl beslendiği ve genleri. “F” tuşu seçili canlıyı takip eder, “Esc” seçimi bırakır."],
+    en: ["Let's pick a creature", "Click a creature to select it. The right panel switches to the “Individual” tab: its energy, health, age, how it feeds and its genes. The “F” key follows the selected creature, “Esc” lets go."],
+    creature: true,
+  },
+  {
+    tr: ["Yapıyı incele", "Bu düğme canlıyı hücre düzeyine kadar açar: kabuk kesiti, molekül, hatta atom. Her hücrenin duvarı, zarı, kalıtım polimeri ve organları kendi genomundan gelir; farklı hücrelerde farklı görünür. Pencereyi şimdi açmıyorum, siz denersiniz."],
+    en: ["Inspect structure", "This button opens the creature down to the cell level: a cross-section of its shell, a molecule, even an atom. Each cell's wall, membrane, heredity polymer and organs come from its own genome, so different cells look different. I won't open the window now; you can try it."],
+    target: '[data-action="inspect"]',
+    click: false,
+  },
+  {
+    tr: ["Genel sekmesi", "Genel sekmesi gezegenin özetidir: nüfus, tür sayısı, nesil, kullanılan kimya, atmosfer, basınç ve yaşamın nasıl başladığı. “Hücre yapısını incele” gezegenin ilk hücresini açar."],
+    en: ["Overview tab", "The Overview tab summarises the planet: population, species count, generations, the chemistry in use, the atmosphere, the pressure and how life began. “Inspect cell structure” opens the planet's first cell."],
+    target: '[data-tab="overview"]',
+    click: true,
+  },
+  {
+    tr: ["Tarih sekmesi", "Gezegenin dönüm noktaları burada: ilk çok hücreli, ilk avcı, ilk eşeyli üreme. Bir noktaya tıklayıp “Bu ana dön” derseniz oyun o ana geri sarılır; sonrası yeniden yaşanır. Yanlışlıkla olduysa “Geri sarmayı geri al” ile dönersiniz."],
+    en: ["History tab", "The planet's milestones are here: first multicellular life, first predator, first sexual reproduction. Click a milestone and choose “Return to this moment” and the game rewinds to it; what follows is lived again. If it was a mistake, “Undo the rewind” brings it back."],
+    target: '[data-tab="history"]',
+    click: true,
+  },
+  {
+    tr: ["Türler sekmesi", "Birbirine benzeyen canlılar bir tür sayılır. Burada her türün sayısı, soyu ve ne zaman ortaya çıktığı görünür. Bir türe tıklarsanız tür kartı açılır, haritada o tür vurgulanır."],
+    en: ["Species tab", "Creatures that resemble each other count as one species. Here you see each species' numbers, ancestry and when it appeared. Click a species to open its card and highlight it on the map."],
+    target: '[data-tab="species"]',
+    click: true,
+  },
+  {
+    tr: ["Organlar sekmesi", "Canlılar zamanla yüzgeç, göz, kanat, kabuk gibi organlar kazanır. Bu sekme hangi organın kaç canlıda olduğunu ve her organın ne işe yaradığını gösterir. Bazı organlar bu gezegenin kimyasıyla kurulamaz."],
+    en: ["Organs tab", "Over time creatures gain organs such as fins, eyes, wings and shells. This tab shows how many creatures have each organ and what it does. Some organs cannot be built with this planet's chemistry."],
+    target: '[data-tab="organs"]',
+    click: true,
+  },
+  {
+    tr: ["Günlük sekmesi", "Olup biten her şey burada yazılır: doğumlar, ölümler, hastalıklar, yeni türler, felaketler. Üstteki süzgeçle yalnızca bir tür olayı görebilirsiniz."],
+    en: ["Log tab", "Everything that happens is written here: births, deaths, diseases, new species, disasters. Use the filter at the top to see only one kind of event."],
+    target: '[data-tab="log"]',
+    click: true,
+  },
+  {
+    tr: ["Zaman yolculuğu", "Oyun arka planda düzenli anlık kayıtlar alır. Kaydırıcıyla geçmiş bir ana gidip “Bu ana dön” derseniz oyun oradan devam eder. Sonrası silinir, ama “Geri al” düğmesi görünür ve vazgeçebilirsiniz."],
+    en: ["Time travel", "The game takes regular snapshots in the background. Drag the slider to a past moment and press “Return to this moment” and the game continues from there. What came after is erased, but an “Undo” button appears so you can change your mind."],
+    target: ".timeline",
+    wide: true,
+  },
+  {
+    tr: ["Oyun modu", "Normalde yalnızca izlersiniz. “Oyun” düğmesi ise sol kenara müdahale araçları getirir ve tahmin sorularını açar. Şimdi açıyorum."],
+    en: ["Game mode", "Normally you only watch. The “Game” button brings intervention tools to the left edge and turns on the prediction questions. I'm turning it on now."],
+    target: "#btn-game",
+    click: true,
+    skipIf: (ctx) => ctx.gameMode(),
+  },
+  {
+    tr: ["Müdahale araçları", "Sol kenardaki araçlar: bitki ek, canlı yerleştir, meteor düşür, canlıyı kaldır, besin boya, radyasyon fırçası; altında iklim dalgası, rüzgâr ve deprem. Bir aracı seçip haritaya tıklarsınız. Her araçla yaşamın nasıl tepki verdiğini deneyin."],
+    en: ["Intervention tools", "The tools on the left edge: add plants, place a creature, drop a meteor, remove a creature, paint nutrients, a radiation brush; below them a climate wave, wind and an earthquake. Pick a tool and click the map. Try each and see how life reacts."],
+    target: '[data-tool="meteor"]',
+    wide: true,
+  },
+  {
+    tr: ["Soy ağacı", "Bütün türlerin birbirinden nasıl ayrıldığını bir ağaç olarak gösterir. Çizgi rengi beslenme biçimini, kalınlığı en yüksek nüfusu anlatır. Bir türe tıklayınca kartı açılır."],
+    en: ["Family tree", "Shows how all the species branched from one another as a tree. Line colour shows how they feed, thickness the peak population. Click a species to open its card."],
+    target: "#btn-tree",
+  },
+  {
+    tr: ["Kaynakça", "Oyundaki her kimya seçeneğinin, köken senaryosunun ve organ malzemesinin dayandığı yayınlar burada listelenir. Aynı pencerede neyin yayına dayandığı, neyin ayarlandığı da açıkça yazar."],
+    en: ["References", "The publications behind every chemistry option, origin scenario and organ material are listed here. The same window says plainly what rests on publications and what was tuned."],
+    target: "#btn-refs",
+  },
+  {
+    tr: ["Ses", "Müziği ve ses efektlerini açıp kapatır."],
+    en: ["Sound", "Turns the music and sound effects on and off."],
+    target: "#btn-sound",
+  },
+  {
+    tr: ["Kayıt", "Oyun her 20 saniyede bir kendiliğinden kaydeder; sayfayı kapatıp açsanız kaldığınız yerden devam edersiniz. Bu düğmeyle kaydı dosya olarak indirir ya da bir dosyadan yüklersiniz."],
+    en: ["Save", "The game saves itself every 20 seconds, so if you close and reopen the page you continue where you left off. This button downloads the save as a file or loads one from a file."],
+    target: "#btn-save",
+  },
+  {
+    tr: ["Yeni gezegen", "Başka bir tohumla yepyeni bir gezegen başlatır; kimya, sıvı, harita ve ilk hücre değişir. Önce açılışta bir film oynar: yaşamın nasıl başladığını anlatır. Gün ışığı, yüzey basıncı ve köken enerjisi gibi bilgiler de burada görünür."],
+    en: ["New planet", "Starts a brand-new planet from another seed; the chemistry, liquid, map and first cell all change. First a short film plays, telling how life began. Details such as daylight, surface pressure and origin energy show up here too."],
+    target: "#btn-new",
+  },
+  {
+    tr: ["Hepsi bu", "Artık dünyayı izlemeye başlayabilirsiniz. Önce 8× deneyin, sonra bir canlıyı seçip yapısını inceleyin; Tarih sekmesinde dönüm noktalarını görün. Bu rehbere her zaman sağ üstteki “Rehber” düğmesinden dönebilirsiniz."],
+    en: ["That's all", "You can start watching the world now. Try 8× first, then pick a creature and inspect its structure; see the milestones in the History tab. You can return to this guide any time with the “Guide” button at the top."],
+    target: "#btn-tour",
+  },
+];
+
+const LABELS = {
+  tr: { dev: "Developer", next: "İleri", back: "Geri", close: "Kapat", done: "Bitti" },
+  en: { dev: "Developer", next: "Next", back: "Back", close: "Close", done: "Done" },
+};
+
+const ARROW =
+  '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M4 2.5l15.5 9.2-6.9 1.5-3.2 6.6z" fill="#fff" stroke="#0b0f19" stroke-width="1.6" stroke-linejoin="round"/></svg>';
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => window.setTimeout(r, ms));
+
+export class Tour {
+  private root: HTMLElement | null = null;
+  private cursor!: HTMLElement;
+  private ring!: HTMLElement;
+  private card!: HTMLElement;
+  private index = 0;
+  private run = 0;
+  private open = false;
+  private saved: { speed: number; game: boolean; tab: string } | null = null;
+
+  constructor(private readonly ctx: TourContext) {}
+
+  public get isOpen(): boolean {
+    return this.open;
+  }
+
+  public start(): void {
+    if (this.open || !this.ctx.ready()) return;
+    this.open = true;
+    this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab() };
+    this.ctx.setSpeed(1);
+    this.build();
+    this.index = 0;
+    void this.show();
+  }
+
+  public stop(): void {
+    if (!this.open) return;
+    this.open = false;
+    this.run++;
+    document.removeEventListener("keydown", this.onKey, true);
+    window.removeEventListener("resize", this.onResize);
+    this.root?.hidePopover?.();
+    this.root?.remove();
+    this.root = null;
+    const s = this.saved;
+    if (s) {
+      this.ctx.clearSelection();
+      this.ctx.setGame(s.game);
+      this.ctx.setTab(s.tab);
+      this.ctx.setSpeed(s.speed);
+    }
+    this.saved = null;
+    try {
+      localStorage.setItem("evosim-tour-seen", "1");
+    } catch {
+      // depolama kapalıysa yalnızca bu oturumda hatırlanır
+    }
+  }
+
+  private lang(): "tr" | "en" {
+    return getLang() === "en" ? "en" : "tr";
+  }
+
+  private build(): void {
+    const root = document.createElement("div");
+    root.id = "tour";
+    root.setAttribute("popover", "manual");
+    root.innerHTML =
+      `<div class="tour-ring"></div>` +
+      `<div class="tour-cursor">${ARROW}<span class="tour-name"></span></div>` +
+      `<div class="tour-card" role="dialog" aria-live="polite"><div class="tour-step"></div><h3></h3><p></p>` +
+      `<div class="tour-dots"></div><div class="tour-actions"><button type="button" class="btn btn-small" data-t="back"></button><button type="button" class="btn btn-small tour-next" data-t="next"></button><button type="button" class="btn btn-small" data-t="close"></button></div></div>`;
+    document.body.appendChild(root);
+    root.showPopover?.();
+    this.root = root;
+    this.cursor = root.querySelector<HTMLElement>(".tour-cursor")!;
+    this.ring = root.querySelector<HTMLElement>(".tour-ring")!;
+    this.card = root.querySelector<HTMLElement>(".tour-card")!;
+    root.querySelector<HTMLElement>(".tour-name")!.textContent = LABELS[this.lang()].dev;
+    root.addEventListener("click", (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>("[data-t]");
+      if (!b) return;
+      if (b.dataset.t === "close") this.stop();
+      else if (b.dataset.t === "next") this.go(this.index + 1);
+      else this.go(this.index - 1);
+    });
+    document.addEventListener("keydown", this.onKey, true);
+    window.addEventListener("resize", this.onResize);
+    // İmleç ekranın ortasından doğar.
+    this.place(this.cursor, window.innerWidth / 2, window.innerHeight / 2, true);
+  }
+
+  private readonly onKey = (e: KeyboardEvent): void => {
+    if (!this.open) return;
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      this.stop();
+    } else if (e.key === "ArrowRight") this.go(this.index + 1);
+    else if (e.key === "ArrowLeft") this.go(this.index - 1);
+  };
+
+  private readonly onResize = (): void => {
+    if (this.open) void this.show(true);
+  };
+
+  private go(to: number): void {
+    if (to >= STEPS.length) {
+      this.stop();
+      return;
+    }
+    this.index = Math.max(0, to);
+    void this.show();
+  }
+
+  private place(el: HTMLElement, x: number, y: number, instant = false): void {
+    if (instant) el.style.transition = "none";
+    el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    if (instant) {
+      void el.offsetWidth;
+      el.style.transition = "";
+    }
+  }
+
+  /** Bir adımı gösterir: önce yazı, sonra imleç hedefe gider ve (varsa) tıklar. */
+  private async show(quick = false): Promise<void> {
+    const token = ++this.run;
+    const step = STEPS[this.index];
+    const L = LABELS[this.lang()];
+    const text = step[this.lang()];
+    this.card.querySelector("h3")!.textContent = text[0];
+    this.card.querySelector("p")!.textContent = text[1];
+    this.card.querySelector(".tour-step")!.textContent = `${this.index + 1} / ${STEPS.length}`;
+    this.card.querySelector<HTMLElement>('[data-t="back"]')!.textContent = L.back;
+    this.card.querySelector<HTMLElement>('[data-t="close"]')!.textContent = L.close;
+    const next = this.card.querySelector<HTMLElement>('[data-t="next"]')!;
+    next.textContent = this.index === STEPS.length - 1 ? L.done : L.next;
+    this.card.querySelector<HTMLButtonElement>('[data-t="back"]')!.disabled = this.index === 0;
+    this.card.querySelector(".tour-dots")!.innerHTML = STEPS.map((_, i) => `<i class="${i === this.index ? "on" : i < this.index ? "past" : ""}"></i>`).join("");
+    this.root?.querySelector<HTMLElement>(".tour-name")!.replaceChildren(L.dev);
+
+    // Hedefi bul (dar ekranda görünür kıl).
+    let point: { x: number; y: number; w: number; h: number } | null = null;
+    let pick: (() => void) | null = null;
+    let creatureId = 0;
+    if (step.creature) {
+      const c = this.ctx.pickCreature();
+      if (c) {
+        point = { x: c.x, y: c.y, w: 40, h: 40 };
+        pick = c.pick;
+        creatureId = c.id;
+      }
+    } else if (step.target) {
+      const el = document.querySelector<HTMLElement>(step.target);
+      if (el) {
+        if (!quick) el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
+        await sleep(quick ? 0 : 250);
+        if (token !== this.run) return;
+        const r = el.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) point = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+      }
+    }
+    if (token !== this.run) return;
+    if (!point) point = { x: window.innerWidth / 2, y: window.innerHeight / 2, w: 0, h: 0 };
+
+    // Halka ve kart yeri.
+    const ring = this.ring;
+    if (step.target || step.creature) {
+      const pad = step.wide ? 4 : 6;
+      ring.style.opacity = "1";
+      ring.style.width = `${Math.max(34, point.w + pad * 2)}px`;
+      ring.style.height = `${Math.max(34, point.h + pad * 2)}px`;
+      ring.style.transform = `translate(${Math.round(point.x - Math.max(34, point.w + pad * 2) / 2)}px, ${Math.round(point.y - Math.max(34, point.h + pad * 2) / 2)}px)`;
+    } else ring.style.opacity = "0";
+    this.card.dataset.pos = point.y > window.innerHeight * 0.5 && step.target !== "#btn-tour" ? "top" : "bottom";
+
+    // İmleç hedefe kayar; kuyruğu hedefin içinde kalacak biçimde biraz sağ-alta.
+    this.cursor.classList.toggle("flip", point.x > window.innerWidth - 120);
+    this.place(this.cursor, point.x - 4, point.y - 3, quick);
+    if (quick) return;
+    await sleep(1000);
+    if (token !== this.run) return;
+    if (pick) {
+      // Canlı bu bir saniyede kımıldadı: imleç son konuma kısa bir kayışla varır, sonra tıklar.
+      const again = this.ctx.pickCreature(creatureId);
+      if (again) {
+        this.place(this.cursor, again.x - 4, again.y - 3);
+        this.ring.style.transform = `translate(${Math.round(again.x - 23)}px, ${Math.round(again.y - 23)}px)`;
+        await sleep(450);
+        if (token !== this.run) return;
+        pick = again.pick;
+      }
+      this.ripple();
+      pick();
+      return;
+    }
+    if (step.click !== false && step.target && step.click && !(step.skipIf && step.skipIf(this.ctx))) {
+      const el = document.querySelector<HTMLElement>(typeof step.click === "string" ? step.click : step.target);
+      if (el) {
+        this.ripple();
+        el.click();
+      }
+    }
+  }
+
+  private ripple(): void {
+    this.cursor.classList.remove("click");
+    void this.cursor.offsetWidth;
+    this.cursor.classList.add("click");
+  }
+}
+
+export function tourSeen(): boolean {
+  try {
+    return localStorage.getItem("evosim-tour-seen") === "1";
+  } catch {
+    return true;
+  }
+}

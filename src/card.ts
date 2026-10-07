@@ -127,7 +127,7 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
   };
   row("Yüzey sıvısı", c.solvent.name);
   row("Zar", c.membrane.name);
-  row("Hücre duvarı", c.wall.name);
+  row("Evrilebilecek duvar", c.wall.name);
   row("Kalıtım", c.genetic.name);
   row("Enerji", c.energy.name);
   row("Işık pigmenti", c.pigment.name);

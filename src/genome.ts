@@ -93,7 +93,7 @@ export function setPlanetCell(chem: Chemistry): void {
   const syms = new Set<string>(["H", ...chem.elements.map((e) => e.sym), ...chem.trace.map((t) => t.sym)]);
   const fits = (o: Option): boolean => o.needs.every((n) => syms.has(n));
   const ids = (list: readonly Option[], extra: (o: Option) => boolean = () => true): string[] => list.filter((o) => fits(o) && extra(o)).map((o) => o.id);
-  const def: Record<CellKind, string> = { wall: chem.wall.id, membrane: chem.membrane.id, genetic: chem.genetic.id, energy: chem.energy.id, catalyst: chem.catalyst.id };
+  const def: Record<CellKind, string> = { wall: "none", membrane: chem.membrane.id, genetic: chem.genetic.id, energy: chem.energy.id, catalyst: chem.catalyst.id };
   const options: Record<CellKind, string[]> = {
     wall: ids(WALLS),
     membrane: ids(MEMBRANES, (o) => {

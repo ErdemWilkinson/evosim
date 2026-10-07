@@ -650,6 +650,169 @@ function drawEnvelope(ctx: CanvasRenderingContext2D, chem: Chemistry, w: number,
   label(`Dış ortam: ${chem.solvent.name.toLocaleLowerCase("tr")}, ${chem.temperature} K`, 18);
 }
 
+/** Büyütme geçişinin süresi (sn) ve yakınlaşma çarpanı: bir düzey öbürüne yakınlaşarak geçilir. */
+/** Parça listesinde hücrenin kendi parçalarından sonra organlar başlar (zar, duvar, kalıtım, enerji, katalizör, pigment). */
+const ORGAN_PART_START = 6;
+const ZOOM_SECONDS = 0.85;
+const ZOOM_FACTOR = 7;
+const easeInOut = (p: number): number => (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+
+/** Kabuk kesitindeki katmanların yerleşimi (drawEnvelope ile aynı sayılar). */
+function envelopeGeometry(chem: Chemistry, h: number): { wallH: number; memH: number; memTop: number } {
+  const mid = h * 0.5;
+  const wallH = chem.wall.id === "none" ? 0 : h * 0.14;
+  const memH = h * 0.2;
+  return { wallH, memH, memTop: mid - memH / 2 + wallH / 2 };
+}
+
+/** Kabuk kesitinde (x, y) noktasının hangi yapıya düştüğü: parça dizini (0 zar, 1 duvar, 2 kalıtım, 4 katalizör) ya da -1. */
+function envelopePick(chem: Chemistry, w: number, h: number, t: number, x: number, y: number): number {
+  const { wallH, memH, memTop } = envelopeGeometry(chem, h);
+  if (wallH > 0 && y >= memTop - wallH - 4 && y < memTop) return 1;
+  if (y >= memTop && y < memTop + memH) return 0;
+  if (y < memTop + memH) return -1;
+  const inTop = memTop + memH + 34;
+  const inH = h - inTop - 34;
+  if (inH > 30) {
+    for (let i = 0; i < 7; i++) {
+      const dx = (i * 131 + Math.sin(t * 0.6 + i) * 14 + w * 0.1) % w;
+      const dy = inTop + ((i * 47) % inH);
+      if (Math.hypot(dx - x, dy - y) <= 16) return 4;
+    }
+  }
+  return 2;
+}
+
+/** Fareyle üstünden geçilen katmanı hafifçe aydınlatır. */
+function drawEnvelopeHover(ctx: CanvasRenderingContext2D, chem: Chemistry, w: number, h: number, part: number): void {
+  const { wallH, memH, memTop } = envelopeGeometry(chem, h);
+  let y0: number;
+  let y1: number;
+  if (part === 1) [y0, y1] = [memTop - wallH - 4, memTop];
+  else if (part === 0) [y0, y1] = [memTop, memTop + memH];
+  else [y0, y1] = [memTop + memH + 2, h];
+  ctx.fillStyle = "rgba(109, 240, 210, 0.10)";
+  ctx.fillRect(0, y0, w, y1 - y0);
+  ctx.strokeStyle = "rgba(109, 240, 210, 0.7)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(1, y0 + 1, w - 2, y1 - y0 - 2);
+  ctx.font = "600 12px Onest, system-ui, sans-serif";
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#6df0d2";
+  ctx.fillText(tr("dokun: yakınlaş"), w - 12, y0 + Math.min(16, (y1 - y0) / 2));
+}
+
+/** Organın baskın elementi: malzemenin molekülünde en çok bulunan (H ve R dışında). */
+function mainElement(m: Mol): string {
+  const count = new Map<string, number>();
+  for (const a of m.atoms) if (a.sym !== "R" && a.sym !== "H") count.set(a.sym, (count.get(a.sym) ?? 0) + 1);
+  return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "C";
+}
+
+/**
+ * Organ kesiti: üstte organın canlı üstündeki yeri, altta malzemesinin doku düzeyinde nasıl dizildiği
+ * (mineral levhalar, lif demetleri ya da damlacıklar). Doku, molekülün milyonlarca kez yan yana dizilmiş hâlidir.
+ */
+function drawOrganSection(ctx: CanvasRenderingContext2D, part: Part, g: Genome, theme: Theme, w: number, h: number, t: number, hover: boolean): void {
+  ctx.fillStyle = "#070a14";
+  ctx.fillRect(0, 0, w, h);
+  const organ = g.organs.find((o) => o.type === part.option.id);
+  // Üst: yalnızca bu organı taşıyan canlı.
+  const topH = h * 0.56;
+  if (organ) {
+    const scale = Math.min(topH * 0.34, w * 0.2) / g.radius;
+    ctx.save();
+    ctx.translate(w / 2, topH * 0.52);
+    ctx.scale(scale, scale);
+    drawCreature(ctx, { ...g, organs: [organ] }, theme, true, { t, state: 0, id: 1 });
+    ctx.restore();
+  }
+  ctx.font = "500 11.5px Onest, system-ui, sans-serif";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  const label = (text: string, y: number): void => {
+    const s = tr(text);
+    const tw = ctx.measureText(s).width;
+    ctx.fillStyle = "rgba(4, 6, 14, 0.72)";
+    ctx.fillRect(10, y - 10, tw + 14, 20);
+    ctx.fillStyle = "#f3f5fc";
+    ctx.fillText(s, 17, y + 0.5);
+  };
+  label(`Organ: ${part.label}`, 18);
+  // Alt: doku.
+  const y0 = h * 0.64;
+  const y1 = h - 14;
+  const el = mainElement(part.mol);
+  const color = elementColor(el);
+  const atoms = part.mol.atoms.map((a) => a.sym);
+  const crystal = atoms.some((s) => s === "Ca" || s === "Fe" || s === "Mn") || (atoms.includes("Si") && !atoms.includes("C"));
+  const droplets = /yağ|gaz|kese|jel|mukus|gliserol|zar film/i.test(part.option.name);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, y0, w, y1 - y0);
+  ctx.clip();
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
+  ctx.fillRect(0, y0, w, y1 - y0);
+  if (crystal) {
+    const tw = 40;
+    const th = 22;
+    for (let row = 0, y = y0 + 4; y < y1; row++, y += th + 4) {
+      for (let x = -tw + (row % 2 ? tw / 2 : 0); x < w; x += tw + 5) {
+        ctx.globalAlpha = 0.55 + 0.25 * Math.sin(row * 1.7 + x * 0.05 + t * 0.6);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(x, y, tw, th, 4);
+        ctx.fill();
+      }
+    }
+  } else if (droplets) {
+    for (let i = 0; i < 70; i++) {
+      const gx = (i * 61.7) % w;
+      const gy = y0 + 8 + ((i * 37.3) % Math.max(10, y1 - y0 - 16));
+      const r = 5 + ((i * 7) % 9);
+      ctx.globalAlpha = 0.7;
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(gx + Math.sin(t + i) * 3, gy + Math.cos(t * 0.8 + i) * 2, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(gx - r * 0.3 + Math.sin(t + i) * 3, gy - r * 0.3, r * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    ctx.lineCap = "round";
+    for (let row = 0, y = y0 + 8; y < y1; row++, y += 11) {
+      ctx.globalAlpha = row % 2 ? 0.55 : 0.9;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let x = 0; x <= w; x += 6) {
+        const yy = y + Math.sin(x * 0.04 + row * 0.9 + t * 0.7) * 2.2;
+        if (x === 0) ctx.moveTo(x, yy);
+        else ctx.lineTo(x, yy);
+      }
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  if (hover) {
+    ctx.strokeStyle = "rgba(109, 240, 210, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(1, y0, w - 2, y1 - y0);
+  }
+  label(`Doku: ${part.option.name}`, y0 - 14);
+  if (hover) {
+    ctx.font = "600 12px Onest, system-ui, sans-serif";
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#6df0d2";
+    ctx.fillText(tr("dokun: yakınlaş"), w - 12, y0 - 14);
+  }
+}
+
 export class StructureViewer {
   private level = 0;
   private part = 0;
@@ -660,6 +823,10 @@ export class StructureViewer {
   private genome: Genome | null = null;
   private hits: { x: number; y: number; r: number }[] = [];
   private raf = 0;
+  /** Süren büyütme geçişi: hangi düzeyden hangisine, nereye yakınlaşılarak. */
+  private anim: { from: number; to: number; t0: number; fx: number; fy: number } | null = null;
+  private hover = -1;
+  private now = 0;
 
   constructor(
     private readonly dialog: HTMLDialogElement,
@@ -679,20 +846,59 @@ export class StructureViewer {
       if (!b) return;
       this.part = Number(b.dataset.part);
       this.atom = -1;
-      if (this.level < 2) this.level = 2;
-      this.sync();
+      if (this.part >= ORGAN_PART_START) {
+        if (this.level < 1) this.go(1);
+        else this.sync();
+      } else if (this.level < 2) this.go(2);
+      else this.sync();
     });
     canvas.addEventListener("click", (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      if (this.level === 2) {
+      if (this.anim) return;
+      if (this.level === 0) this.go(1, x, y);
+      else if (this.level === 1) {
+        if (this.part >= ORGAN_PART_START) this.go(2, x, y);
+        else if (this.chem) {
+          const picked = envelopePick(this.chem, rect.width, rect.height, this.now, x, y);
+          if (picked >= 0) {
+            this.part = picked;
+            this.atom = -1;
+            this.go(2, x, y);
+          }
+        }
+      } else if (this.level === 2) {
         const i = this.hits.findIndex((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 6);
         if (i >= 0 && this.parts[this.part].mol.atoms[i].sym !== "R") {
           this.atom = i;
-          this.setLevel(3);
+          this.go(3, this.hits[i].x, this.hits[i].y);
         }
-      } else if (this.level < 3) this.setLevel(this.level + 1);
+      }
+    });
+    canvas.addEventListener("mousemove", (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      let over = -1;
+      let pointer = false;
+      if (!this.anim) {
+        if (this.level === 0) pointer = true;
+        else if (this.level === 1) {
+          if (this.part >= ORGAN_PART_START) {
+            over = y > rect.height * 0.6 ? 1 : -1;
+            pointer = over >= 0;
+          } else if (this.chem) {
+            over = envelopePick(this.chem, rect.width, rect.height, this.now, x, y);
+            pointer = over >= 0;
+          }
+        } else if (this.level === 2) pointer = this.hits.some((p, i) => Math.hypot(p.x - x, p.y - y) <= p.r + 6 && this.parts[this.part].mol.atoms[i]?.sym !== "R");
+      }
+      this.hover = over;
+      canvas.style.cursor = pointer ? "pointer" : "default";
+    });
+    canvas.addEventListener("mouseleave", () => {
+      this.hover = -1;
     });
     dialog.addEventListener("close", () => cancelAnimationFrame(this.raf));
   }
@@ -703,13 +909,15 @@ export class StructureViewer {
     this.base = chem;
     chem = genome
       ? { ...chem, wall: pickOpt(WALLS, genome.wall, chem.wall), membrane: pickOpt(MEMBRANES, genome.membrane, chem.membrane), genetic: pickOpt(GENETICS, genome.genetic, chem.genetic), energy: pickOpt(ENERGIES, genome.energy, chem.energy), catalyst: pickOpt(CATALYSTS, genome.catalyst, chem.catalyst) }
-      : chem;
+      : { ...chem, wall: WALLS.find((o) => o.id === "none") ?? chem.wall };
     this.chem = chem;
     this.genome = genome;
     this.parts = partsOf(chem, genome);
     this.part = 0;
     this.atom = -1;
     this.level = genome ? 0 : 1;
+    this.anim = null;
+    this.hover = -1;
     this.sync();
     if (!this.dialog.open) this.dialog.showModal();
     cancelAnimationFrame(this.raf);
@@ -721,8 +929,17 @@ export class StructureViewer {
   }
 
   private setLevel(level: number): void {
-    this.level = !this.genome && level === 0 ? 1 : level;
+    this.go(level);
+  }
+
+  /** Başka bir düzeye geçer: yakınlaşırken (ya da uzaklaşırken) iki düzey birbirine karışarak geçilir. */
+  private go(level: number, fx = Number.NaN, fy = Number.NaN): void {
+    const to = !this.genome && level === 0 ? 1 : level;
+    const from = this.level;
+    this.level = to;
     this.sync();
+    if (from === to || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    this.anim = { from, to, t0: this.now, fx, fy };
   }
 
   private pickedSym(): string {
@@ -734,19 +951,26 @@ export class StructureViewer {
 
   private sync(): void {
     const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    this.levels.innerHTML = LEVELS.map((name, i) => `<button type="button" data-level="${i}" aria-pressed="${i === this.level}"${i === 0 && !this.genome ? " disabled" : ""}>${name}<small>${MAGNIFY[i]}</small></button>`).join("");
+    const organ = this.part >= ORGAN_PART_START;
+    this.levels.innerHTML = LEVELS.map((name0, i) => {
+      const name = i === 1 && organ ? "Organ kesiti" : name0;
+      return `<button type="button" data-level="${i}" aria-pressed="${i === this.level}"${i === 0 && !this.genome ? " disabled" : ""}>${name}<small>${MAGNIFY[i]}</small></button>`;
+    }).join("");
     this.list.innerHTML = this.parts.map((p, i) => `<button type="button" data-part="${i}" aria-pressed="${i === this.part}"><span>${esc(p.label)}</span><small>${esc(p.option.name)}</small></button>`).join("");
     const p = this.parts[this.part];
     const chem = this.chem!;
     if (this.level === 0) {
       this.caption.textContent = "Canlının bütünü. Yakınlaşmak için görüntüye ya da üstteki düzeylere dokunun.";
       this.info.innerHTML = `<b>Bu canlı nasıl kurulu?</b><p>${esc(chem.scaffold.name)} iskeleti üzerine kurulu, ${esc(chem.solvent.name.toLocaleLowerCase("tr"))} içinde yaşıyor. ${esc(chem.scaffold.note)}</p><p class="ref">${esc(chem.scaffold.ref)}</p>${this.differences()}`;
+    } else if (this.level === 1 && organ) {
+      this.caption.textContent = "Organın kesiti: üstte canlı üzerindeki yeri, altta malzemesinin doku düzeyindeki dizilişi. Dokuya dokunarak moleküle yakınlaşın.";
+      this.info.innerHTML = `<b>${esc(p.label)}: ${esc(p.option.name)}</b><p>${esc(p.option.note)}</p>${p.option.ref ? `<p class="ref">${esc(p.option.ref)}</p>` : ""}`;
     } else if (this.level === 1) {
-      this.caption.textContent = "Hücre kabuğunun kesiti: üstte dış ortam, altta hücrenin içi.";
+      this.caption.textContent = "Hücre kabuğunun kesiti: üstte dış ortam, altta hücrenin içi. Duvara, zara ya da hücre içine dokunarak o yapıya yakınlaşın.";
       this.info.innerHTML =
         `<b>Zar: ${esc(chem.membrane.name)}</b><p>${esc(chem.membrane.note)}</p><p class="ref">${esc(chem.membrane.ref)}</p>` +
         `<b>Duvar: ${esc(chem.wall.name)}</b><p>${esc(chem.wall.note)} Simülasyondaki etkisi: can ×${chem.wall.hp.toFixed(2)}, hız ×${chem.wall.speed.toFixed(2)}, metabolizma ×${chem.wall.meta.toFixed(2)}.</p><p class="ref">${esc(chem.wall.ref)}</p>` +
-        this.differences();
+        (this.genome ? this.differences() : `<p class="dim">İlk hücre duvarsızdır. Bu gezegende sonradan evrilebilecek duvar:</p><p>${esc(this.base?.wall.name ?? "")}</p>`);
     } else if (this.level === 2) {
       this.caption.textContent = "Top-çubuk modeli. R zincirin devamıdır; çizilmeyen hidrojenler aşağıdaki bileşimde sayılır. Bir atoma dokununca o atom açılır.";
       this.info.innerHTML = `<b>${esc(p.label)}: ${esc(p.option.name)}</b><p class="mono">${esc(p.mol.formula)}</p><p>${esc(p.option.note)}</p>${this.composition(p.mol)}${p.option.ref ? `<p class="ref">${esc(p.option.ref)}</p>` : ""}`;
@@ -761,10 +985,49 @@ export class StructureViewer {
   }
 
   private draw(t: number): void {
+    this.now = t;
     const fit = fitCanvas(this.canvas);
     if (!fit || !this.chem) return;
     const { ctx, w, h } = fit;
-    if (this.level === 0 && this.genome) {
+    const a = this.anim;
+    if (!a) {
+      this.drawLevel(this.level, ctx, w, h, t, true);
+      return;
+    }
+    const p = (t - a.t0) / ZOOM_SECONDS;
+    if (p >= 1) {
+      this.anim = null;
+      this.drawLevel(this.level, ctx, w, h, t, true);
+      return;
+    }
+    const e = easeInOut(Math.max(0, p));
+    const fx = Number.isNaN(a.fx) ? w / 2 : a.fx;
+    const fy = Number.isNaN(a.fy) ? h / 2 : a.fy;
+    const S = ZOOM_FACTOR;
+    const layer = (level: number, pivotX: number, pivotY: number, scale: number, alpha: number): void => {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
+      ctx.translate(pivotX, pivotY);
+      ctx.scale(scale, scale);
+      ctx.translate(-pivotX, -pivotY);
+      this.drawLevel(level, ctx, w, h, t, false);
+      ctx.restore();
+    };
+    if (a.to > a.from) {
+      // Yakınlaş: eski düzey odak noktasına doğru büyür ve solar; yeni düzey ortadan küçükten büyüyerek belirir.
+      layer(a.from, fx, fy, 1 + (S - 1) * e, 1 - e * 1.1);
+      layer(a.to, w / 2, h / 2, 1 / S + (1 - 1 / S) * e, e * 1.1 - 0.1);
+    } else {
+      // Uzaklaş: yeni (daha geniş) düzey odaktan büyükten küçülür; eski düzey ortaya doğru küçülüp solar.
+      layer(a.to, fx, fy, S - (S - 1) * e, e * 1.1 - 0.1);
+      layer(a.from, w / 2, h / 2, 1 - (1 - 1 / S) * e, 1 - e * 1.1);
+    }
+  }
+
+  /** Bir düzeyi çizer. `live` doğruysa tıklama alanları ve üstünden geçilen katman güncellenir. */
+  private drawLevel(level: number, ctx: CanvasRenderingContext2D, w: number, h: number, t: number, live: boolean): void {
+    const chem = this.chem!;
+    if (level === 0 && this.genome) {
       const g = this.genome;
       const scale = (Math.min(w, h) * 0.22) / g.radius;
       ctx.save();
@@ -772,9 +1035,17 @@ export class StructureViewer {
       ctx.scale(scale, scale);
       drawCreature(ctx, g, this.theme(), true, { t, state: 0, id: 1 });
       ctx.restore();
-    } else if (this.level === 1) drawEnvelope(ctx, this.chem, w, h, t);
-    else if (this.level === 2) this.hits = drawMolecule(ctx, this.parts[this.part].mol, w / 2, h / 2, w, h, t, this.atom);
-    else {
+    } else if (level === 1) {
+      const part = this.parts[this.part];
+      if (this.part >= ORGAN_PART_START && this.genome) drawOrganSection(ctx, part, this.genome, this.theme(), w, h, t, live && this.hover >= 0);
+      else {
+        drawEnvelope(ctx, chem, w, h, t);
+        if (live && this.hover >= 0) drawEnvelopeHover(ctx, chem, w, h, this.hover);
+      }
+    } else if (level === 2) {
+      const hits = drawMolecule(ctx, this.parts[this.part].mol, w / 2, h / 2, w, h, t, this.atom);
+      if (live) this.hits = hits;
+    } else {
       drawAtom(ctx, this.pickedSym(), w / 2, h / 2 - 14, Math.min(w, h) * 0.8, t);
       const m = this.parts[this.part].mol;
       const i = this.pickedIndex();
@@ -817,7 +1088,7 @@ export class StructureViewer {
     const check = (label: string, a: Option, b: Option): void => {
       if (a.id !== b.id) rows.push(`<li><b>${esc2(label)}</b>: <span>${esc2(b.name)}</span> <span class="dim">ilk hücrede</span> <span>${esc2(a.name)}</span></li>`);
     };
-    check("Duvar", base.wall, chem.wall);
+    check("Duvar", WALLS.find((o) => o.id === "none") ?? base.wall, chem.wall);
     check("Zar", base.membrane, chem.membrane);
     check("Kalıtım polimeri", base.genetic, chem.genetic);
     check("Enerji taşıyıcısı", base.energy, chem.energy);
@@ -1551,7 +1822,8 @@ export class OriginFilm {
       ctx.globalAlpha = 1;
     };
     const cell = (x: number, y: number, r: number, wall: number, inner: number): void => {
-      if (wall > 0 && c.wall.id !== "none") {
+      // İlk hücre duvarsızdır: duvar sonradan, bir mutasyonla evrilir.
+      if (wall > 0 && false) {
         ctx.strokeStyle = `rgba(232, 226, 200, ${0.85 * wall})`;
         ctx.lineWidth = Math.max(3, r * 0.09);
         ctx.setLineDash([r * 0.16, r * 0.05]);
@@ -1726,7 +1998,7 @@ export class OriginFilm {
       living(ccx, ccy, rr, morph, 1);
       const labels: [string, string][] = [
         ["Zar", c.membrane.name],
-        ["Duvar", c.wall.name],
+        ["Duvar", "yok (sonradan evrilir)"],
         ["Kalıtım", c.genetic.name],
         ["Enerji", c.energy.name],
         ["Katalizör", c.catalyst.name],

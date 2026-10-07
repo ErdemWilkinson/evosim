@@ -3,6 +3,7 @@ import { EvolutionSpeed } from "./genome";
 import { OrganType } from "./organs";
 import { PhyloTree } from "./phylo";
 import { refsHtml } from "./refs";
+import { Tour, tourSeen } from "./tutorial";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
 import { FLAG, STRIDE, UiPayload } from "./protocol";
@@ -871,6 +872,44 @@ $("btn-tree").addEventListener("click", () => {
   $<HTMLDialogElement>("dlg-tree").showModal();
   drawTree();
 });
+// Rehber: "Developer" adlı hayalet imleç arayüzü gezdirir (bkz. tutorial.ts).
+const tour = new Tour({
+  ready: () => view !== null && view.ui !== null && !$<HTMLDialogElement>("dlg-planet").open,
+  speed: () => view?.ui?.speed ?? 1,
+  setSpeed: (v) => client.send({ type: "speed", value: v }),
+  gameMode: () => document.documentElement.hasAttribute("data-game"),
+  setGame: setGameMode,
+  tab: () => tab,
+  setTab: (name) => setTab(name as Tab),
+  clearSelection: () => select(0),
+  pickCreature: (want) => {
+    if (!view || view.frame.n === 0) return null;
+    // Haritanın ortasına en yakın canlı.
+    const c = view.frame.c;
+    const mid = scene.toWorld($("scene").clientWidth / 2, $("scene").clientHeight / 2);
+    let best = -1;
+    let bestD = Infinity;
+    for (let i = 0; i < view.frame.n; i++) {
+      const d = want ? (c[i * STRIDE] === want ? 0 : Infinity) : Math.hypot(c[i * STRIDE + 1] - mid.x, c[i * STRIDE + 2] - mid.y);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    if (best < 0 || !Number.isFinite(bestD)) return null;
+    const id = c[best * STRIDE];
+    const x = c[best * STRIDE + 1];
+    const y = c[best * STRIDE + 2];
+    scene.center(x, y);
+    const rect = $("scene").getBoundingClientRect();
+    const s = scene.toScreen(x, y);
+    return { id, x: rect.left + s.x, y: rect.top + s.y, pick: () => select(id) };
+  },
+});
+$("btn-tour").addEventListener("click", () => (tour.isOpen ? tour.stop() : tour.start()));
+if (!tourSeen()) $("btn-tour").classList.add("pulse");
+$("btn-tour").addEventListener("click", () => $("btn-tour").classList.remove("pulse"));
+
 $("btn-refs").addEventListener("click", () => {
   if (!$("refs-body").firstChild) setHtml($("refs-body"), refsHtml());
   $<HTMLDialogElement>("dlg-refs").showModal();
