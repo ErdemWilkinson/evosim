@@ -5,6 +5,19 @@
  */
 export const MANUAL: Record<string, string> = {
   // ---- app.html
+  "Bir hücreyle başlayan, kendi kendine evrilen gezegen.": "A planet that starts with one cell and evolves on its own.",
+  "Bu nedir?": "What is this?",
+  "Evosim bir evrim simülasyonudur. Rastgele bir gezegen kurulur, üzerinde tek bir hücre belirir; geri kalan her şeyi doğal seçilim yapar. Hiçbir canlı önceden çizilmemiştir.": "Evosim is an evolution simulation. A random planet is built, a single cell appears on it, and natural selection does the rest. No creature is drawn in advance.",
+  "Gezegen gerçek fizikle kurulur": "The planet is built from real physics",
+  "Her tohum başka bir gezegen verir: elementler, sıvı, basınç, sıcaklık ve yaşamın köken enerjisi. Hücre zarı ve duvarı bu kimyanın izin verdiği malzemelerden seçilir.": "Every seed gives a different planet: elements, solvent, pressure, temperature and the origin energy of life. Cell membranes and walls are chosen from the materials that chemistry allows.",
+  "Evrimi gözünüzün önünde izlersiniz": "You watch evolution happen",
+  "Genler mutasyonla değişir. Hücreler birleşip çok hücreli olur, organlar çıkar, türler ayrılır. Soy ağacından hangi türün nereden geldiğini görebilirsiniz.": "Genes change through mutation. Cells join into multicellular bodies, organs appear, species split. The family tree shows which species came from where.",
+  "Her şeye yakından bakın": "Look closely at everything",
+  "Bir canlıyı seçin: genomunu, organlarını, hücre duvarını ve atomlarına kadar yapısını inceleyin. Tarihi geri sarıp farklı bir yoldan devam ettirin.": "Select a creature: inspect its genome, organs, cell wall and structure down to the atoms. Rewind history and let it continue down a different path.",
+  "Önce izleyin, isterseniz karışın": "Watch first, step in if you like",
+  "Varsayılan olarak yalnızca gözlemlersiniz. Oyun kipini açarsanız iklim olayları ve araçlarla gezegene müdahale edebilirsiniz.": "By default you only observe. Turn on Game mode to intervene on the planet with climate events and tools.",
+  "Başla": "Start",
+  "Önce arayüzü gezdir": "Show me around first",
   "Simülasyon hızı": "Simulation speed",
   Duraklat: "Pause",
   "Duraklat (Boşluk)": "Pause (Space)",

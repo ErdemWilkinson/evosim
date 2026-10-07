@@ -2598,3 +2598,56 @@ textarea {
   left: auto;
   right: 10px;
 }
+
+/* Başlangıç menüsü */
+.start {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  overflow-y: auto;
+}
+.start[hidden] { display: none; }
+#start-bg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.start-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: min(680px, 100%);
+  padding: 28px 16px;
+  text-align: center;
+}
+.start-logo {
+  font: 700 clamp(48px, 12vw, 104px) / 1 var(--display);
+  letter-spacing: -0.03em;
+  background: linear-gradient(100deg, #ffffff 20%, var(--accent) 75%, var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  padding-bottom: 6px;
+}
+.start-tag { font: 500 clamp(16px, 2.6vw, 20px) / 1.35 var(--display); color: var(--ink-2); text-wrap: balance; }
+.start-slides {
+  display: grid;
+  width: 100%;
+  min-height: 150px;
+  padding: 18px 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--glass);
+  backdrop-filter: blur(10px);
+  text-align: left;
+}
+.start-slide { grid-area: 1 / 1; opacity: 0; transform: translateY(6px); transition: opacity 0.5s, transform 0.5s; pointer-events: none; }
+.start-slide.on { opacity: 1; transform: none; pointer-events: auto; }
+.start-slide h2 { font: 600 17px/1.3 var(--display); color: var(--accent); margin-bottom: 8px; }
+.start-slide p { font-size: 14.5px; line-height: 1.55; color: var(--ink); }
+.start-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+.start-actions .btn-primary { height: 46px; padding: 0 34px; border-radius: 23px; font-size: 15px; }
+.start .lang-pick { align-self: flex-end; }
+.start .copyright { text-align: center; }
+@media (prefers-reduced-motion: reduce) { .start-slide { transition: none; } }

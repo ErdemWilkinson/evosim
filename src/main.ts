@@ -4,6 +4,7 @@ import { OrganType } from "./organs";
 import { PhyloTree } from "./phylo";
 import { refsHtml } from "./refs";
 import { Tour, tourSeen } from "./tutorial";
+import { StartMenu } from "./intro";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
 import { FLAG, STRIDE, UiPayload } from "./protocol";
@@ -87,6 +88,7 @@ let pendingShare: Share | null = null;
 let lastHash = "";
 /** Paylaşım bağlantısıyla açılışta mevcut otomatik kayıt: oyuncu açıkça yeni gezegen başlatmadıkça silinmez. */
 let keepSave: SaveData | null = null;
+let tourAfterFilm = false;
 let soundTime = 0;
 let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
@@ -201,6 +203,10 @@ function onEpoch(v: View): void {
     playFilm(v, () => {
       client.send({ type: "speed", value: lastSpeed });
       scene.beginGenesis();
+      if (tourAfterFilm) {
+        tourAfterFilm = false;
+        window.setTimeout(() => tour.start(), 900);
+      }
     });
   }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;
@@ -1062,4 +1068,13 @@ if (restored) {
   pendingShare = sharedAtStart;
   $("share-note").hidden = keepSave === null;
   openPlanet(sharedAtStart.seed);
-} else openPlanet();
+} else
+  new StartMenu($("start"), (what) => {
+    if (what === "refs") {
+      if (!$("refs-body").firstChild) setHtml($("refs-body"), refsHtml());
+      $<HTMLDialogElement>("dlg-refs").showModal();
+      return;
+    }
+    tourAfterFilm = what === "tour";
+    openPlanet();
+  }).open();
