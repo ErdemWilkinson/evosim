@@ -14,6 +14,8 @@ import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
 import { MS_LABEL, fossilCards, lineBlock, milestoneStrip } from "./history";
 import type { Fossil } from "./sim";
+import { atlasHtml, observeAtlas, resetAtlasWorld } from "./atlas";
+import { tr } from "./i18n";
 import { answerPredict, predictEnabled, predictHtml, resetPredict, setPredictEnabled, tickPredict } from "./predict";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
@@ -228,12 +230,16 @@ function refresh(v: View, ui: UiPayload): void {
     msEpoch = v.epoch;
     msSeen = msTop;
     resetPredict();
+    resetAtlasWorld();
   } else if (msTop > msSeen) {
     for (const m of ui.milestones) if (m.seq > msSeen) scene.pulse(m.id, MS_LABEL[m.key] ?? m.key);
     msSeen = msTop;
   }
 
   tickPredict(ui, v.frame.time);
+  for (const a of observeAtlas(ui, v.planet, v.frame.time, fossils.length, document.documentElement.hasAttribute("data-game"))) {
+    toast(`${tr("Başarım kazanıldı")}: ${tr(a.label)}${a.game ? ` (${tr("oyun modunda")})` : ""}`);
+  }
 
   // Oyuncunun soyu tükendiyse bir kez haber verilir.
   if (ui.line && ui.line.alive === 0 && ui.line.extinctAt >= 0 && lineToldFor !== ui.line.root) {
@@ -271,6 +277,7 @@ function refreshTab(v: View, ui: UiPayload): void {
     setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t)));
     setHtml($("history-line"), lineBlock(ui.line));
     setHtml($("history-predict"), predictHtml(v.frame.time));
+    setHtml($("history-atlas"), atlasHtml());
     if (ui.fossils) fossils = ui.fossils;
     if (setHtml($("history-fossils"), fossilCards(fossils))) {
       for (const canvas of $("history-fossils").querySelectorAll<HTMLCanvasElement>("canvas[data-fossil]")) {
