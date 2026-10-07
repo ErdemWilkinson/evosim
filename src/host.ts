@@ -28,6 +28,7 @@ export class SimHost {
   private selectedId = 0;
   private lastSelected: Genome | null = null;
   private speciesId = 0;
+  private fossilSent = -1;
   private snaps: { t: number; data: string }[] = [];
   private snapT = 0;
   private rateT = 0;
@@ -44,6 +45,7 @@ export class SimHost {
     this.selectedId = 0;
     this.lastSelected = null;
     this.speciesId = 0;
+    this.fossilSent = -1;
     this.acc = 0;
     if (!keepSnaps) this.snaps = [];
     this.snapT = sim.time;
@@ -316,6 +318,7 @@ export class SimHost {
       events,
       milestones: sim.milestones,
       line: sim.lineStats(),
+      fossils: this.fossilSent === sim.fossilVersion ? null : ((this.fossilSent = sim.fossilVersion), sim.fossils()),
       snaps: this.snaps.map((s) => s.t),
       autoEvents: sim.autoEvents,
       rescueEnabled: sim.rescueEnabled,

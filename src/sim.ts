@@ -430,6 +430,12 @@ export interface Species {
   /** Popülasyon serisi: [zaman, birey] çiftleri düz dizide. */
   series: number[];
   infected: number;
+  /** Türün son ölümlerinin nedenleri (en çok FOSSIL_WINDOW tane). Tükenme nedeni bunlardan ölçülür. */
+  deaths: DeathCause[];
+  /** Tükendiğinde baskın ölüm nedeni; belirgin bir neden yoksa boş. */
+  cause: DeathCause | "";
+  causeShare: number;
+  causeN: number;
 }
 
 export interface LineageRec {
@@ -523,6 +529,26 @@ export interface Flash {
   kind: WorldEventKind;
   age: number;
 }
+
+/** Tükenmiş bir türün fosil kaydı: yalnızca ölçülmüş veriden türetilir. */
+export interface Fossil {
+  id: number;
+  name: string;
+  parentId: number;
+  parentName: string;
+  born: number;
+  extinct: number;
+  peak: number;
+  total: number;
+  type: Genome;
+  cause: DeathCause | "";
+  causeShare: number;
+  causeN: number;
+}
+
+const FOSSIL_WINDOW = 12;
+const FOSSIL_MIN_DEATHS = 5;
+const FOSSIL_SHARE = 0.6;
 
 export interface SpeciesStats {
   id: number;
@@ -632,6 +658,8 @@ export class Sim {
   public deaths: Record<DeathCause, number> = { starvation: 0, old_age: 0, predation: 0, venom: 0, meteor: 0, disease: 0, removed: 0 };
   public maxGeneration = 0;
   public extinct = false;
+  /** Fosil listesi değiştikçe artar; arayüze yalnızca değişince gönderilir. */
+  public fossilVersion = 0;
 
   private nextId = 1;
   private nextSpeciesId = 1;
@@ -872,7 +900,7 @@ export class Sim {
     const taken = new Set<string>();
     for (const s of this.species.values()) taken.add(s.name);
     const name = `${genus} ${makeEpithet(this.world.seed, id, founder, parent ? parent.type : null, taken, genus)}`;
-    const sp: Species = { id, name, genus, parentId: parent ? parent.id : 0, born: this.time, extinct: -1, count: 0, peak: 0, total: 0, established: false, type: cloneGenome(founder), reason, series: [], infected: 0 };
+    const sp: Species = { id, name, genus, parentId: parent ? parent.id : 0, born: this.time, extinct: -1, count: 0, peak: 0, total: 0, established: false, type: cloneGenome(founder), reason, series: [], infected: 0, deaths: [], cause: "", causeShare: 0, causeN: 0 };
     this.species.set(id, sp);
     return sp;
   }
@@ -1069,7 +1097,10 @@ export class Sim {
     sp.count++;
     sp.total++;
     if (sp.count > sp.peak) sp.peak = sp.count;
-    if (sp.extinct >= 0) sp.extinct = -1;
+    if (sp.extinct >= 0) {
+      sp.extinct = -1;
+      this.fossilVersion++;
+    }
     if (!sp.established && sp.count >= ESTABLISHED_COUNT) {
       sp.established = true;
       const from = this.species.get(sp.parentId);
@@ -1151,6 +1182,30 @@ export class Sim {
     return Math.max(0, c.energy) + c.maxEnergy * STRUCTURAL_BIOMASS;
   }
 
+  /** Son ölümlerin çoğunu tek neden oluşturuyorsa onu kaydeder; yoksa neden belirtilmez. */
+  private fossilCause(sp: Species): void {
+    sp.cause = "";
+    sp.causeShare = 0;
+    sp.causeN = sp.deaths.length;
+    if (sp.deaths.length < FOSSIL_MIN_DEATHS) return;
+    const tally: Partial<Record<DeathCause, number>> = {};
+    for (const d of sp.deaths) tally[d] = (tally[d] ?? 0) + 1;
+    let best: DeathCause = sp.deaths[0];
+    for (const d of Object.keys(tally) as DeathCause[]) if ((tally[d] ?? 0) > (tally[best] ?? 0)) best = d;
+    const share = (tally[best] ?? 0) / sp.deaths.length;
+    sp.causeShare = share;
+    if (share >= FOSSIL_SHARE) sp.cause = best;
+  }
+
+  public fossils(): Fossil[] {
+    const out: Fossil[] = [];
+    for (const s of this.species.values()) {
+      if (!s.established || s.extinct < 0 || s.count > 0) continue;
+      out.push({ id: s.id, name: s.name, parentId: s.parentId, parentName: this.species.get(s.parentId)?.name ?? "", born: s.born, extinct: s.extinct, peak: s.peak, total: s.total, type: s.type, cause: s.cause, causeShare: s.causeShare, causeN: s.causeN });
+    }
+    return out.sort((a, b) => b.extinct - a.extinct);
+  }
+
   private kill(c: Creature, cause: DeathCause, corpseEnergy?: number): void {
     if (!c.alive) return;
     if (cause === "starvation" && c.infectedT > 0) cause = "disease";
@@ -1165,9 +1220,13 @@ export class Sim {
     const sp = this.species.get(c.g.speciesId);
     if (sp) {
       sp.count--;
+      sp.deaths.push(cause);
+      if (sp.deaths.length > FOSSIL_WINDOW) sp.deaths.shift();
       if (sp.count <= 0 && !this.eggs.some((e) => e.g.speciesId === sp.id)) {
         sp.count = 0;
         sp.extinct = this.time;
+        this.fossilCause(sp);
+        this.fossilVersion++;
         if (sp.established) this.pushEvent("species", `${sp.name} türü tükendi (en çok ${sp.peak} birey, ${Math.round(this.time - sp.born)} sn yaşadı).`);
       }
     }
@@ -2767,6 +2826,10 @@ function cleanSave(raw: SaveData): SaveData {
         type: sanitizeGenome(s?.type),
         reason: str(s?.reason),
         series: list<number>(s?.series).slice(0, SERIES_CAP * 2).map((v) => num(v)),
+        deaths: list<string>(s?.deaths).filter((d) => Object.prototype.hasOwnProperty.call(DEATH_LABEL, d)).slice(-FOSSIL_WINDOW) as DeathCause[],
+        cause: Object.prototype.hasOwnProperty.call(DEATH_LABEL, s?.cause ?? "") ? (s.cause as DeathCause) : "",
+        causeShare: Math.min(1, Math.max(0, num(s?.causeShare))),
+        causeN: Math.max(0, Math.floor(num(s?.causeN))),
       })),
     lineage: list<LineageRec>(raw.lineage)
       .slice(-LINEAGE_CAP)

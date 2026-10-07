@@ -1,5 +1,5 @@
 import { UiPayload } from "./protocol";
-import { LineStats } from "./sim";
+import { DEATH_LABEL, Fossil, LineStats } from "./sim";
 import { fmtTime, esc } from "./ui";
 
 /** "Tarih" sekmesinin içerik üreticileri. Yalnızca gözlem verisini gösterir; benzetime dokunmaz. */
@@ -79,6 +79,30 @@ export function lineBlock(line: LineStats | null): string {
     `<div class="line-arms">${arms}</div>` +
     `<div class="card-actions"><button type="button" class="btn btn-small" data-action="line-find">Haritada göster</button><button type="button" class="btn btn-small" data-action="line-clear">İşareti kaldır</button></div>`
   );
+}
+
+/** Fosil kaydı: tükenmiş türler, en yeni en üstte. Neden yalnızca ölçülmüş son ölümlerden okunur. */
+export function fossilCards(list: Fossil[]): string {
+  if (list.length === 0) {
+    return `<p class="note" style="padding:8px">Henüz tükenmiş tür yok. Kalıcılaşmış bir tür tükendiğinde portresi, yaşadığı dönem ve tükenme nedeni burada saklanır.</p>`;
+  }
+  return list
+    .map((f) => {
+      const cause =
+        f.cause !== ""
+          ? `<b>${DEATH_LABEL[f.cause]}</b><small>son ${f.causeN} ölümün %${Math.round(f.causeShare * 100)}'i</small>`
+          : `<b>Tek bir belirgin neden yok</b>${f.causeN > 0 ? `<small>son ${f.causeN} ölüm dağınık nedenlerle</small>` : `<small>ölüm kaydı yetersiz</small>`}`;
+      return (
+        `<div class="fossil"><canvas data-fossil="${f.id}" aria-hidden="true"></canvas><div class="fossil-body">` +
+        `<div class="card-title"><em>${esc(f.name)}</em></div>` +
+        `<div class="fossil-line"><span class="label">Yaşadığı dönem</span><b class="mono">${fmtTime(f.born)} – ${fmtTime(f.extinct)}</b></div>` +
+        `<div class="fossil-line"><span class="label">Zirve</span><b>${f.peak} birey</b></div>` +
+        (f.parentName ? `<div class="fossil-line"><span class="label">Atası</span><b><em>${esc(f.parentName)}</em></b></div>` : "") +
+        `<div class="fossil-line"><span class="label">Tükenme nedeni</span><span class="fossil-cause">${cause}</span></div>` +
+        `</div></div>`
+      );
+    })
+    .join("");
 }
 
 export function milestoneKeys(): string[] {

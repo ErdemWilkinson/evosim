@@ -12,7 +12,8 @@ import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, 
 import { World } from "./world";
 import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
-import { MS_LABEL, lineBlock, milestoneStrip } from "./history";
+import { MS_LABEL, fossilCards, lineBlock, milestoneStrip } from "./history";
+import type { Fossil } from "./sim";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
@@ -72,6 +73,7 @@ let msPick = "0";
 let msSeen = -1;
 let msEpoch = -1;
 let lineToldFor = 0;
+let fossils: Fossil[] = [];
 let started = false;
 
 // ------------------------------------------------------------------ küçük yardımcılar
@@ -264,6 +266,13 @@ function refreshTab(v: View, ui: UiPayload): void {
   } else if (tab === "history") {
     setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t)));
     setHtml($("history-line"), lineBlock(ui.line));
+    if (ui.fossils) fossils = ui.fossils;
+    if (setHtml($("history-fossils"), fossilCards(fossils))) {
+      for (const canvas of $("history-fossils").querySelectorAll<HTMLCanvasElement>("canvas[data-fossil]")) {
+        const f = fossils.find((x) => x.id === Number(canvas.dataset.fossil));
+        if (f) portrait(canvas, f.type, theme);
+      }
+    }
   } else if (tab === "species") {
     const info = speciesCard ? ui.species.find((s) => s.id === speciesCard) : undefined;
     $("species-list-view").hidden = info !== undefined;

@@ -722,6 +722,50 @@ input[type="range"] {
   line-height: 1.55;
 }
 
+.fossils {
+  display: grid;
+  gap: 10px;
+}
+
+.fossil {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  border-radius: var(--r-md);
+  filter: saturate(0.55);
+}
+
+.fossil canvas {
+  width: 84px;
+  height: 84px;
+  opacity: 0.85;
+}
+
+.fossil-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fossil-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fossil-cause {
+  display: grid;
+  text-align: right;
+}
+
+.fossil-cause small {
+  color: var(--ink-3, #8a93a3);
+}
+
 /* ------------------------------------------------------------ panel içerikleri */
 
 .kpis {
