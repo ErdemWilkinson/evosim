@@ -90,7 +90,7 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
   ctx.fillText(`${tr("Tohum")} ${seed}`, pad, pad + 34);
   ctx.fillStyle = DIM;
   ctx.font = font(16);
-  ctx.fillText(fit(ctx, `${tr(c.origin.name)} · ${c.temperature} K · ${tr(`yüzeyin %${Math.round(p.liquidPercent)} sıvı`)}`, mapW), pad, pad + 56);
+  ctx.fillText(fit(ctx, `${tr(c.origin.name)} · ${c.temperature} K · ${Math.round(c.pressure * 100) / 100} bar · ${tr(`yüzeyin %${Math.round(p.liquidPercent)} sıvı`)}`, mapW), pad, pad + 56);
 
   // Elementler: haritanın altında.
   const ey = pad + 60 + mapH + 22;
@@ -131,6 +131,7 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
   row("Kalıtım", c.genetic.name);
   row("Enerji", c.energy.name);
   row("Işık pigmenti", c.pigment.name);
+  row("Köken enerjisi", c.originEnergy.name);
   row("Atmosfer", c.atmosphere.map((g) => `${g.gas} ${Math.round(g.share * 100)}%`).join(" · "));
 
   // Alt şerit: çalışan dünyanın özeti.

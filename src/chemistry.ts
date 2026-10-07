@@ -87,6 +87,41 @@ export const SOLVENTS: Solvent[] = [
   { id: "sulfur", name: "Erimiş kükürt", needs: ["S"], range: [388, 718], hue: 40, sat: 0.8, polar: false, sea: "erimiş kükürt", weight: 0.6, note: "Volkanik dünyalarda göller oluşturabilen sıcak, kutupsuz sıvı; sıcaklıkla rengi sarıdan kırmızıya döner.", ref: "Schulze-Makuch & Irwin 2008 (Io için tartışma)" },
 ];
 
+/**
+ * Sıvının faz verisi: yaygın referans noktası (kaynama noktası ya da üçlü nokta), o noktadaki basınç (bar) ve
+ * buharlaşma entalpisi (kJ/mol, yuvarlak değerler) ve kritik sıcaklık `tc` (K). Clausius–Clapeyron bağıntısıyla belli bir basınçta sıvının
+ * kaç K'ye kadar sıvı kaldığı ve belli bir sıcaklıkta sıvı olmak için gereken en düşük basınç hesaplanır.
+ * Değerler yuvarlaktır; hesap yönü ve büyüklük mertebesi içindir, mühendislik hassasiyeti için değildir.
+ */
+export const SOLVENT_PHASE: Record<string, { t: number; p: number; dh: number; tc: number }> = {
+  water: { t: 373, p: 1, dh: 40.7, tc: 647 },
+  ammonia: { t: 240, p: 1, dh: 23.4, tc: 405 },
+  methane: { t: 112, p: 1, dh: 8.2, tc: 191 },
+  sulfuric: { t: 610, p: 1, dh: 50, tc: 925 },
+  formamide: { t: 483, p: 1, dh: 60, tc: 771 },
+  hf: { t: 293, p: 1, dh: 7.5, tc: 461 },
+  h2s: { t: 213, p: 1, dh: 18.7, tc: 373 },
+  co2: { t: 217, p: 5.18, dh: 15, tc: 304 },
+  nitrogen: { t: 77, p: 1, dh: 5.6, tc: 126 },
+  sulfur: { t: 718, p: 1, dh: 60, tc: 1314 },
+};
+export const PHASE_REF = "NIST Chemistry WebBook, SRD 69 (Linstrom & Mallard, ed.); Clausius–Clapeyron bağıntısı";
+const GAS_R = 0.008314;
+
+/** Bir sıcaklıkta sıvının buhar basıncı (bar): sıvı kalmak için yüzey basıncı bunun altına inemez. */
+export function vaporPressure(solvent: string, kelvin: number): number {
+  const ph = SOLVENT_PHASE[solvent];
+  return ph.p * Math.exp((ph.dh / GAS_R) * (1 / ph.t - 1 / kelvin));
+}
+
+/** Verilen basınçta sıvının sıvı kalabildiği en yüksek sıcaklık (K). */
+export function boilingPoint(solvent: string, bar: number): number {
+  const ph = SOLVENT_PHASE[solvent];
+  const inv = 1 / ph.t - (GAS_R * Math.log(bar / ph.p)) / ph.dh;
+  // Kritik sıcaklığın üstünde sıvı yoktur; bağıntı oraya varmadan bozulursa tavan kritik sıcaklıktır.
+  return inv <= 1 / ph.tc ? ph.tc : 1 / inv;
+}
+
 export const SCAFFOLDS: Option[] = [
   { id: "carbon", name: "Karbon", needs: ["C"], weight: 6, note: "Dört bağ yapan, kendisiyle uzun kararlı zincirler ve halkalar kuran iskelet elementi.", ref: "Pace 2001, PNAS 98:805" },
   { id: "silicon", name: "Silisyum", needs: ["Si", "O"], weight: 2, note: "İskelet Si–O–Si (siloksan) zincirleridir; suda kolay parçalanır, asitte ve çok soğuk çözücülerde daha kararlıdır.", ref: "Petkowski, Bains & Seager 2020, Life 10:84" },
@@ -238,6 +273,42 @@ export const ORIGINS: Origin[] = [
     steps: ["Volkanik patlamalar denize yüzen pomza taşları saçıyor.", "Pomzanın sayısız gözeneği yüzerken yağları, metalleri ve fosfatı emiyor; taş kıyıya vurup kuruyor, yeniden yüzüyor.", "Her gözenek ayrı bir deney kabı; birinde {zar} ve {genetik} bir araya geliyor.", "Gözenekten çıkan ilk hücre, salın taşıdığı her kıyıya yayılıyor." ] },
 ];
 
+/** Kökende işleyen enerji kaynağı türleri. */
+export const ORIGIN_ENERGY: Record<string, { name: string; note: string; ref: string }> = {
+  uv: { name: "Yıldız morötesi ışığı", note: "Yüzeye ulaşan morötesi ışık basit gazları ve çözünmüş molekülleri etkinleştirir; genç Dünya'da en bol enerji kaynaklarından biri sayılır.", ref: "Chyba & Sagan 1992, Nature 355:125" },
+  lightning: { name: "Yıldırım ve elektrik boşalması", note: "Fırtınalardaki boşalmalar gaz karışımını parçalar; parçalar yeniden birleşip organik yapı taşlarına dönüşür.", ref: "Miller 1953, Science 117:528" },
+  geothermal: { name: "Yer ısısı", note: "Volkanik ve jeotermal ısı, havuzlarda ısınma–soğuma ve kuruma–dolma döngülerini sürdürür.", ref: "Damer & Deamer 2020, Astrobiology 20:429" },
+  chemical: { name: "Redoks ve proton gradyanı", note: "Kayaç ile sıvı arasındaki yükseltgenme–indirgenme farkı, bir hücrenin pili gibi sürekli bir enerji akışı verir.", ref: "Lane & Martin 2012, Cell 151:1406" },
+  impact: { name: "Çarpma şoku ve ısısı", note: "Göktaşı çarpmaları şok ısısıyla organik sentezi sürer ve kraterde uzun süreli sıcak akışkan dolaşımı başlatır.", ref: "Chyba & Sagan 1992, Nature 355:125" },
+  radiolysis: { name: "Radyoaktif ışınım", note: "Radyoaktif mineral taneleri çevrelerindeki sıvıyı iyonlaştırıp tepkimeye açık moleküller üretir.", ref: "Adam 2007, Astrobiology 7:852" },
+  cycles: { name: "Gelgit, kuruma ve donma döngüleri", note: "Ortamın yinelenen derişme ve seyrelme döngüleri, zincirlerin kurulmasını sürdüren enerji girdisidir.", ref: "Lathe 2004, Icarus 168:18" },
+  delivered: { name: "Göktaşı ile gelen organikler", note: "Yapı taşları yüzeyde değil uzayda oluşmuştur; enerji kaynağı yüzeyin dışındadır.", ref: "Pizzarello & Shock 2010, Cold Spring Harb. Perspect. Biol. 2:a002105" },
+};
+
+/** Her köken senaryosunun ana enerji kaynağı. */
+export const ORIGIN_POWER: Record<string, string> = {
+  alkaline_vent: "chemical",
+  iron_sulfur: "chemical",
+  hot_spring: "geothermal",
+  primordial_soup: "lightning",
+  rna_world: "geothermal",
+  clay: "chemical",
+  cyanosulfidic: "uv",
+  lipid_world: "cycles",
+  panspermia: "delivered",
+  ice: "cycles",
+  pah_world: "uv",
+  thioester: "chemical",
+  zinc_world: "uv",
+  tidal: "cycles",
+  radioactive_beach: "radiolysis",
+  coacervate: "chemical",
+  aerosol: "uv",
+  formamide: "geothermal",
+  impact_crater: "impact",
+  pumice: "geothermal",
+};
+
 export interface ChemistryBase {
   seed: number;
   /** 10 element, paya göre azalan sırada (pay toplamı 1). */
@@ -269,6 +340,12 @@ export interface Chemistry extends ChemistryBase {
   /** Arazi üretimi: dalga sıklığı, sıvı oranı aralığı, dağ payı, sırt genişliği. */
   terrain: { roughness: number; liquid: [number, number]; mountain: number; ridge: number; groundHue: number; groundSat: number };
   atmosphere: { gas: string; share: number }[];
+  /** Yüzey basıncı (bar): sıvının o sıcaklıkta sıvı kalmasına yetecek en düşük basıncın üstünde çekilir. */
+  pressure: number;
+  /** Bu basınçta çözücünün sıvı kaldığı en yüksek sıcaklık (K). */
+  liquidUntil: number;
+  /** Kökende işleyen ana enerji kaynağı. */
+  originEnergy: { id: string; name: string; note: string; ref: string };
 }
 
 const cache = new Map<number, Chemistry>();
@@ -394,7 +471,15 @@ export function generateChemistry(seedRaw: number): Chemistry {
     trace.push({ sym: e.sym, share: (0.0005 + tr.next() * 0.0045) * (0.5 + e.weight / 15) });
   }
   trace.sort((a, b) => b.share - a.share);
-  const chem: Chemistry = { ...base, origin, mods, terrain, atmosphere, trace };
+  // Yüzey basıncı: ana çekilişten ayrı üreteçle log-düzgün 0,3–30 bar çekilir, sonra sıvının o sıcaklıkta
+  // sıvı kalması için gereken buhar basıncının altına inmesi engellenir (ör. sıvı CO₂ ancak ≥5 bar'da vardır).
+  const pr = makeRng(seed ^ 0x6a09e667);
+  const drawn = Math.exp(Math.log(0.3) + pr.next() * (Math.log(30) - Math.log(0.3)));
+  const pressure = Math.min(200, Math.max(drawn, vaporPressure(solvent.id, temperature) * 1.1));
+  const liquidUntil = Math.round(boilingPoint(solvent.id, pressure));
+  const powerId = ORIGIN_POWER[origin.id] ?? "geothermal";
+  const originEnergy = { id: powerId, ...ORIGIN_ENERGY[powerId] };
+  const chem: Chemistry = { ...base, origin, mods, terrain, atmosphere, trace, pressure: Math.round(pressure * 100) / 100, liquidUntil, originEnergy };
   if (cache.size > 64) cache.clear();
   cache.set(seed, chem);
   return chem;

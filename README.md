@@ -280,8 +280,18 @@ kopyala, commit + push.
 - **Kaynaklar:** dergi makalelerinin 65'i de Crossref kaydıyla karşılaştırıldı (yazar, yıl, dergi,
   cilt, ilk sayfa tutuyor). Kitaplar (Schulze-Makuch & Irwin 2008, de Duve 1991, Cairns-Smith
   1982, Oparin 1938, Haldane 1954) bu yolla kontrol edilemedi.
-- **Kimya seçimi basit bir kuraldır:** "gereken elementler varsa aday olur" mantığı kullanılır;
-  basınç, çözünürlük ya da tepkime enerjisi hesaplanmaz. Molekül çizimleri şematiktir.
+- **Kimya seçimi büyük ölçüde basit bir kuraldır:** "gereken elementler varsa aday olur" mantığı
+  kullanılır; çözünürlük ve tepkime serbest enerjisi hesaplanmaz. İki istisna vardır: yüzey
+  basıncı ve köken enerjisi (aşağıda). Molekül çizimleri şematiktir.
+- **Yüzey basıncı yalnızca tutarlılık içindir:** 0,3–30 bar arası çekilir ve sıvının o sıcaklıkta
+  sıvı kalması için gereken buhar basıncının altına inmez (Clausius–Clapeyron, sıvının referans
+  noktası, buharlaşma entalpisi ve kritik sıcaklığı yuvarlak değerlerle `SOLVENT_PHASE` içinde;
+  değerler NIST Chemistry WebBook'tan hatırlanıp yuvarlandı, tek tek yeniden doğrulanmadı).
+  Su 2,1 bar'da 395 K'ye kadar sıvı kalır; sıvı CO₂ ancak ≥10 bar'da çıkar. 3000 gezegende sıvı
+  kalmayan tohum yok. Basınç simülasyona etki etmez ve köken seçimine girmez.
+- **Köken enerjisi bilgi amaçlıdır:** her köken senaryosunun ana enerji kaynağı (yıldız morötesi,
+  yıldırım, yer ısısı, redoks gradyanı, çarpma, radyoaktivite, döngüler, dışarıdan gelen organikler)
+  elle eşlendi, miktarı hesaplanmadı; simülasyona etki etmez.
 - **Organ malzemeleri şematiktir:** 37 organın her birinin kendi malzemesi ve molekül çizimi
   var, ama bunlar Dünya'daki karşılıklarından uyarlanmış yalın modellerdir ve organ malzemelerinin
   kaynak künyesi yoktur. Gezegende gereken element yoksa organ genel liften yapılmış gösterilir.

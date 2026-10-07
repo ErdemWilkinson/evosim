@@ -1,4 +1,4 @@
-import { CATALYSTS, ENERGIES, GENETICS, MEMBRANES, ORIGINS, PIGMENTS, SCAFFOLDS, SOLVENTS, WALLS, Option } from "./chemistry";
+import { CATALYSTS, ENERGIES, ORIGIN_ENERGY, PHASE_REF, GENETICS, MEMBRANES, ORIGINS, PIGMENTS, SCAFFOLDS, SOLVENTS, WALLS, Option } from "./chemistry";
 import { esc } from "./ui";
 
 /**
@@ -15,6 +15,8 @@ const GROUPS: [string, readonly { name: string; ref: string }[]][] = [
   ["Katalizör", CATALYSTS],
   ["Işık pigmenti", PIGMENTS],
   ["Köken senaryosu", ORIGINS],
+  ["Köken enerjisi", Object.values(ORIGIN_ENERGY)],
+  ["Yüzey basıncı", [{ name: "Sıvının kaynama ve buhar basıncı", ref: PHASE_REF }]],
 ];
 
 export function refsHtml(): string {
