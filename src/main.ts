@@ -76,6 +76,9 @@ let msPick = "0";
 let msSeen = -1;
 let msEpoch = -1;
 let lineToldFor = 0;
+let soundEpoch = -1;
+let soundTime = 0;
+let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
 let started = false;
 
@@ -234,6 +237,23 @@ function refresh(v: View, ui: UiPayload): void {
   } else if (msTop > msSeen) {
     for (const m of ui.milestones) if (m.seq > msSeen) scene.pulse(m.id, MS_LABEL[m.key] ?? m.key);
     msSeen = msTop;
+  }
+
+  // Olay sesleri: yalnızca sayaç farklarından üretilir; benzetime dokunmaz.
+  {
+    const est = ui.species.reduce((n, s) => n + (s.established ? 1 : 0), 0);
+    const gone = ui.species.reduce((n, s) => n + (s.established && s.count === 0 ? 1 : 0), 0);
+    const hunts = ui.deaths.predation ?? 0;
+    if (soundEpoch === v.epoch && v.frame.time > soundTime) {
+      const sp = ui.speed;
+      if (ui.births > soundSeen.births) music.event("birth", ui.births - soundSeen.births, sp);
+      if (hunts > soundSeen.hunts) music.event("hunt", hunts - soundSeen.hunts, sp);
+      if (est > soundSeen.est) music.event("species", 1, sp);
+      if (gone > soundSeen.gone) music.event("extinct", 1, sp);
+    }
+    soundEpoch = v.epoch;
+    soundTime = v.frame.time;
+    soundSeen = { births: ui.births, hunts, est, gone };
   }
 
   tickPredict(ui, v.frame.time);

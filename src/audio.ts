@@ -14,6 +14,11 @@ const MODES: readonly (readonly number[])[] = [
 const CHORD_SECONDS = 14;
 const LOOKAHEAD = 1.2;
 
+export type SoundEvent = "birth" | "hunt" | "species" | "extinct";
+/** Olay sesleri arasındaki en kısa süre (sn); yüksek hızda orantılı uzar. */
+const EVENT_GAP: Record<SoundEvent, number> = { birth: 0.5, hunt: 0.7, species: 1.6, extinct: 3 };
+const EVENT_BUDGET = { span: 2, count: 4 };
+
 function mulberry(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -32,6 +37,10 @@ export class Music {
   private master: GainNode | null = null;
   private filter: BiquadFilterNode | null = null;
   private bells: GainNode | null = null;
+  private fx: GainNode | null = null;
+  private fxLast: Record<SoundEvent, number> = { birth: -9, hunt: -9, species: -9, extinct: -9 };
+  private fxTimes: number[] = [];
+  private fxPick = 0;
   private seed = 1;
   private rnd = mulberry(1);
   private root = 40;
@@ -138,6 +147,11 @@ export class Music {
       this.ctx = ctx;
       this.master = master;
       this.filter = filter;
+      // Olay sesleri aynı ana kanala girer: Ses düğmesi hepsini birden susturur.
+      const fx = ctx.createGain();
+      fx.gain.value = 0.9;
+      fx.connect(master);
+      this.fx = fx;
       this.bells = bells;
       this.nextChord = ctx.currentTime + 0.3;
       this.nextBell = ctx.currentTime + 4;
@@ -145,6 +159,49 @@ export class Music {
     }
     void this.ctx?.resume();
     this.applyLevel();
+  }
+
+  /**
+   * Olay sesi. Müzikle aynı dizinin notalarını kullanır; seyrek ve kısadır.
+   * Hız arttıkça aralıklar uzar, kısa sürede çok olay gelirse fazlası atlanır.
+   */
+  public event(kind: SoundEvent, count = 1, speed = 1): void {
+    const ctx = this.ctx;
+    const bus = this.fx;
+    if (!ctx || !bus || !this.on || document.hidden || ctx.state !== "running") return;
+    const now = ctx.currentTime;
+    if (now - this.fxLast[kind] < EVENT_GAP[kind] * Math.max(1, speed / 2)) return;
+    this.fxTimes = this.fxTimes.filter((t) => now - t < EVENT_BUDGET.span);
+    if (this.fxTimes.length >= EVENT_BUDGET.count) return;
+    this.fxLast[kind] = now;
+    this.fxTimes.push(now);
+    const pick = this.fxPick++;
+    const len = this.mode.length;
+    const swell = Math.min(1, 0.55 + count * 0.05);
+    const tone = (midi: number, at: number, peak: number, decay: number, type: OscillatorType = "sine", glideTo?: number): void => {
+      const osc = ctx.createOscillator();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq(midi), at);
+      if (glideTo !== undefined) osc.frequency.exponentialRampToValueAtTime(freq(glideTo), at + decay * 0.8);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(peak, at + 0.015);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + decay);
+      osc.connect(gain);
+      gain.connect(bus);
+      osc.start(at);
+      osc.stop(at + decay + 0.05);
+    };
+    if (kind === "birth") tone(this.note(len * 3 + (pick % 4) * 2), now, 0.035 * swell, 0.35);
+    else if (kind === "hunt") tone(this.note(-len), now, 0.1 * swell, 0.28, "triangle", this.note(-len) - 12);
+    else if (kind === "species") {
+      tone(this.note(len * 2), now, 0.06, 1.4);
+      tone(this.note(len * 2 + 2), now + 0.18, 0.06, 1.6);
+      tone(this.note(len * 3), now + 0.36, 0.05, 2);
+    } else {
+      tone(this.note(len), now, 0.09, 3.2, "triangle", this.note(len) - 5);
+      tone(this.note(len - 2), now + 0.3, 0.07, 3.6, "sine");
+    }
   }
 
   private note(step: number): number {
