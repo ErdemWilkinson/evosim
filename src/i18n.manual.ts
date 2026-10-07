@@ -13,6 +13,8 @@ export const MANUAL: Record<string, string> = {
   "Soy ağacı": "Family tree",
   Kayıt: "Save",
   "Yeni gezegen": "New planet",
+  Ses: "Sound",
+  "Müziği aç veya kapat": "Turn the music on or off",
   Araçlar: "Tools",
   "Seç ve incele": "Select and inspect",
   "Bitki ek": "Sow plants",

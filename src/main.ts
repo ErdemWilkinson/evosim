@@ -11,6 +11,7 @@ import { DAY_LENGTH, EventKind, INITIAL_CREATURES, SaveData, WorldEventKind } fr
 import { $, EVENT_KIND_LABEL, LineChart, StackChart, creatureSkeleton, dnaHtml, esc, pickGene, spinDna, fmtTime, logHtml, nf, organTable, planetHtml, portrait, setHtml, speciesRows, speciesSkeleton, updateCreatureCard, updateOverview, updateSpeciesCard } from "./ui";
 import { World } from "./world";
 import { getLang, initI18n } from "./i18n";
+import { Music } from "./audio";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
@@ -35,6 +36,16 @@ const runtime = __ARTIFACT__ ? (window as unknown as { claude?: { use(name: stri
 // ------------------------------------------------------------------ durum
 
 initI18n();
+const music = new Music();
+music.arm();
+const soundButton = document.getElementById("btn-sound");
+if (soundButton) {
+  soundButton.setAttribute("aria-pressed", String(music.isOn()));
+  soundButton.addEventListener("click", () => {
+    music.setOn(!music.isOn());
+    soundButton.setAttribute("aria-pressed", String(music.isOn()));
+  });
+}
 const theme = readTheme();
 const client = new Client();
 const scene = new Scene($<HTMLCanvasElement>("scene"), theme);
@@ -159,6 +170,8 @@ function onEpoch(v: View): void {
 function refresh(v: View, ui: UiPayload): void {
   const time = v.frame.time;
   const light = v.frame.light;
+  music.setSeed(v.world.seed);
+  music.setLight(light);
   $("clock").textContent = fmtTime(time);
   $("calendar").textContent = `Gün ${Math.floor(time / DAY_LENGTH) + 1}`;
   $("daylight-label").textContent = light >= 0.6 ? "Gündüz" : light >= 0.25 ? "Alacakaranlık" : "Gece";
