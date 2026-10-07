@@ -6,6 +6,7 @@ export class StartMenu {
   private index = 0;
   private timer = 0;
   private raf = 0;
+  private leaving = false;
   private stopInput: (() => void) | null = null;
   private dots: HTMLElement[] = [];
 
@@ -24,7 +25,15 @@ export class StartMenu {
       dotBox.appendChild(b);
       this.dots.push(b);
     });
-    root.querySelector("#start-go")!.addEventListener("click", () => this.choose("go"));
+    // Başla'ya basınca toplar düğmeye doğru akarken menü kısa bir an daha açık kalır.
+    root.querySelector("#start-go")!.addEventListener("click", () => {
+      if (this.leaving) return;
+      this.leaving = true;
+      window.setTimeout(() => {
+        this.leaving = false;
+        this.choose("go");
+      }, 650);
+    });
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }
 
@@ -88,13 +97,22 @@ export class StartMenu {
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     };
     const onDown = (e: PointerEvent): void => {
-      if ((e.target as HTMLElement).closest("button, a, input, select")) return;
+      // Düğmeye basılınca toplar o düğmenin ortasına doğru toplanır.
+      const btn = (e.target as HTMLElement).closest("button, a, input, select");
+      if (btn) {
+        const br = btn.getBoundingClientRect();
+        const cr = canvas.getBoundingClientRect();
+        pull = { x: br.left + br.width / 2 - cr.left, y: br.top + br.height / 2 - cr.top };
+        pressed = true;
+        pulse = 1;
+        return;
+      }
       pull = where(e);
       pressed = true;
       pulse = 1;
     };
     const onMove = (e: PointerEvent): void => {
-      if (pressed) pull = where(e);
+      if (pressed && !(e.target as HTMLElement).closest("button, a, input, select")) pull = where(e);
     };
     const onUp = (): void => {
       if (!pressed) return;
