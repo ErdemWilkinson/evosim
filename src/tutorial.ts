@@ -610,11 +610,13 @@ const GREET = {
   },
 };
 
+/** Soru, Rehber bir kez bitirilene (ya da kapatılana) dek her açılışta sorulur; "Hayır" yalnızca o oturum için hatırlanır. */
 export function greeted(): boolean {
+  if (tourSeen()) return true;
   try {
-    return localStorage.getItem("evosim-greeted") === "1";
+    return sessionStorage.getItem("evosim-greeted") === "1";
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -650,7 +652,7 @@ export function greet(tour: Tour): void {
   };
   const mark = (on: boolean): void => {
     try {
-      if (on) localStorage.setItem("evosim-greeted", "1");
+      if (on) sessionStorage.setItem("evosim-greeted", "1");
     } catch {
       /* depolama kapalıysa yalnızca bu oturum */
     }
