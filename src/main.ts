@@ -249,6 +249,7 @@ function refresh(v: View, ui: UiPayload): void {
   range.disabled = count === 0;
   $<HTMLButtonElement>("tl-go").disabled = count === 0;
   $("tl-undo").hidden = !ui.canUndo;
+  $("history-undo").hidden = !ui.canUndo;
   if (count > 0) {
     range.max = String(count - 1);
     if (timelinePinned) range.value = String(count - 1);
@@ -537,6 +538,10 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
       }
       break;
     }
+    case "unrewind":
+      client.send({ type: "unrewind" });
+      toast("Geri sarma geri alındı.");
+      break;
     case "ms-pick":
       msPick = button.dataset.seq ?? "0";
       break;

@@ -140,6 +140,41 @@ interface Material {
   ref?: string;
 }
 
+/** Organ malzemelerinin dayandığı yayınlar: Dünya'daki karşılığının yapısı ve işlevi için. Malzeme gezegene uyarlanmış bir modeldir. */
+export const ORGAN_REFS: Partial<Record<OrganType, string>> = {
+  tentacle: "Kier & Smith 1985, Zool. J. Linn. Soc. 83:307",
+  fin: "Merzendorfer & Zimoch 2003, J. Exp. Biol. 206:4393 (kitin)",
+  leg: "Merzendorfer & Zimoch 2003, J. Exp. Biol. 206:4393 (kitin)",
+  wing: "Merzendorfer & Zimoch 2003, J. Exp. Biol. 206:4393 (kitin)",
+  filter_comb: "Merzendorfer & Zimoch 2003, J. Exp. Biol. 206:4393 (kitin)",
+  brood_pouch: "Merzendorfer & Zimoch 2003, J. Exp. Biol. 206:4393 (kitin)",
+  sucker: "Kier & Smith 1985, Zool. J. Linn. Soc. 83:307",
+  lateral_line: "Kier & Smith 1985, Zool. J. Linn. Soc. 83:307 (kas-hidrostat); yan çizgi için ayrı kaynak yok",
+  heart: "Huxley 1957, Prog. Biophys. Biophys. Chem. 7:255",
+  sprint_muscle: "Huxley 1957, Prog. Biophys. Biophys. Chem. 7:255",
+  eye: "Wistow & Piatigorsky 1988, Annu. Rev. Biochem. 57:479",
+  bioluminescence: "Wilson & Hastings 1998, Annu. Rev. Cell Dev. Biol. 14:197",
+  olfactory: "Buck & Axel 1991, Cell 65:175; Sevier & Kaiser 2002, Nat. Rev. Mol. Cell Biol. 3:836",
+  electroreceptor: "Bellono, Leitch & Julius 2017, Nature 543:391 (gerçek alıcılar CaV ve BK kanallarını kullanır; Na⁺/K⁺ kanalı bu oyunun sadeleştirmesidir)",
+  mouth: "Weiner & Wagner 1998, Annu. Rev. Mater. Sci. 28:271 (apatit); Lowenstam & Weiner 1989, On Biomineralization",
+  shell: "Lowenstam & Weiner 1989, On Biomineralization, Oxford Univ. Press; Weiner & Wagner 1998, Annu. Rev. Mater. Sci. 28:271",
+  spike: "Lowenstam & Weiner 1989, On Biomineralization, Oxford Univ. Press",
+  thicket_cutter: "Sevier & Kaiser 2002, Nat. Rev. Mol. Cell Biol. 3:836 (disülfit köprüleri)",
+  claw: "Sevier & Kaiser 2002, Nat. Rev. Mol. Cell Biol. 3:836 (disülfit köprüleri)",
+  venom: "Fry ve ark. 2009, Annu. Rev. Genomics Hum. Genet. 10:483",
+  immune_gland: "Schroeder & Cavacini 2010, J. Allergy Clin. Immunol. 125:S41",
+  camouflage: "d'Ischia ve ark. 2015, Pigment Cell Melanoma Res. 28:520",
+  chromatophore: "d'Ischia ve ark. 2015, Pigment Cell Melanoma Res. 28:520",
+  ink_sac: "d'Ischia ve ark. 2015, Pigment Cell Melanoma Res. 28:520",
+  mucus_coat: "Bansil & Turner 2006, Curr. Opin. Colloid Interface Sci. 11:164",
+  gill: "Perutz 1970, Nature 228:726 (hemoglobin); van Holde, Miller & Decker 2001, J. Biol. Chem. 276:15563 (hemosiyanin)",
+  lung: "Veldhuizen ve ark. 1998, Biochim. Biophys. Acta 1408:90",
+  torpor: "Storey & Storey 1988, Physiol. Rev. 68:27",
+  blubber: "Walther & Farese 2012, Annu. Rev. Biochem. 81:687",
+  fat_store: "Walther & Farese 2012, Annu. Rev. Biochem. 81:687",
+  sulfur_vent_organ: "Cavanaugh ve ark. 1981, Science 213:340",
+};
+
 /**
  * Her organın kendi yapı malzemesi. Malzeme gezegenin elementleriyle kurulamıyorsa
  * (ya da iskelet silisyumsa ve malzeme karbon kimyası gerektiriyorsa) organ, o
@@ -211,7 +246,7 @@ function organMaterial(type: OrganType, chem: Chemistry): Material {
     brood_pouch: { ...chitin, note: `Kese, yavruları dış ortamdan ayıran esnek bir örtüdür. ${chitin.note}` },
     immune_gland: disulfide("Antikor benzeri tanıma proteini", "Kükürt köprüleriyle bağlı zincirlerin ucundaki değişken bölge yabancı molekülü tanıyıp işaretler."),
   };
-  const m = table[type];
+  const m = { ...table[type], ref: table[type].ref ?? ORGAN_REFS[type] };
   const carbonOnly = m.mol !== SILOXANE && m.needs.includes("C");
   if (m.needs.every((sym) => has(sym)) && !(silicon && carbonOnly)) return m;
   const why = silicon && carbonOnly ? "iskelet silisyum olduğu" : `${m.needs.filter((sym) => !has(sym)).join(", ")} bulunmadığı`;
