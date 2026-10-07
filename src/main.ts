@@ -2,6 +2,7 @@ import { Client, View } from "./client";
 import { EvolutionSpeed } from "./genome";
 import { OrganType } from "./organs";
 import { PhyloTree } from "./phylo";
+import { refsHtml } from "./refs";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
 import { FLAG, STRIDE, UiPayload } from "./protocol";
@@ -856,6 +857,10 @@ function drawTree(): void {
 $("btn-tree").addEventListener("click", () => {
   $<HTMLDialogElement>("dlg-tree").showModal();
   drawTree();
+});
+$("btn-refs").addEventListener("click", () => {
+  if (!$("refs-body").firstChild) setHtml($("refs-body"), refsHtml());
+  $<HTMLDialogElement>("dlg-refs").showModal();
 });
 $("tree-established").addEventListener("change", drawTree);
 $("tree-living").addEventListener("change", drawTree);

@@ -40,7 +40,7 @@ formamid, hidrojen florür, hidrojen sülfür, sıvı CO₂, sıvı azot, erimi�
 (karbon, silisyum, bor–azot), bir zar, bir hücre duvarı, bir kalıtım polimeri, bir enerji
 taşıyıcısı, bir katalizör metali ve bir ışık pigmenti seçilir; yaşamın 20 köken senaryosundan
 biri de bu kimyaya uygunluğuna göre belirlenir. Her seçeneğin dayandığı yayın arayüzde
-"Kaynaklar" altında ve `src/chemistry.ts` içinde yazılıdır.
+gezegen kartındaki "Kaynaklar" altında, üst çubuktaki **Kaynakça** penceresinde (80 kayıt, 71 ayrı kaynak, hepsi gruplanmış) ve `src/chemistry.ts` içinde yazılıdır.
 
 Kimyanın simülasyona etkileri:
 
