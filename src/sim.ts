@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
+import { ACT, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, Quake, World } from "./world";
 import { GroundTone, Tone, bodyHSL, toneMatch, toneOfHSL } from "./ground";
@@ -102,6 +102,18 @@ const TRACE_WATER_DECAY = 2;
 const TRACE_COVER_DECAY = 3;
 const TRACE_REST = 0.3;
 const TRACE_FOLLOW_MIN = 2;
+/**
+ * Hafıza ve çağrı: karar ağı iki yeni girdi ve bir yeni eylem kazanır. Hafıza, bir önceki karardan kalan değerdir
+ * (MEMORY_KEEP ile söner, ağın "hafıza" satırı yenisini yazar). "Çağır" eylemi çağrı sinyalini 1'e çeker; sinyal
+ * CALL_DECAY sn'de söner, aynı türden SIGNAL_RADIUS içindeki komşular uzaklığa göre sönümlenmiş en güçlü sinyali "çağrı"
+ * girdisi olarak duyar. Bedeller: çağıran durur, CALL_COST kat enerji yakar ve avcıya CALL_VISIBILITY·sinyal kadar daha uzaktan görünür.
+ * Başlangıç ağında bu bağlantıların hepsi 0'dır: davranış mutasyonla, işe yararsa evrimleşir.
+ */
+const MEMORY_KEEP = 0.7;
+const SIGNAL_RADIUS = 120;
+const CALL_DECAY = 2;
+const CALL_COST = 1.5;
+const CALL_VISIBILITY = 0.5;
 /** Atmosfer: yenileme aralığı (sn), ortalamanın hafızası, tepki kazancı, oksijenin salınım genliği ve gevşeme süresi. */
 const ATMOSPHERE_INTERVAL = 1;
 const ATMOSPHERE_MEMORY = 1200;
@@ -239,12 +251,12 @@ const LINEAGE_CAP = 9000;
 const EVENT_LOG_CAP = 240;
 const SERIES_CAP = 240;
 
-export type Behavior = "wander" | "seek" | "flee" | "hunt" | "scavenge" | "graze" | "bask" | "escape" | "rest" | "attached" | "absorb";
+export type Behavior = "call" | "wander" | "seek" | "flee" | "hunt" | "scavenge" | "graze" | "bask" | "escape" | "rest" | "attached" | "absorb";
 export type DeathCause = "starvation" | "old_age" | "predation" | "venom" | "meteor" | "disease" | "removed";
 export type WorldEventKind = "meteor" | "climate" | "wind" | "quake";
 export type EventKind = "organ" | "diet" | "species" | "world" | "population" | "gene" | "stage" | "disease";
 
-export const BEHAVIORS: readonly Behavior[] = ["wander", "seek", "flee", "hunt", "scavenge", "graze", "bask", "escape", "rest", "attached", "absorb"];
+export const BEHAVIORS: readonly Behavior[] = ["wander", "seek", "flee", "hunt", "scavenge", "graze", "bask", "escape", "rest", "attached", "absorb", "call"];
 
 export const BEHAVIOR_LABEL: Record<Behavior, string> = {
   wander: "keşfediyor",
@@ -258,6 +270,7 @@ export const BEHAVIOR_LABEL: Record<Behavior, string> = {
   rest: "dinleniyor",
   attached: "konağa tutunmuş",
   absorb: "çözünmüş besin emiyor",
+  call: "çağrı yapıyor",
 };
 
 export const DEATH_LABEL: Record<DeathCause, string> = {
@@ -409,6 +422,9 @@ export interface Creature {
   hostAngle: number;
   /** Büyüme düzeyi: GROWTH_BIRTH–1 (1 = yetişkin boy). */
   size: number;
+  /** Karar ağının hafıza değeri (-1..1) ve çağrı sinyali (0..1). */
+  mem: number;
+  signal: number;
   parasites: number;
   /** Konağın taşıdığı simbiyont sayısı (her adımda yeniden sayılır). */
   symbionts: number;
@@ -963,6 +979,8 @@ export class Sim {
       host: null,
       hostAngle: 0,
       size: parent ? GROWTH_BIRTH : 1,
+      mem: 0,
+      signal: 0,
       parasites: 0,
       symbionts: 0,
       attachT: 0,
@@ -1501,6 +1519,7 @@ export class Sim {
       // Kamuflaj menzili kısaltır; süslü erkek daha uzaktan görülür.
       let reach = seesThrough ? sense : Math.max(c.g.radius + o.g.radius + COVER_TOUCH, sense * (1 - o.d.camo) * (1 - this.colorHide(o)) * (1 - (o.host && o.g.diet === "phototroph" ? 1 : o.cover) * (1 - c.d.cutter)));
       if (o.g.reproductionStrategy === "sexual" && o.g.sex === "m") reach *= 1 + ORNAMENT_VISIBILITY * o.g.ornament;
+      if (o.signal > 0) reach *= 1 + CALL_VISIBILITY * o.signal;
       if (d > reach * reach || d >= bestD || !this.passable(c, o.x, o.y)) return;
       bestD = d;
       best = o;
@@ -1620,13 +1639,15 @@ export class Sim {
     let rivals = 0;
     let shaders = 0;
     let sharers = 0;
-    const scan = Math.max(TERRITORY_RADIUS, PHOTO_SHADE_RADIUS);
+    const scan = Math.max(TERRITORY_RADIUS, PHOTO_SHADE_RADIUS, SIGNAL_RADIUS);
+    let heard = 0;
     this.cHash.query(c.x, c.y, scan, (o) => {
       if (o === c || !o.alive) return;
       const dx = o.x - c.x;
       const dy = o.y - c.y;
       const dist2 = dx * dx + dy * dy;
       if (o.g.speciesId === g.speciesId && dist2 <= 3600) kin++;
+      if (o.signal > 0 && o.g.speciesId === g.speciesId && dist2 <= SIGNAL_RADIUS * SIGNAL_RADIUS) heard = Math.max(heard, o.signal * (1 - Math.sqrt(dist2) / SIGNAL_RADIUS));
       if (g.diet === "carnivore" && o.g.diet === "carnivore" && dist2 <= TERRITORY_RADIUS * TERRITORY_RADIUS && !(g.packHunter && o.g.packHunter && o.g.speciesId === g.speciesId)) rivals++;
       if (g.diet === "phototroph" && o.g.diet === "phototroph" && dist2 <= PHOTO_SHADE_RADIUS * PHOTO_SHADE_RADIUS) shaders++;
       if (g.diet === "filter_feeder" && o.g.diet === "filter_feeder" && !o.onLand && dist2 <= FILTER_RADIUS * FILTER_RADIUS) sharers++;
@@ -1698,13 +1719,15 @@ export class Sim {
       Math.min(1, kin / 6),
       env.light,
       1 - c.hp / c.maxHp,
+      c.mem,
+      heard,
     ];
 
     // --- karar ağı: mümkün eylemler arasında en yüksek puanlı olan ---
     const brain = g.brain;
     let best: number = ACT.explore;
     let bestScore = -Infinity;
-    for (let a = 0; a < BRAIN_ACTIONS.length; a++) {
+    for (let a = 0; a < ACT.memory; a++) {
       if (a === ACT.flee && !threat) continue;
       if (a === ACT.hunt && !prey) continue;
       let score = 0;
@@ -1715,7 +1738,16 @@ export class Sim {
       }
     }
 
+    // Hafıza: ağın "hafıza" satırı, eskiyi söndürüp yeni değer yazar.
+    let wrote = 0;
+    for (let i = 0; i < IN; i++) wrote += brain[ACT.memory * IN + i] * inputs[i];
+    c.mem = Math.tanh(MEMORY_KEEP * c.mem + wrote);
+
     switch (best) {
+      case ACT.call:
+        c.state = "call";
+        c.signal = 1;
+        return;
       case ACT.flee: {
         // Tehdit altındaki küçük üretici, yakındaki uygun bir konağa sığınabilir.
         const refuge = g.diet === "phototroph" && c.attackCd <= 0 ? this.findSymbiontHost(c, threatRange * 0.5) : null;
@@ -1876,6 +1908,7 @@ export class Sim {
     if (c.bornT > 0) c.bornT = Math.max(0, c.bornT - dt);
     if (c.flashT > 0) c.flashT = Math.max(0, c.flashT - dt);
     if (c.hurtT > 0) c.hurtT = Math.max(0, c.hurtT - dt);
+    if (c.signal > 0) c.signal = Math.max(0, c.signal - dt / CALL_DECAY);
     if (c.divideCd > 0) c.divideCd -= dt;
     if (c.attackCd > 0) c.attackCd -= dt;
     if (c.hgtCd > 0) c.hgtCd -= dt;
@@ -1921,6 +1954,7 @@ export class Sim {
     if (c.state === "hunt") m *= HUNT_METABOLISM;
     else if (c.state === "escape") m *= 3;
     else if (c.state === "rest") m *= REST_METABOLISM;
+    else if (c.state === "call") m *= CALL_COST;
     if (active && d.sprint > 0) m *= 1.2;
     if (!active && !c.onLand && d.bladder > 0) m *= 1 - d.bladder;
     if (c.infectedT > 0) m *= INFECTION_METABOLISM;
@@ -2007,6 +2041,7 @@ export class Sim {
         this.move(c, c.heading, Math.max(speed, 14), dt, true);
         return;
       case "rest":
+      case "call":
         speed = 0;
         break;
       case "flee": {
@@ -3167,10 +3202,10 @@ function cleanSave(raw: SaveData): SaveData {
 /** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar).
  *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi.
  *  Sürüm 7: dönüm noktaları ve olaylarda isteğe bağlı `ms`/`id` alanları (yalnızca gözlem verisi; eski kayıtlar olduğu gibi yüklenir). */
-export const SAVE_VERSION = 8;
-const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, SAVE_VERSION];
+export const SAVE_VERSION = 9;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, 8, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
-const CREATURE_REST = ["size", "heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
+const CREATURE_REST = ["size", "mem", "signal", "heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 
 export interface SaveData {
   version: number;

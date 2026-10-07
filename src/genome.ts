@@ -35,10 +35,14 @@ export const DIET_DESCRIPTION: Record<Diet, string> = {
  *  girdilerin ağırlıklı toplamıdır; en yüksek puanlı (ve o an mümkün olan) eylem
  *  seçilir. Ağırlıklar genomdadır ve mutasyona uğrar: davranışın yalnızca
  *  parametreleri değil, hangi durumda neyin yapılacağı da evrimleşir. */
-export const BRAIN_INPUTS = ["sabit", "açlık", "tehdit", "besin", "av", "kalabalık", "ışık", "yara"] as const;
-export const BRAIN_ACTIONS = ["kaç", "beslen", "avlan", "dinlen", "keşfet"] as const;
+export const BRAIN_INPUTS = ["sabit", "açlık", "tehdit", "besin", "av", "kalabalık", "ışık", "yara", "hafıza", "çağrı"] as const;
+/** Son satır ("hafıza") bir eylem değil: ağın bir sonraki karardaki hafıza değerini hesaplayan doğrusal birimdir. */
+export const BRAIN_ACTIONS = ["kaç", "beslen", "avlan", "dinlen", "keşfet", "çağır", "hafıza"] as const;
 export const IN = BRAIN_INPUTS.length;
-export const ACT = { flee: 0, forage: 1, hunt: 2, rest: 3, explore: 4 } as const;
+export const ACT = { flee: 0, forage: 1, hunt: 2, rest: 3, explore: 4, call: 5, memory: 6 } as const;
+/** Eski kayıtlardaki ağ düzeni: 5 eylem × 8 girdi. */
+const OLD_IN = 8;
+const OLD_ACTIONS = 5;
 
 /** Başlangıç ağırlıkları: tehdit varsa kaç, acıkınca beslen/avlan, yoksa keşfet. */
 export function defaultBrain(): number[] {
@@ -382,7 +386,10 @@ export function sanitizeGenome(raw: unknown): Genome {
     }
   }
   const brain = defaultBrain();
-  if (Array.isArray(r.brain)) for (let i = 0; i < brain.length; i++) brain[i] = num(r.brain[i], -8, 8, brain[i]);
+  if (Array.isArray(r.brain) && r.brain.length === OLD_IN * OLD_ACTIONS) {
+    // Eski düzen (sürüm 8 öncesi): ağırlıklar yeni ızgaraya taşınır; yeni girdi ve satırlar 0 kalır.
+    for (let a = 0; a < OLD_ACTIONS; a++) for (let i = 0; i < OLD_IN; i++) brain[a * IN + i] = num(r.brain[a * OLD_IN + i], -8, 8, brain[a * IN + i]);
+  } else if (Array.isArray(r.brain)) for (let i = 0; i < brain.length; i++) brain[i] = num(r.brain[i], -8, 8, brain[i]);
   const parents = Array.isArray(r.parentIds) && r.parentIds.length === 2 ? ([int(r.parentIds[0]), int(r.parentIds[1])] as [number, number]) : null;
   const g: Genome = {
     id: int(r.id),
