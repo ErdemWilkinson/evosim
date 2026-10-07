@@ -708,6 +708,14 @@ function openPlanet(seed?: number): void {
   previewPlanet();
   const dialog = $<HTMLDialogElement>("dlg-planet");
   if (!dialog.open) dialog.showModal();
+  // Başlat düğmesindeki otomatik odak pencereyi en alta kaydırır; pencere her zaman en üstten açılır.
+  const top = (): void => {
+    dialog.scrollTop = 0;
+    dialog.querySelector<HTMLElement>(".dialog-body")?.scrollTo?.(0, 0);
+  };
+  top();
+  requestAnimationFrame(top);
+  window.setTimeout(top, 120);
 }
 
 function startPlanet(): void {
