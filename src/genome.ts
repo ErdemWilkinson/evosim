@@ -276,6 +276,12 @@ function mutate(g: Genome, stress: number): Genome {
   return g;
 }
 
+/** Yaşayan bir bireyin genomunu yerinde mutasyona uğratır (radyasyon aracı): kimlik, soy ve tür korunur. */
+export function irradiateGenome(g: Genome, stress = 3): Genome {
+  const mutated = mutate(cloneGenome(g), stress);
+  return { ...mutated, id: g.id, parentIds: g.parentIds, generation: g.generation, speciesId: g.speciesId, sex: g.sex };
+}
+
 /** Eşeysiz bölünme: ebeveynin kopyası + mutasyon. */
 export function divideGenome(parent: Genome, id: number, stress = 1): Genome {
   return mutate({ ...cloneGenome(parent), id, parentIds: [parent.id, parent.id], generation: parent.generation + 1 }, stress);

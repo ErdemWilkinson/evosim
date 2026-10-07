@@ -93,7 +93,9 @@ const TOOL_HINT: Record<Tool, string> = {
   plants: "Tıkladığınız yere bir avuç bitki ekilir.",
   place: "",
   meteor: "Tıkladığınız yere meteor düşer: çemberin içindeki canlıların ve bitkilerin çoğu yok olur.",
-  remove: "Tıkladığınız canlı haritadan kaldırılır.",
+  remove: "Tıkladığınız canlı haritadan kaldırılır; basılı tutup sürükleyerek birden çok canlıyı silebilirsiniz.",
+  soup: "Tıkladığınız suya çözünmüş besin eklenir; basılı tutup sürükleyerek boyayabilirsiniz.",
+  radiate: "Çemberin içindeki canlıların bir kısmının genleri mutasyona uğrar; basılı tutup sürükleyebilirsiniz.",
 };
 
 function setTool(next: Tool): void {
@@ -311,8 +313,24 @@ requestAnimationFrame(frame);
 // ------------------------------------------------------------------ harita etkileşimi
 
 scene.onUserPan = () => (following = false);
-scene.paint = () => tool === "plants";
-scene.onPaint = (x, y) => client.send({ type: "plants", x, y, drag: true });
+const PAINT_TOOLS: readonly Tool[] = ["plants", "place", "remove", "soup", "radiate"];
+let lastPlaced = { x: -1e9, y: -1e9 };
+scene.paint = () => PAINT_TOOLS.includes(tool);
+scene.onPaint = (x, y, first) => {
+  if (!view) return;
+  if (tool === "plants") client.send({ type: "plants", x, y, drag: !first });
+  else if (tool === "soup") client.send({ type: "soup", x, y, drag: !first });
+  else if (tool === "radiate") client.send({ type: "radiate", x, y, drag: !first });
+  else if (tool === "remove") {
+    const id = scene.pick(view, x, y, 14);
+    if (id) client.send({ type: "remove", id });
+  } else if (tool === "place") {
+    // Sürüklerken canlılar üst üste binmesin diye aralıklı yerleştirilir.
+    if (!first && Math.hypot(x - lastPlaced.x, y - lastPlaced.y) < 26) return;
+    lastPlaced = { x, y };
+    client.send({ type: "place", x, y, template: placeTemplate, drag: !first });
+  }
+};
 scene.onTap = (x, y, tolerance) => {
   if (!view) return;
   if (tool === "plants") client.send({ type: "plants", x, y });

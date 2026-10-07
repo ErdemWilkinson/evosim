@@ -546,9 +546,9 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
 
 // ------------------------------------------------------------------ sahne
 
-export type Tool = "select" | "plants" | "place" | "meteor" | "remove";
+export type Tool = "select" | "plants" | "place" | "meteor" | "remove" | "soup" | "radiate";
 
-const TOOL_RADIUS: Partial<Record<Tool, number>> = { plants: 34, meteor: 65 };
+const TOOL_RADIUS: Partial<Record<Tool, number>> = { plants: 34, meteor: 65, soup: 70, radiate: 45, remove: 14 };
 
 export interface SceneState {
   selected: number;
@@ -735,7 +735,7 @@ export class Scene {
   private lastPaint = { x: 0, y: 0 };
   /** Boyama aracı (bitki ekme) etkinse basılı tutup sürüklemek kaydırmak yerine boyar. */
   public paint: () => boolean = () => false;
-  public onPaint: (x: number, y: number) => void = () => {};
+  public onPaint: (x: number, y: number, first: boolean) => void = () => {};
 
   constructor(
     public readonly canvas: HTMLCanvasElement,
@@ -754,7 +754,7 @@ export class Scene {
         this.painting = true;
         this.dragged = 99;
         this.lastPaint = p;
-        this.onPaint(p.x, p.y);
+        this.onPaint(p.x, p.y, true);
       }
     });
     canvas.addEventListener("pointermove", (e) => {
@@ -771,7 +771,7 @@ export class Scene {
           const p = this.hover!;
           if (Math.hypot(p.x - this.lastPaint.x, p.y - this.lastPaint.y) >= Math.max(5, 12 / this.zoom)) {
             this.lastPaint = p;
-            this.onPaint(p.x, p.y);
+            this.onPaint(p.x, p.y, false);
           }
           return;
         }
@@ -1205,7 +1205,7 @@ export class Scene {
     // Araç önizlemesi
     const toolR = TOOL_RADIUS[state.tool];
     if (this.hover && toolR) {
-      ctx.strokeStyle = state.tool === "meteor" ? theme.critical : theme.accent;
+      ctx.strokeStyle = state.tool === "meteor" || state.tool === "radiate" ? theme.critical : theme.accent;
       ctx.lineWidth = 1.2 / zoom;
       ctx.setLineDash([5 / zoom, 4 / zoom]);
       ctx.beginPath();

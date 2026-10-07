@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
+import { ACT, BRAIN_ACTIONS, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
 import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, Quake, World } from "./world";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
@@ -1945,6 +1945,39 @@ export class Sim {
       added++;
     }
     return added;
+  }
+
+  /** Çözünmüş besini boyar: fırçanın değdiği su hücrelerinin besinini artırır. Değen hücre sayısını döndürür. */
+  public addSoup(x: number, y: number, radius = 70): number {
+    const x0 = Math.max(0, Math.floor((x - radius) / SOUP_CELL));
+    const x1 = Math.min(SOUP_COLS - 1, Math.floor((x + radius) / SOUP_CELL));
+    const y0 = Math.max(0, Math.floor((y - radius) / SOUP_CELL));
+    const y1 = Math.min(SOUP_ROWS - 1, Math.floor((y + radius) / SOUP_CELL));
+    let touched = 0;
+    for (let gy = y0; gy <= y1; gy++) {
+      for (let gx = x0; gx <= x1; gx++) {
+        const i = gy * SOUP_COLS + gx;
+        const cx = (gx + 0.5) * SOUP_CELL;
+        const cy = (gy + 0.5) * SOUP_CELL;
+        if (this.soupCap[i] <= 0 || Math.hypot(cx - x, cy - y) > radius + SOUP_CELL * 0.5) continue;
+        this.soup[i] = Math.min(this.soupCap[i] * 2, this.soup[i] + this.soupCap[i] * 0.5);
+        touched++;
+      }
+    }
+    return touched;
+  }
+
+  /** Radyasyon fırçası: bölgedeki canlıların bir kısmının genomu yerinde mutasyona uğrar. */
+  public irradiate(x: number, y: number, radius = 45): number {
+    let hit = 0;
+    for (const c of this.creatures) {
+      if (!c.alive || Math.hypot(c.x - x, c.y - y) > radius || !rng.chance(0.5)) continue;
+      c.g = irradiateGenome(c.g);
+      fitToStage(c.g);
+      this.rederive(c);
+      hit++;
+    }
+    return hit;
   }
 
   /** Haritaya canlı yerleştirir: `templateId` verilirse o bireyin kopyası, yoksa

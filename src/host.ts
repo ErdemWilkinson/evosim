@@ -84,9 +84,15 @@ export class SimHost {
       case "plants":
         if (sim.addPlants(cmd.x, cmd.y) === 0 && !cmd.drag) this.emit({ type: "note", text: "Buraya bitki ekilemez." });
         break;
+      case "soup":
+        if (sim.addSoup(cmd.x, cmd.y) === 0 && !cmd.drag) this.emit({ type: "note", text: "Besin yalnızca suya eklenir." });
+        break;
+      case "radiate":
+        if (sim.irradiate(cmd.x, cmd.y) === 0 && !cmd.drag) this.emit({ type: "note", text: "Burada canlı yok." });
+        break;
       case "place": {
         const id = sim.placeCreature(cmd.x, cmd.y, cmd.template);
-        if (id === null) this.emit({ type: "note", text: sim.creatures.length >= MAX_CREATURES ? `Canlı sınırına ulaşıldı (${MAX_CREATURES}).` : "Bu canlı bu arazide yaşayamaz." });
+        if (id === null && !cmd.drag) this.emit({ type: "note", text: sim.creatures.length >= MAX_CREATURES ? `Canlı sınırına ulaşıldı (${MAX_CREATURES}).` : "Bu canlı bu arazide yaşayamaz." });
         break;
       }
       case "remove":
