@@ -373,23 +373,29 @@ function drawMolecule(ctx: CanvasRenderingContext2D, m: Mol, cx: number, cy: num
 const VALENCE: Record<string, number> = { C: 4, N: 3, O: 2, S: 2, Si: 4, B: 3 };
 
 /** Bir atomun bağlı olduğu atomlar: çizimdeki komşular ile çizilmeyen (örtük) hidrojenler. */
-function neighboursOf(m: Mol, i: number): { syms: string[]; hydrogens: number; chain: boolean } {
+function neighboursOf(m: Mol, i: number): { syms: string[]; idx: number[]; hydrogens: number; chain: boolean } {
   const syms: string[] = [];
+  const idx: number[] = [];
   let used = 0;
   let chain = false;
   for (const b of m.bonds) {
     if (b.a !== i && b.b !== i) continue;
-    const other = m.atoms[b.a === i ? b.b : b.a];
+    const oi = b.a === i ? b.b : b.a;
+    const other = m.atoms[oi];
     if (b.order === 0) {
       syms.push(other.sym);
+      idx.push(oi);
       continue;
     }
     used += b.order;
     if (other.sym === "R") chain = true;
-    else syms.push(other.sym);
+    else {
+      syms.push(other.sym);
+      idx.push(oi);
+    }
   }
   const v = VALENCE[m.atoms[i].sym];
-  return { syms, hydrogens: v === undefined ? 0 : Math.max(0, v - used), chain };
+  return { syms, idx, hydrogens: v === undefined ? 0 : Math.max(0, v - used), chain };
 }
 
 /** Molekülün bütün atomları (çizilmeyen hidrojenler dâhil), sembole göre sayılmış. */
@@ -405,19 +411,26 @@ function compositionOf(m: Mol): [string, number][] {
 }
 
 /** Seçili atomun çevresine bağlı olduğu atomları küçük kürelerle çizer. */
-function drawNeighbours(ctx: CanvasRenderingContext2D, m: Mol, i: number, w: number, h: number): void {
+type NeighbourHit = { x: number; y: number; r: number; sym: string; idx: number };
+
+function drawNeighbours(ctx: CanvasRenderingContext2D, m: Mol, i: number, w: number, h: number, fromH: boolean): NeighbourHit[] {
   const n = neighboursOf(m, i);
-  const items: string[] = [...n.syms, ...Array.from({ length: n.hydrogens }, () => "H")];
-  if (n.chain) items.push("R");
-  if (items.length === 0) return;
+  // Hidrojen seçiliyken tek komşusu bağlı olduğu atomdur.
+  const items: { sym: string; idx: number }[] = fromH
+    ? [{ sym: m.atoms[i].sym, idx: i }]
+    : [...n.syms.map((sym, k) => ({ sym, idx: n.idx[k] })), ...Array.from({ length: n.hydrogens }, () => ({ sym: "H", idx: -1 }))];
+  if (n.chain && !fromH) items.push({ sym: "R", idx: -2 });
+  const hits: NeighbourHit[] = [];
+  if (items.length === 0) return hits;
   const r = Math.min(20, (w - 40) / (items.length * 2.6));
   const gap = r * 2.6;
   const x0 = w / 2 - ((items.length - 1) * gap) / 2;
   const y = h - r - 14;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  items.forEach((sym, k) => {
+  items.forEach(({ sym, idx }, k) => {
     const x = x0 + k * gap;
+    if (idx !== -2) hits.push({ x, y, r, sym, idx });
     const color = elementColor(sym);
     ctx.strokeStyle = "rgba(200, 208, 235, 0.5)";
     ctx.lineWidth = 2;
@@ -433,6 +446,7 @@ function drawNeighbours(ctx: CanvasRenderingContext2D, m: Mol, i: number, w: num
     ctx.font = `600 ${Math.round(r * 0.95)}px Onest, system-ui, sans-serif`;
     ctx.fillText(sym, x, y + 0.5);
   });
+  return hits;
 }
 
 function drawAtom(ctx: CanvasRenderingContext2D, sym: string, cx: number, cy: number, size: number, t: number): void {
@@ -817,6 +831,9 @@ export class StructureViewer {
   private level = 0;
   private part = 0;
   private atom = -1;
+  /** Hidrojen seçiliyse bağlı olduğu atomun sırası (hidrojen çizimde yoktur, yalnızca komşu olarak açılır). */
+  private hFrom = -1;
+  private nbHits: NeighbourHit[] = [];
   private parts: Part[] = [];
   private chem: Chemistry | null = null;
   private base: Chemistry | null = null;
@@ -846,6 +863,7 @@ export class StructureViewer {
       if (!b) return;
       this.part = Number(b.dataset.part);
       this.atom = -1;
+    this.hFrom = -1;
       if (this.part >= ORGAN_PART_START) {
         if (this.level < 1) this.go(1);
         else this.sync();
@@ -865,6 +883,7 @@ export class StructureViewer {
           if (picked >= 0) {
             this.part = picked;
             this.atom = -1;
+    this.hFrom = -1;
             this.go(2, x, y);
           }
         }
@@ -872,8 +891,18 @@ export class StructureViewer {
         const i = this.hits.findIndex((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 6);
         if (i >= 0 && this.parts[this.part].mol.atoms[i].sym !== "R") {
           this.atom = i;
+          this.hFrom = -1;
           this.go(3, this.hits[i].x, this.hits[i].y);
         }
+      } else if (this.level === 3) {
+        const k = this.nbHits.findIndex((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 6);
+        if (k < 0) return;
+        const hit = this.nbHits[k];
+        if (hit.idx >= 0) {
+          this.atom = hit.idx;
+          this.hFrom = -1;
+        } else if (hit.sym === "H") this.hFrom = this.pickedIndex();
+        this.sync();
       }
     });
     canvas.addEventListener("mousemove", (e) => {
@@ -892,7 +921,8 @@ export class StructureViewer {
             over = envelopePick(this.chem, rect.width, rect.height, this.now, x, y);
             pointer = over >= 0;
           }
-        } else if (this.level === 2) pointer = this.hits.some((p, i) => Math.hypot(p.x - x, p.y - y) <= p.r + 6 && this.parts[this.part].mol.atoms[i]?.sym !== "R");
+        } else if (this.level === 3) pointer = this.nbHits.some((p) => Math.hypot(p.x - x, p.y - y) <= p.r + 6);
+        else if (this.level === 2) pointer = this.hits.some((p, i) => Math.hypot(p.x - x, p.y - y) <= p.r + 6 && this.parts[this.part].mol.atoms[i]?.sym !== "R");
       }
       this.hover = over;
       canvas.style.cursor = pointer ? "pointer" : "default";
@@ -915,6 +945,7 @@ export class StructureViewer {
     this.parts = partsOf(chem, genome);
     this.part = 0;
     this.atom = -1;
+    this.hFrom = -1;
     this.level = genome ? 0 : 1;
     this.anim = null;
     this.hover = -1;
@@ -944,6 +975,7 @@ export class StructureViewer {
 
   private pickedSym(): string {
     const m = this.parts[this.part].mol;
+    if (this.hFrom >= 0) return "H";
     if (this.atom >= 0 && m.atoms[this.atom]) return m.atoms[this.atom].sym;
     const special = m.atoms.find((a) => !["C", "H", "O", "R"].includes(a.sym)) ?? m.atoms.find((a) => a.sym !== "R") ?? m.atoms[0];
     return special.sym;
@@ -977,7 +1009,7 @@ export class StructureViewer {
     } else {
       const e = ELEMENTS[this.pickedSym()];
       const share = chem.elements.find((x) => x.sym === e.sym);
-      this.caption.textContent = "Bohr şeması: çekirdek ve elektron kabukları. Gerçekte elektronlar yörüngede dönmez, bulut olarak dağılır.";
+      this.caption.textContent = "Bohr şeması: çekirdek ve elektron kabukları. Gerçekte elektronlar yörüngede dönmez, bulut olarak dağılır. Alttaki komşu atomlara dokunarak onlara geçebilirsiniz.";
       this.info.innerHTML =
         `<b>${esc(e.name)} (${e.sym})</b><p>Atom numarası ${e.z}: çekirdekte ${e.z} proton, çevresinde ${e.z} elektron. Kabuk dizilimi ${e.shells.join("–")}; en dış kabuktaki ${e.shells[e.shells.length - 1]} elektron bağ yapar.</p>` +
         `<p>${share ? `Bu gezegenin kabuğundaki payı %${(share.share * 100).toFixed(1)}.` : "Bu gezegenin 10 temel elementi arasında değil; iz miktarda bulunur."} Burada ${esc(p.label.toLocaleLowerCase("tr"))} yapısının (${esc(p.option.name.toLocaleLowerCase("tr"))}) parçası.</p>${this.neighbourInfo(p.mol)}`;
@@ -1049,7 +1081,8 @@ export class StructureViewer {
       drawAtom(ctx, this.pickedSym(), w / 2, h / 2 - 14, Math.min(w, h) * 0.8, t);
       const m = this.parts[this.part].mol;
       const i = this.pickedIndex();
-      if (i >= 0) drawNeighbours(ctx, m, i, w, h);
+      const hits = i >= 0 ? drawNeighbours(ctx, m, i, w, h, this.hFrom >= 0) : [];
+      if (live) this.nbHits = hits;
     }
   }
 
@@ -1071,6 +1104,7 @@ export class StructureViewer {
   private neighbourInfo(m: Mol): string {
     const i = this.pickedIndex();
     if (i < 0) return "";
+    if (this.hFrom >= 0) return `<p>Bağlı olduğu atom:</p><p class="mono"><span class="comp">${esc2(ELEMENTS[m.atoms[this.hFrom].sym]?.name ?? m.atoms[this.hFrom].sym)}</span></p>`;
     const n = neighboursOf(m, i);
     const bits = [...n.syms.map((s) => ELEMENTS[s]?.name ?? s)];
     if (n.hydrogens > 0) bits.push(n.hydrogens === 1 ? "Hidrojen" : `Hidrojen ×${n.hydrogens}`);

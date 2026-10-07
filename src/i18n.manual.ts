@@ -88,6 +88,8 @@ export const MANUAL: Record<string, string> = {
   "Top-çubuk modeli. R zincirin devamıdır; çizilmeyen hidrojenler aşağıdaki bileşimde sayılır. Bir atoma dokununca o atom açılır.": "Ball-and-stick model. R is the rest of the chain; hydrogens that are not drawn are counted in the composition below. Tap an atom to open it.",
   "İçerdiği atomlar:": "Atoms it contains:",
   "Bağlı olduğu atomlar:": "Atoms it is bonded to:",
+  "Bohr şeması: çekirdek ve elektron kabukları. Gerçekte elektronlar yörüngede dönmez, bulut olarak dağılır. Alttaki komşu atomlara dokunarak onlara geçebilirsiniz.": "Bohr diagram: nucleus and electron shells. In reality electrons do not orbit; they are spread out as a cloud. Tap the neighbouring atoms below to switch to them.",
+  "Bağlı olduğu atom:": "Atom it is bonded to:",
   "Hidrojen ×§": "Hydrogen ×§",
   "zincirin devamı": "rest of the chain",
   "İlk hücreden ayrışan yapılar:": "Structures that differ from the first cell:",
