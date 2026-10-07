@@ -2534,12 +2534,12 @@ textarea {
 .tour-dots {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
   margin-bottom: 12px;
 }
 
 .tour-dots i {
-  width: 9px;
+  width: 7px;
   height: 4px;
   border-radius: 2px;
   background: var(--line);

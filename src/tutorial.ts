@@ -34,6 +34,8 @@ interface Step {
   skipIf?: (ctx: TourContext) => boolean;
   /** Hedefin üstündeki halka yerine büyük bir bölgeyi vurgular. */
   wide?: boolean;
+  /** Oyun hazır olmasa da (gezegen ekranındayken) gösterilebilen adım. */
+  anyStage?: boolean;
   /** Gezegen oluşturma penceresi açıkken gösterilen adım; oyun içinden başlatılan rehberde atlanır. */
   planet?: boolean;
   /** Bu adımın tıklaması oyunu başlatır: köken filmi atlanır, oyun hazır olunca rehber kendiliğinden sürer. */
@@ -46,6 +48,7 @@ const STEPS: Step[] = [
   {
     tr: ["Merhaba, ben Erdem", "Bu oyunu ben yaptım. Şimdi ekranın her köşesini sırayla göstereceğim: düğmelere kendim tıklayacağım, siz yalnızca izleyin. “İleri” ile ilerleyin, “Geri” ile dönün, “Kapat” ile istediğiniz an çıkın."],
     en: ["Hi, I'm Erdem", "I made this game. I'll walk you through every corner of the screen: I'll click the buttons myself, you just watch. Use “Next” to go on, “Back” to return, and “Close” to leave any time."],
+    anyStage: true,
   },
   {
     tr: ["Önce gezegeni kuralım", "Burası “Yeni gezegen” ekranı: oyun her seferinde başka bir dünyayla başlar. Önce burayı gezdireyim, sonra oyunun içine geçeriz."],
@@ -440,7 +443,7 @@ export class Tour {
   private async show(quick = false): Promise<void> {
     const token = ++this.run;
     const step = this.steps[this.index];
-    if (!step.planet && !this.ctx.ready()) {
+    if (!step.planet && !step.anyStage && !this.ctx.ready()) {
       await this.untilReady(token);
       if (token !== this.run) return;
     }
