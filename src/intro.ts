@@ -10,7 +10,7 @@ export class StartMenu {
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly onChoice: (what: "go" | "tour" | "refs") => void,
+    private readonly onChoice: (what: "go" | "refs") => void,
   ) {
     const slides = Array.from(root.querySelectorAll<HTMLElement>(".start-slide"));
     const dotBox = root.querySelector<HTMLElement>("#start-dots")!;
@@ -24,7 +24,6 @@ export class StartMenu {
       this.dots.push(b);
     });
     root.querySelector("#start-go")!.addEventListener("click", () => this.choose("go"));
-    root.querySelector("#start-tour")!.addEventListener("click", () => this.choose("tour"));
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }
 
@@ -35,7 +34,7 @@ export class StartMenu {
     this.draw();
   }
 
-  private choose(what: "go" | "tour"): void {
+  private choose(what: "go"): void {
     this.root.hidden = true;
     window.clearTimeout(this.timer);
     cancelAnimationFrame(this.raf);

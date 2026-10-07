@@ -88,7 +88,6 @@ let pendingShare: Share | null = null;
 let lastHash = "";
 /** Paylaşım bağlantısıyla açılışta mevcut otomatik kayıt: oyuncu açıkça yeni gezegen başlatmadıkça silinmez. */
 let keepSave: SaveData | null = null;
-let tourAfterFilm = false;
 let menuOrigin = false;
 let startMenu: StartMenu | null = null;
 let soundTime = 0;
@@ -199,12 +198,7 @@ function onEpoch(v: View): void {
   scene.fit();
   document.body.classList.remove("at-start");
   menuOrigin = false;
-  if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES && tourAfterFilm) {
-    // "Önce arayüzü gezdir": köken filmi atlanır, Developer hemen başlar.
-    tourAfterFilm = false;
-    scene.beginGenesis();
-    window.setTimeout(() => tour.start(), 1400);
-  } else if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES) {
+  if (v.frame.time < 1 && v.frame.n === INITIAL_CREATURES) {
     // Yeni gezegen: önce köken filmi oynar (simülasyon bekler). Film, hücrenin ikiye bölündüğü
     // sahnede haritaya erir; alttaki harita o sırada iki kardeş hücreye yakınlaşmış durur.
     client.send({ type: "speed", value: 0 });
@@ -212,10 +206,7 @@ function onEpoch(v: View): void {
     playFilm(v, () => {
       client.send({ type: "speed", value: lastSpeed });
       scene.beginGenesis();
-      if (tourAfterFilm) {
-        tourAfterFilm = false;
-        window.setTimeout(() => tour.start(), 900);
-      } else if (!greeted()) window.setTimeout(() => greet(tour), 1200);
+      if (!greeted()) window.setTimeout(() => greet(tour), 1200);
     });
   }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;
@@ -1087,13 +1078,6 @@ if (restored) {
     if (what === "refs") {
       if (!$("refs-body").firstChild) setHtml($("refs-body"), refsHtml());
       $<HTMLDialogElement>("dlg-refs").showModal();
-      return;
-    }
-    if (what === "tour") {
-      // Gezegen penceresine uğramadan rastgele bir gezegen açılır; rehber hemen başlar.
-      tourAfterFilm = true;
-      $<HTMLInputElement>("seed-input").value = String(randomSeed());
-      startPlanet();
       return;
     }
     menuOrigin = true;
