@@ -15,6 +15,8 @@ export const MANUAL: Record<string, string> = {
   "Yeni gezegen": "New planet",
   Ses: "Sound",
   Tarih: "History",
+  "Akıntıları göster": "Show currents",
+  "sıvıdaki akıntı yönlerini silik oklarla çizer; canlıları ve çözünmüş besini taşırlar": "draws the liquid's current directions as faint arrows; they carry creatures and dissolved nutrients",
   "İlk simbiyoz": "First symbiosis",
   "Zaman atlamalı kayıt": "Time-lapse",
   "hızlandırılmış gösterim": "sped-up playback",

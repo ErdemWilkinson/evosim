@@ -39,6 +39,7 @@ if (!isMainThread) {
     return b === 0 ? 0 : b === 1 ? 1 : b === 4 ? 3 : 2;
   };
   const symb = { samples: 0, sym: 0, hosts: 0, symSamples: 0, hostE: 0, hostN: 0, otherE: 0, otherN: 0 };
+  const growth = { samples: 0, n: 0, juv: 0, stunted: 0, sizeSum: 0 };
   const oxy = { n: 0, sum: 0, sq: 0, min: 1, max: 0 };
   const tone = Array.from({ length: 3 }, () => HABITATS.map(() => ({ n: 0, match: 0, bs: 0, bc: 0, ga: 0, gb: 0, dh: 0, dhn: 0 })));
   const bodyOf = (c) => {
@@ -140,6 +141,14 @@ if (!isMainThread) {
       if (sy > 0) symb.symSamples++;
     }
     {
+      growth.samples++;
+      for (const c of pop) {
+        const sz = c.size ?? 1;
+        growth.n++; growth.sizeSum += sz;
+        if (sz < 0.98) { growth.juv++; if (c.age > 30) growth.stunted++; }
+      }
+    }
+    {
       const o = sim.oxygen();
       oxy.n++; oxy.sum += o; oxy.sq += o * o; oxy.min = Math.min(oxy.min, o); oxy.max = Math.max(oxy.max, o);
     }
@@ -226,6 +235,7 @@ if (!isMainThread) {
     tone,
     oxy,
     symb,
+    growth,
     clusters: (() => {
       const bins = new Array(12).fill(0);
       for (const c of sim.creatures) bins[Math.floor((((c.g.hue % 360) + 360) % 360) / 30)]++;
@@ -323,6 +333,11 @@ if (!isMainThread) {
 Simbiyoz (24 tohum): simbiyont görülen örnek payı ${(tot("symSamples") / tot("samples")).toFixed(3)} · örnek başına ortalama simbiyont ${(tot("sym") / tot("samples")).toFixed(2)}`);
     console.log(`simbiyonlu tohum: ${results.filter((r) => r.symb.symSamples > 0).length}/${results.length}`);
     console.log(`konak enerji doluluğu: simbiyontlu ${(tot("hostN") ? tot("hostE") / tot("hostN") : 0).toFixed(3)} (n=${tot("hostN")}) · simbiyontsuz ${(tot("otherN") ? tot("otherE") / tot("otherN") : 0).toFixed(3)} (n=${tot("otherN")})`);
+  }
+  if (process.argv.includes("--growth")) {
+    const tot = (k) => results.reduce((a, r) => a + r.growth[k], 0);
+    console.log(`
+Büyüme (24 tohum): ortalama boy ${(tot("sizeSum") / Math.max(1, tot("n"))).toFixed(3)} · yetişkin olmayan pay ${(tot("juv") / Math.max(1, tot("n"))).toFixed(3)} · 30 sn'den yaşlı ama büyümemiş pay ${(tot("stunted") / Math.max(1, tot("n"))).toFixed(4)}`);
   }
   if (process.argv.includes("--atmo")) {
     const rows = results.map((r) => { const m = r.oxy.sum / r.oxy.n; return { m, sd: Math.sqrt(Math.max(0, r.oxy.sq / r.oxy.n - m * m)), lo: r.oxy.min, hi: r.oxy.max }; });

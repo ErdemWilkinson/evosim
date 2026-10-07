@@ -606,6 +606,7 @@ function setGameMode(on: boolean): void {
 $<HTMLInputElement>("set-game").addEventListener("change", (e) => setGameMode((e.target as HTMLInputElement).checked));
 $<HTMLInputElement>("set-events").addEventListener("change", (e) => client.send({ type: "set", autoEvents: (e.target as HTMLInputElement).checked }));
 $<HTMLSelectElement>("set-evo").addEventListener("change", (e) => client.send({ type: "set", evolutionSpeed: (e.target as HTMLSelectElement).value as EvolutionSpeed }));
+$<HTMLInputElement>("set-flow").addEventListener("change", (e) => (scene.showFlow = (e.target as HTMLInputElement).checked));
 {
   const box = $<HTMLInputElement>("set-predict");
   box.checked = predictEnabled();

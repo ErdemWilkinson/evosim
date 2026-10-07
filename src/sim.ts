@@ -87,6 +87,11 @@ const ORNAMENT_VISIBILITY = 0.4;
  * Organ ve renk birbirinden bağımsız çarpılır: örtü dışında toplam gizlenme en çok 1 - (1 - 0,3)(1 - 0,35) = %54,5.
  */
 const COLOR_HIDE_MAX = 0.35;
+/**
+ * Akıntı: sıvıdaki canlıları ve çözünmüş besini taşır (bkz. World.flowAt). En güçlü akıntı FLOW_SPEED px/sn'dir;
+ * canlı ne kadar küçükse akıntıya o kadar kapılır (bağlaşım = 1 / (1 + (boy / 5,5)²)), büyük yüzücüler neredeyse etkilenmez.
+ */
+const FLOW_SPEED = 5;
 /** Atmosfer: yenileme aralığı (sn), ortalamanın hafızası, tepki kazancı, oksijenin salınım genliği ve gevşeme süresi. */
 const ATMOSPHERE_INTERVAL = 1;
 const ATMOSPHERE_MEMORY = 1200;
@@ -720,6 +725,8 @@ export class Sim {
   private readonly cHash = new Hash<Creature>(64);
   /** Zeminin ton önbelleği ve genomların gövde tonu (yalnızca okunur, durum sayılmaz). */
   private groundTone: GroundTone | null = null;
+  private readonly flowTmp = { x: 0, y: 0 };
+  private soupTmp = new Float32Array(SOUP_COLS * SOUP_ROWS);
   private readonly bodyTones = new WeakMap<Genome, Tone>();
   private readonly nHash = new Hash<Nutrient>(64);
   /** Adım başına bir kez hesaplanan ortam değerleri. */
@@ -818,6 +825,30 @@ export class Sim {
     const soup = this.soup;
     const cap = this.soupCap;
     for (let i = 0; i < soup.length; i++) if (cap[i] > 0) soup[i] += SOUP_RENEW * (cap[i] * supply - soup[i]) * dt;
+    // Akıntı çözünmüş besini taşır: her hücre, akıntıyı geriye izleyerek kaynağından (çift doğrusal) besin alır.
+    const out = this.soupTmp;
+    const shift = (FLOW_SPEED * dt) / SOUP_CELL;
+    for (let gy = 0; gy < SOUP_ROWS; gy++) {
+      for (let gx = 0; gx < SOUP_COLS; gx++) {
+        const i = gy * SOUP_COLS + gx;
+        if (cap[i] <= 0) {
+          out[i] = soup[i];
+          continue;
+        }
+        this.world.flowAt((gx + 0.5) * SOUP_CELL, (gy + 0.5) * SOUP_CELL, this.flowTmp);
+        const sx = Math.min(SOUP_COLS - 1.001, Math.max(0, gx - this.flowTmp.x * shift));
+        const sy = Math.min(SOUP_ROWS - 1.001, Math.max(0, gy - this.flowTmp.y * shift));
+        const x0 = sx | 0;
+        const y0 = sy | 0;
+        const tx = sx - x0;
+        const ty = sy - y0;
+        const at = (x: number, y: number): number => (cap[y * SOUP_COLS + x] > 0 ? soup[y * SOUP_COLS + x] : soup[i]);
+        const a = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * tx;
+        const b = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * tx;
+        out[i] = a + (b - a) * ty;
+      }
+    }
+    soup.set(out);
   }
 
   // ------------------------------------------------------------------ kurulum
@@ -1349,6 +1380,13 @@ export class Sim {
   private move(c: Creature, heading: number, speed: number, dt: number, free: boolean): void {
     let vx = Math.cos(heading) * speed;
     let vy = Math.sin(heading) * speed;
+    if (!c.onLand) {
+      this.world.flowAt(c.x, c.y, this.flowTmp);
+      const r = (c.g.radius * c.size) / 5.5;
+      const k = (FLOW_SPEED / (1 + r * r)) * (c.host ? 0 : 1);
+      vx += this.flowTmp.x * k;
+      vy += this.flowTmp.y * k;
+    }
     if (this.wind && !c.onLand) {
       const drift = 0.6 * (1 - c.d.windGrip);
       vx += this.wind.vx * drift;

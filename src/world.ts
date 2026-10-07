@@ -49,6 +49,9 @@ export class World {
   public readonly height: Float32Array;
   /** Karşı arazi türüne (su için karaya, kara için suya) hücre cinsinden uzaklık. */
   public readonly coast: Float32Array;
+  /** Akıntı: sıvıda yükseklik eş-eğrileri boyunca dolanan birim alan (en güçlü değer 1); karada 0. */
+  public readonly flowX: Float32Array;
+  public readonly flowY: Float32Array;
   /** Sık örtü alanı: değeri `thicketLevel` üstünde olan yer sığınaktır (sazlık, yosun ormanı, çalılık). */
   public readonly thicket: Float32Array;
   public readonly thicketLevel: number;
@@ -128,6 +131,9 @@ export class World {
 
     this.coast = new Float32Array(n);
     this.computeCoastDistance();
+    this.flowX = new Float32Array(n);
+    this.flowY = new Float32Array(n);
+    this.computeFlow();
 
     const counts = [0, 0, 0, 0, 0];
     for (let i = 0; i < n; i++) counts[this.bandOfCell(i)]++;
@@ -136,6 +142,37 @@ export class World {
   }
 
   /** İki geçişli 1–√2 chamfer uzaklık dönüşümü, su ve kara için ayrı ayrı. */
+  /** Akıntı, derinlik eş-eğrileri boyunca akar (yükseklik eğiminin dik açısı), kıyıda sönümlenir. Rastgelelik yoktur. */
+  private computeFlow(): void {
+    const h = this.height;
+    let max = 0;
+    for (let gy = 1; gy < GRID_ROWS - 1; gy++) {
+      for (let gx = 1; gx < GRID_COLS - 1; gx++) {
+        const i = gy * GRID_COLS + gx;
+        if (h[i] >= this.seaLevel) continue;
+        const depth = Math.min(1, this.coast[i] / 6);
+        const fx = (-(h[i + GRID_COLS] - h[i - GRID_COLS]) / 2) * depth;
+        const fy = ((h[i + 1] - h[i - 1]) / 2) * depth;
+        this.flowX[i] = fx;
+        this.flowY[i] = fy;
+        max = Math.max(max, Math.hypot(fx, fy));
+      }
+    }
+    if (max > 0) {
+      for (let i = 0; i < h.length; i++) {
+        this.flowX[i] /= max;
+        this.flowY[i] /= max;
+      }
+    }
+  }
+
+  /** Bir noktadaki akıntı (birim alan). */
+  public flowAt(x: number, y: number, out: { x: number; y: number }): void {
+    const i = this.cellIndex(x, y);
+    out.x = this.flowX[i];
+    out.y = this.flowY[i];
+  }
+
   private computeCoastDistance(): void {
     const n = GRID_COLS * GRID_ROWS;
     const INF = 1e6;

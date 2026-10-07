@@ -644,8 +644,40 @@ export class Scene {
   private effects: { key: string; x: number; y: number; r: number; kind: string; t0: number; warm: boolean; fall: number }[] = [];
   private effectKeys = new Set<string>();
   private readonly ctx: CanvasRenderingContext2D;
+  public showFlow = false;
   private terrain: HTMLCanvasElement | null = null;
   private terrainKey = "";
+
+  /** Akıntı okları: sıvı üzerinde seyrek, silik oklar (yalnızca gösterim; mekanik World.flowAt'tan okur). */
+  private drawFlow(ctx: CanvasRenderingContext2D, world: World, dark: boolean): void {
+    const out = { x: 0, y: 0 };
+    ctx.save();
+    ctx.strokeStyle = dark ? "rgba(190,225,255,0.5)" : "rgba(30,70,110,0.5)";
+    ctx.lineWidth = 1.2;
+    ctx.lineCap = "round";
+    const step = 60;
+    for (let y = step / 2; y < MAP_H; y += step) {
+      for (let x = step / 2; x < MAP_W; x += step) {
+        if (!world.isWater(x, y)) continue;
+        world.flowAt(x, y, out);
+        const m = Math.hypot(out.x, out.y);
+        if (m < 0.04) continue;
+        const len = 8 + 22 * m;
+        const ux = out.x / m;
+        const uy = out.y / m;
+        const x1 = x + ux * len;
+        const y1 = y + uy * len;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x1, y1);
+        ctx.lineTo(x1 - ux * 5 - uy * 3, y1 - uy * 5 + ux * 3);
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x1 - ux * 5 + uy * 3, y1 - uy * 5 - ux * 3);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
   private width = 0;
   private height = 0;
   private hover: { x: number; y: number } | null = null;
@@ -889,6 +921,7 @@ export class Scene {
     ctx.scale(zoom, zoom);
     ctx.imageSmoothingQuality = "high";
     ctx.drawImage(this.terrain, 0, 0, MAP_W, MAP_H);
+    if (this.showFlow) this.drawFlow(ctx, view.world, theme.dark);
 
     const boost = this.boost();
     const x0 = this.cx - w / 2 / zoom - 30;
