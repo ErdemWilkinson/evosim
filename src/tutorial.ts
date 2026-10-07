@@ -1,7 +1,7 @@
 import { getLang } from "./i18n";
 
 /**
- * Rehber: "Developer" adlı hayalet bir fare imleci arayüzün bölümlerine gider, düğmelere tıklar ve ne işe
+ * Rehber: "Erdem" adlı hayalet bir fare imleci arayüzün bölümlerine gider, düğmelere tıklar ve ne işe
  * yaradıklarını anlatır. Yalnızca arayüzdedir; benzetime dokunmaz. Rehber bitince ya da kapanınca hız, oyun modu,
  * sekme ve seçili canlı başladığı hâle döner.
  */
@@ -34,14 +34,75 @@ interface Step {
   skipIf?: (ctx: TourContext) => boolean;
   /** Hedefin üstündeki halka yerine büyük bir bölgeyi vurgular. */
   wide?: boolean;
+  /** Gezegen oluşturma penceresi açıkken gösterilen adım; oyun içinden başlatılan rehberde atlanır. */
+  planet?: boolean;
+  /** Bu adımın tıklaması oyunu başlatır: köken filmi atlanır, oyun hazır olunca rehber kendiliğinden sürer. */
+  startGame?: boolean;
   /** Yapı penceresi açıkken gösterilen adım: pencere kapalıysa önce açılır, başka adımlarda kapatılır. */
   inspect?: boolean;
 }
 
 const STEPS: Step[] = [
   {
-    tr: ["Merhaba, ben Developer", "Bu oyunu ben yaptım. Şimdi ekranın her köşesini sırayla göstereceğim: düğmelere kendim tıklayacağım, siz yalnızca izleyin. “İleri” ile ilerleyin, “Geri” ile dönün, “Kapat” ile istediğiniz an çıkın."],
-    en: ["Hi, I'm Developer", "I made this game. I'll walk you through every corner of the screen: I'll click the buttons myself, you just watch. Use “Next” to go on, “Back” to return, and “Close” to leave any time."],
+    tr: ["Merhaba, ben Erdem", "Bu oyunu ben yaptım. Şimdi ekranın her köşesini sırayla göstereceğim: düğmelere kendim tıklayacağım, siz yalnızca izleyin. “İleri” ile ilerleyin, “Geri” ile dönün, “Kapat” ile istediğiniz an çıkın."],
+    en: ["Hi, I'm Erdem", "I made this game. I'll walk you through every corner of the screen: I'll click the buttons myself, you just watch. Use “Next” to go on, “Back” to return, and “Close” to leave any time."],
+  },
+  {
+    tr: ["Önce gezegeni kuralım", "Burası “Yeni gezegen” ekranı: oyun her seferinde başka bir dünyayla başlar. Önce burayı gezdireyim, sonra oyunun içine geçeriz."],
+    en: ["First, let's build a planet", "This is the “New planet” screen: the game starts with a different world every time. I'll show you around here first, then we'll go into the game."],
+    planet: true,
+  },
+  {
+    tr: ["Tohum", "Gezegenin tamamı bu sayıdan üretilir: kimya, sıvı, harita ve ilk hücre. Aynı tohumu yazan herkes aynı gezegeni görür. İstediğiniz sayıyı yazabilirsiniz."],
+    en: ["Seed", "The whole planet is generated from this number: chemistry, liquid, map and first cell. Anyone who types the same seed sees the same planet. You can type any number you like."],
+    target: "#seed-input",
+    click: false,
+    planet: true,
+  },
+  {
+    tr: ["Rastgele", "Bu düğme yeni bir tohum seçer. Şimdi basıyorum; harita ve sağdaki bilgiler anında değişir."],
+    en: ["Random", "This button picks a new seed. I'm pressing it now; the map and the facts on the right change at once."],
+    target: "#seed-random",
+    click: true,
+    planet: true,
+  },
+  {
+    tr: ["Günün gezegeni", "Bugün herkes için aynı olan gezegeni açar. Arkadaşlarınızla aynı dünyayı karşılaştırmak için güzel bir yol."],
+    en: ["Planet of the day", "Opens the planet that is the same for everyone today. A nice way to compare the same world with your friends."],
+    target: "#seed-daily",
+    click: false,
+    planet: true,
+  },
+  {
+    tr: ["Gezegenin haritası", "Seçilen tohumun haritası: koyu alanlar derin sıvı, açık alanlar kara. Yaşam bu haritada, sıvının içinde ve kıyısında başlar."],
+    en: ["The planet map", "The map of the chosen seed: dark areas are deep liquid, light areas are land. Life starts on this map, in the liquid and along its shores."],
+    target: "#planet-map",
+    click: false,
+    planet: true,
+    wide: true,
+  },
+  {
+    tr: ["Gezegenin kimyası", "Sağdaki kutular bu dünyanın yazgısını belirler: kabuktaki elementler, yüzey sıvısı, basınç, atmosfer, yaşamın kökeni ve ilk hücrenin zarı, kalıtımı, enerjisi. Hücre duvarı ilk hücrede yoktur; sonradan evrilir."],
+    en: ["The planet's chemistry", "The boxes on the right decide this world's fate: crust elements, surface liquid, pressure, atmosphere, the origin of life and the first cell's membrane, heredity and energy. The first cell has no wall; one evolves later."],
+    target: "#planet-preview-facts",
+    click: false,
+    planet: true,
+    wide: true,
+  },
+  {
+    tr: ["Dil", "Oyun İngilizce ve Türkçe oynanabilir. Buradan istediğiniz zaman değiştirebilirsiniz."],
+    en: ["Language", "The game can be played in English or Turkish. You can switch here at any time."],
+    target: "#dlg-planet .lang-pick",
+    click: false,
+    planet: true,
+  },
+  {
+    tr: ["Başlatalım", "Gezegen hazır. Şimdi “Simülasyonu başlat”a basıyorum. Köken filmini atlıyorum (sonra gezegen bilgilerinden izleyebilirsiniz); ardından oyunun içini gezdiririm."],
+    en: ["Let's start", "The planet is ready. I'm pressing “Start the simulation” now. I'll skip the origin film (you can watch it later from the planet facts); then I'll show you around inside the game."],
+    target: "#planet-start",
+    click: true,
+    planet: true,
+    startGame: true,
   },
   {
     tr: ["Bu bir gezegen", "Tek bir hücreyle başlayan yaşamı izliyorsunuz. Kimya, sıvı, harita ve ilk hücre bir sayıdan, “tohumdan” üretilir. Aynı tohum herkeste aynı gezegeni açar; kartı paylaşırsanız arkadaşınız da aynısını görür."],
@@ -240,8 +301,8 @@ const STEPS: Step[] = [
 ];
 
 const LABELS = {
-  tr: { dev: "Developer", next: "İleri", back: "Geri", close: "Kapat", done: "Bitti" },
-  en: { dev: "Developer", next: "Next", back: "Back", close: "Close", done: "Done" },
+  tr: { dev: "Erdem", next: "İleri", back: "Geri", close: "Kapat", done: "Bitti" },
+  en: { dev: "Erdem", next: "Next", back: "Back", close: "Close", done: "Done" },
 };
 
 const ARROW =
@@ -258,6 +319,7 @@ export class Tour {
   private run = 0;
   private open = false;
   private saved: { speed: number; game: boolean; tab: string } | null = null;
+  private steps: Step[] = STEPS;
 
   constructor(private readonly ctx: TourContext) {}
 
@@ -266,7 +328,10 @@ export class Tour {
   }
 
   public start(): void {
-    if (this.open || !this.ctx.ready()) return;
+    // Gezegen oluşturma ekranı açıkken rehber o ekranı da anlatır; oyun içinden başlatılınca o adımlar atlanır.
+    const stage = (document.getElementById("dlg-planet") as HTMLDialogElement | null)?.open === true;
+    if (this.open || (!stage && !this.ctx.ready())) return;
+    this.steps = STEPS.filter((st) => stage || !st.planet);
     this.open = true;
     this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab() };
     this.ctx.setSpeed(1);
@@ -343,6 +408,7 @@ export class Tour {
     if (!this.open) return;
     if (e.key === "Escape") {
       e.stopPropagation();
+      e.preventDefault();
       this.stop();
     } else if (e.key === "ArrowRight") this.go(this.index + 1);
     else if (e.key === "ArrowLeft") this.go(this.index - 1);
@@ -353,7 +419,7 @@ export class Tour {
   };
 
   private go(to: number): void {
-    if (to >= STEPS.length) {
+    if (to >= this.steps.length) {
       this.stop();
       return;
     }
@@ -373,18 +439,25 @@ export class Tour {
   /** Bir adımı gösterir: önce yazı, sonra imleç hedefe gider ve (varsa) tıklar. */
   private async show(quick = false): Promise<void> {
     const token = ++this.run;
-    const step = STEPS[this.index];
+    const step = this.steps[this.index];
+    if (!step.planet && !this.ctx.ready()) {
+      await this.untilReady(token);
+      if (token !== this.run) return;
+    }
+    // Açık bir pencere varsa rehber onun içinde, yoksa sayfada durur (kip pencereleri dışını tıklanamaz yapar).
+    const want = Array.from(document.querySelectorAll<HTMLDialogElement>("dialog[open]")).pop() ?? document.body;
+    if (this.root && this.root.parentElement !== want) this.raise();
     const L = LABELS[this.lang()];
     const text = step[this.lang()];
     this.card.querySelector("h3")!.textContent = text[0];
     this.card.querySelector("p")!.textContent = text[1];
-    this.card.querySelector(".tour-step")!.textContent = `${this.index + 1} / ${STEPS.length}`;
+    this.card.querySelector(".tour-step")!.textContent = `${this.index + 1} / ${this.steps.length}`;
     this.card.querySelector<HTMLElement>('[data-t="back"]')!.textContent = L.back;
     this.card.querySelector<HTMLElement>('[data-t="close"]')!.textContent = L.close;
     const next = this.card.querySelector<HTMLElement>('[data-t="next"]')!;
-    next.textContent = this.index === STEPS.length - 1 ? L.done : L.next;
+    next.textContent = this.index === this.steps.length - 1 ? L.done : L.next;
     this.card.querySelector<HTMLButtonElement>('[data-t="back"]')!.disabled = this.index === 0;
-    this.card.querySelector(".tour-dots")!.innerHTML = STEPS.map((_, i) => `<i class="${i === this.index ? "on" : i < this.index ? "past" : ""}"></i>`).join("");
+    this.card.querySelector(".tour-dots")!.innerHTML = this.steps.map((_, i) => `<i class="${i === this.index ? "on" : i < this.index ? "past" : ""}"></i>`).join("");
     this.root?.querySelector<HTMLElement>(".tour-name")!.replaceChildren(L.dev);
 
     // Yapı penceresi yalnızca ona ait adımlarda açık durur.
@@ -467,7 +540,23 @@ export class Tour {
         else el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
         // Tıklama bir pencere açtıysa rehber yine en üste alınır.
         this.raise();
+        if (step.startGame) {
+          await this.untilReady(token);
+          if (token !== this.run) return;
+          await sleep(900);
+          if (token !== this.run) return;
+          this.go(this.index + 1);
+        }
       }
+    }
+  }
+
+  /** Oyun hazır olana kadar bekler; köken filmi görünürse atlar. */
+  private async untilReady(token: number): Promise<void> {
+    for (let i = 0; i < 60 && token === this.run; i++) {
+      if (this.ctx.ready()) return;
+      document.querySelector<HTMLElement>("#film:not([hidden]) #film-skip")?.click();
+      await sleep(250);
     }
   }
 
@@ -509,6 +598,7 @@ const GREET = {
     yes: "Evet",
     no: "Hayır",
     later: "Tamam. Rehber düğmesi burada; canın isteyince basarsın, ben beklerim.",
+    laterPlanet: "Tamam. Hazır olunca “Simülasyonu başlat”a bas. Oyunda üst çubuktaki Rehber düğmesi seni bekliyor olacak.",
   },
   en: {
     title: "You look new to the simulation",
@@ -516,6 +606,7 @@ const GREET = {
     yes: "Yes",
     no: "No",
     later: "Okay. The Guide button is right here; press it whenever you like, I'll be waiting.",
+    laterPlanet: "Okay. Press “Start the simulation” when you're ready. In the game, the Guide button in the top bar will be waiting for you.",
   },
 };
 
@@ -528,7 +619,7 @@ export function greeted(): boolean {
 }
 
 /**
- * Oyuna girince Developer imleci gelir ve rehbere ihtiyaç olup olmadığını sorar. Soru yanıtlanana kadar ekrandaki
+ * Oyuna girince Erdem imleci gelir ve rehbere ihtiyaç olup olmadığını sorar. Soru yanıtlanana kadar ekrandaki
  * hiçbir yere basılamaz. Evet: rehber başlar. Hayır: imleç Rehber düğmesini gösterir ve çekilir.
  */
 export function greet(tour: Tour): void {
@@ -543,7 +634,8 @@ export function greet(tour: Tour): void {
     `<div class="tour-cursor">${ARROW}<span class="tour-name">${LABELS[lang].dev}</span></div>` +
     `<div class="tour-card greet-card" role="alertdialog" aria-live="assertive" data-pos="bottom"><h3>${L.title}</h3><p>${L.text}</p>` +
     `<div class="tour-actions"><button type="button" class="btn btn-small btn-primary" data-g="yes">${L.yes}</button><button type="button" class="btn btn-small" data-g="no">${L.no}</button></div></div>`;
-  document.body.appendChild(root);
+  // Gezegen penceresi gibi bir kip penceresi açıksa soru onun içinde durur (aksi hâlde tıklanamaz).
+  (Array.from(document.querySelectorAll<HTMLDialogElement>("dialog[open]")).pop() ?? document.body).appendChild(root);
   root.showPopover?.();
   const cursor = root.querySelector<HTMLElement>(".tour-cursor")!;
   const ring = root.querySelector<HTMLElement>(".tour-ring")!;
@@ -600,9 +692,10 @@ export function greet(tour: Tour): void {
     }
     // Hayır: engel kalkar, imleç Rehber düğmesini gösterir.
     root.classList.add("free");
-    const btn = document.getElementById("btn-tour");
+    const inPlanet = (document.getElementById("dlg-planet") as HTMLDialogElement | null)?.open === true;
+    const btn = document.getElementById(inPlanet ? "planet-start" : "btn-tour");
     card.querySelector("h3")!.textContent = "";
-    card.querySelector("p")!.textContent = L.later;
+    card.querySelector("p")!.textContent = inPlanet ? L.laterPlanet : L.later;
     card.querySelector(".tour-actions")!.remove();
     card.dataset.pos = "bottom";
     if (btn) {
@@ -614,7 +707,7 @@ export function greet(tour: Tour): void {
       ring.style.height = `${h}px`;
       ring.style.transform = `translate(${Math.round(br.left + br.width / 2 - w / 2)}px, ${Math.round(br.top + br.height / 2 - h / 2)}px)`;
       put(br.left + br.width / 2 - 4, br.top + br.height / 2 - 3);
-      btn.classList.add("pulse");
+      document.getElementById("btn-tour")?.classList.add("pulse");
     }
     window.setTimeout(done, 4200);
   });

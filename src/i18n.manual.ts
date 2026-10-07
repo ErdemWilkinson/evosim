@@ -29,7 +29,7 @@ export const MANUAL: Record<string, string> = {
   Ses: "Sound",
   Tarih: "History",
   Rehber: "Guide",
-  "Developer size arayüzü gezdirir": "Developer shows you around the interface",
+  "Erdem size arayüzü gezdirir": "Erdem shows you around the interface",
   "Evrilebilecek hücre duvarı": "Wall that can evolve",
   "Evrilebilecek duvar": "Wall that can evolve",
   "ilk hücre duvarsızdır": "the first cell has no wall",

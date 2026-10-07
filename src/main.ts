@@ -206,7 +206,6 @@ function onEpoch(v: View): void {
     playFilm(v, () => {
       client.send({ type: "speed", value: lastSpeed });
       scene.beginGenesis();
-      if (!greeted()) window.setTimeout(() => greet(tour), 1200);
     });
   }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;
@@ -716,6 +715,8 @@ function openPlanet(seed?: number): void {
   top();
   requestAnimationFrame(top);
   window.setTimeout(top, 120);
+  // İlk kez gelen oyuncuya Erdem imleci gezegen ekranında rehber ister.
+  if (!greeted()) window.setTimeout(() => dialog.open && greet(tour), 1100);
 }
 
 function startPlanet(): void {
@@ -891,7 +892,7 @@ $("btn-tree").addEventListener("click", () => {
   $<HTMLDialogElement>("dlg-tree").showModal();
   drawTree();
 });
-// Rehber: "Developer" adlı hayalet imleç arayüzü gezdirir (bkz. tutorial.ts).
+// Rehber: "Erdem" adlı hayalet imleç arayüzü gezdirir (bkz. tutorial.ts).
 const tour = new Tour({
   ready: () => view !== null && view.ui !== null && !$<HTMLDialogElement>("dlg-planet").open,
   speed: () => view?.ui?.speed ?? 1,
