@@ -105,7 +105,7 @@ export class PhyloTree {
 
     this.count.textContent = `${this.rows.length} tür gösteriliyor · toplam ${all.length}`;
 
-    const W = Math.max(640, this.wrap.clientWidth - 2);
+    const W = Math.max(300, this.wrap.clientWidth - 2);
     const H = Math.max(available, TOP + this.rows.length * this.row + 16);
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     this.canvas.style.width = `${W}px`;
@@ -117,7 +117,7 @@ export class PhyloTree {
     ctx.clearRect(0, 0, W, H);
 
     const t1 = Math.max(1, time);
-    const plotW = W - LEFT - LABEL_SPACE;
+    const plotW = W - LEFT - Math.min(LABEL_SPACE, W * 0.4);
     const X = (t: number): number => LEFT + (t / t1) * plotW;
 
     // Zaman ekseni

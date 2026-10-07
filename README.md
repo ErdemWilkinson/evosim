@@ -270,7 +270,8 @@ kopyala, commit + push.
 - **Beden büyür ve küçülür (yalnızca görsel):** yavru erişkinin yarısı boyunda doğar ve olgunlaşma
   süresince büyür; tokken dolgunlaşır, açken büzülür, bölününce küçülür. Simülasyondaki yarıçap ve
   çarpışma değişmez; yalnızca çizim ölçeklenir. Typecheck ve çekirdek testleri geçti, iki
-  genişlikte konsol hatası ve yatay taşma yok; 500 canlıda kare hızı ölçülmedi.
+  genişlikte konsol hatası ve yatay taşma yok. 441 canlıda benzetim adımı 0,32 ms sürdü
+  (adım başına 33 ms bütçe); çizim süresi ve tarayıcıdaki kare hızı ölçülmedi.
 - **Denge testinin eşikleri değişti:** kemotrof artık besin ağının tabanı sayılır ve baskınlık
   ile patlama eşiklerinin dışındadır; otçul kalıcılık eşiğine dahil edildi (gerekçe
   `scripts/criteria.mjs` içinde).
@@ -312,8 +313,6 @@ kopyala, commit + push.
 - **Elle sınanmayanlar:** araçlar, organ ekleme/kaldırma, düzey değiştirme, kayıt indirme ve
   yükleme otomatik tarayıcı betiğiyle (masaüstü ve telefon genişliği) sınandı; gerçek bir
   telefonda dokunarak sınanmadı.
-- **Soy ağacı dar ekranda:** tür adları çizginin sağında kalır; telefonda görmek için ağacı
-  yana kaydırmak gerekir.
 - **Yakın görünümde arazi:** harita 1600 px genişliğinde bir kez boyanır; en yakın
   yakınlaştırmada sıradağ kenarları basamaklı görünür.
 - **Eşeyli üreme nadir kalır:** erkeklerin doğurmaması eşeysiz üremeye karşı dezavantaj
@@ -323,15 +322,16 @@ kopyala, commit + push.
   gelmez (12 tohumluk denemede 1 kez oldu). "Çöküşte dışarıdan göç" ayarı kapatılabilir.
 - **Kalıtım yapısı eşiği:** sayısal bir gen, aralığının %2'sinden az kaydıysa "değişmedi"
   sayılır; eşik keyfîdir.
-- **Eski kayıtlar:** güncel kayıt sürümü 6'dır; sürüm 2, 3, 4 ve 5 kayıtları açılır. Sürüm 5 ve
+- **Eski kayıtlar:** güncel kayıt sürümü 10'dur; sürüm 2–9 kayıtları açılır (9 ve öncesinde hücre kimyası alanları yoktur, gezegenin ilk yapısıyla doldurulur). Sürüm 5 ve
   öncesinde çözünmüş besin alanı yoktur; dolu başlar, kayıttaki canlılar ve bitkiler aynen yüklenir. Sürüm 2'de
   harita farklıdır (artık kimyadan üretiliyor); yaşayamayacağı yerde kalan canlılar sığ sıvıya
   taşınır. Sürüm 4 ve öncesi canlının anlık durumunu (hedefi, zamanlayıcıları), leşleri ve
   deprem bölgelerini taşımaz; bunlar varsayılanla başlar, yani eski bir kayıttan devam eden
   koşu kaydedilmeden devam edenle aynı ilerlemez. Sürüm 1 kayıtları açılmaz.
 - **Kayıt büyüdü:** sürüm 5 değerleri yuvarlamadan yazar; 245–326 canlılık bir koşuda kayıt
-  yaklaşık 0,7 MB'tan 1,1 MB'a çıktı (iki ölçüm aynı anda alınmadı, nüfus farklı). Zaman
-  yolculuğu bu kayıtlardan 24 tane bellekte tutar. 500 canlıda boyut ölçülmedi.
+  yaklaşık 0,7 MB'tan 1,1 MB'a çıktı (iki ölçüm aynı anda alınmadı, nüfus farklı). 441 canlıda
+  (tohum 1, hızlı mod, 6000 sn) kayıt 2,7 MB ölçüldü; yeni hücre kimyası alanları ve izler de
+  eklendi. Zaman yolculuğu bu kayıtlardan 24 tane bellekte tutar (yaklaşık 65 MB).
 - **Yalnızca koyu görünüm vardır;** açık tema kaldırıldı.
 - **Otomatik testler dardır:** çekirdek testleri yalnızca belirlenimciliği ve kayıt
   gidiş-dönüşünü sınar (bkz. "Testler ve ölçüm"); tek tek mekanikler için birim testi yoktur.
