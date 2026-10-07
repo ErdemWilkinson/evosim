@@ -24,6 +24,8 @@ import { answerPredict, predictHtml, resetPredict, setPredictEnabled, tickPredic
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
 
+/** Dönüm noktası kaydı, olayla aynı adımda alınır; küçük bir pay yuvarlamaya yeter. */
+const REWIND_SLACK = 1;
 const SAVE_KEY = "evosim-save-v2";
 const LEGACY_SAVE_KEY = "evosim-opus-save-v2";
 const AUTOSAVE_MS = 20000;
@@ -246,6 +248,7 @@ function refresh(v: View, ui: UiPayload): void {
   const count = ui.snaps.length;
   range.disabled = count === 0;
   $<HTMLButtonElement>("tl-go").disabled = count === 0;
+  $("tl-undo").hidden = !ui.canUndo;
   if (count > 0) {
     range.max = String(count - 1);
     if (timelinePinned) range.value = String(count - 1);
@@ -335,7 +338,7 @@ function refreshTab(v: View, ui: UiPayload): void {
       `${client.threaded ? "Simülasyon ayrı bir iş parçacığında (Web Worker) çalışıyor" : "Simülasyon ana iş parçacığında çalışıyor"}` +
       ` · gerçekleşen hız ×${nf(ui.rate)} · eşeyli üreyen ${ui.sexual} · dışarıdan göç ${ui.immigrants}`;
   } else if (tab === "history") {
-    setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t)));
+    setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t + REWIND_SLACK)));
     setHtml($("history-line"), lineBlock(ui.line));
     setHtml($("history-predict"), predictHtml(v.frame.time));
     setHtml($("history-atlas"), atlasHtml());
@@ -550,13 +553,14 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
     case "ms-rewind": {
       const snaps = view?.ui?.snaps ?? [];
       const t = Number(button.dataset.t);
+      // Dönüm noktasının kendi kaydı ya da ondan önceki en yakın kayıt.
       let index = -1;
       snaps.forEach((s, i) => {
-        if (s <= t) index = i;
+        if (s <= t + REWIND_SLACK && (index < 0 || Math.abs(s - t) <= Math.abs(snaps[index] - t))) index = i;
       });
       if (index >= 0) {
         client.send({ type: "rewind", index });
-        toast(`${fmtTime(snaps[index])} anına dönüldü. Bundan sonrası yeniden yaşanacak.`);
+        toast(`${fmtTime(snaps[index])} anına dönüldü. Bundan sonrası yeniden yaşanacak; yanlışlıkla olduysa "Geri al" ile dönülür.`);
       }
       break;
     }
@@ -653,7 +657,11 @@ $("tl-go").addEventListener("click", () => {
   const at = view?.ui?.snaps[index];
   if (at === undefined) return;
   client.send({ type: "rewind", index });
-  toast(`${fmtTime(at)} anına dönüldü. Bundan sonrası yeniden yaşanacak.`);
+  toast(`${fmtTime(at)} anına dönüldü. Bundan sonrası yeniden yaşanacak; yanlışlıkla olduysa "Geri al" ile dönülür.`);
+});
+$("tl-undo").addEventListener("click", () => {
+  client.send({ type: "unrewind" });
+  toast("Geri sarma geri alındı.");
 });
 
 if (runtime && typeof runtime.use === "function") {

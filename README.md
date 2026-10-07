@@ -258,6 +258,7 @@ kopyala, commit + push.
 
 ## Bilinen sorunlar
 
+- **Zaman yolculuğu bellek kullanır:** her dönüm noktası için o anın tam kaydı ayrıca tutulur (seyreltilmez) ve "Bu ana dön" tam o ana döner; düzenli kayıtlar 60 sn aralıklı, en çok 24 tanedir ve dolunca seyreltilir. Geri sarmadan önceki durum "Geri al" için bellekte tutulur; sayfa yenilenirse ya da yeni geri sarma yapılırsa kaybolur. Otomatik kayıt geri sarılmış durumu yazar (20 sn'de bir). Her kayıt 1–3 MB tuttuğundan uzun oyunda bellek yaklaşık 100 MB'a çıkabilir; ölçülmedi.
 - **Yeni besin tabanı ve son dört mekanik ölçülmedi:** kemotrof beslenme, sonradan evrilen
   bitki örtüsü, tok canlının otlamaması, sığınağın büyük bedeni yavaşlatması, örtü biçici
   organ, örtüye kaçış ve yamyamlık hastalığı 6 Ekim 2026'da eklendi. Besin tabanı için

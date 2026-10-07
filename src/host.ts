@@ -29,7 +29,10 @@ export class SimHost {
   private lastSelected: Genome | null = null;
   private speciesId = 0;
   private fossilSent = -1;
-  private snaps: { t: number; data: string }[] = [];
+  private snaps: { t: number; data: string; keep?: boolean }[] = [];
+  /** Son geri sarmadan önceki durum: "Geri al" ile dönülür. */
+  private undo: { data: string; snaps: { t: number; data: string; keep?: boolean }[] } | null = null;
+  private msCount = 0;
   private snapT = 0;
   private rateT = 0;
   private rateSim = 0;
@@ -47,7 +50,11 @@ export class SimHost {
     this.speciesId = 0;
     this.fossilSent = -1;
     this.acc = 0;
-    if (!keepSnaps) this.snaps = [];
+    if (!keepSnaps) {
+      this.snaps = [];
+      this.undo = null;
+    }
+    this.msCount = sim.milestones.length;
     this.snapT = sim.time;
     this.dirty = true;
     this.uiNow = true;
@@ -121,8 +128,18 @@ export class SimHost {
       case "rewind": {
         const snap = this.snaps[cmd.index];
         if (!snap) break;
-        this.snaps.length = cmd.index + 1;
+        // Geri sarmadan önceki durum saklanır: yanlışlıkla sarılan oyun "Geri al" ile kurtarılır.
+        this.undo = { data: JSON.stringify(sim.serialize()), snaps: this.snaps };
+        this.snaps = this.snaps.slice(0, cmd.index + 1);
         this.replace(Sim.load(JSON.parse(snap.data) as SaveData), true);
+        break;
+      }
+      case "unrewind": {
+        const undo = this.undo;
+        if (!undo) break;
+        this.snaps = undo.snaps;
+        this.replace(Sim.load(JSON.parse(undo.data) as SaveData), true);
+        this.undo = null;
         break;
       }
     }
@@ -146,7 +163,11 @@ export class SimHost {
           break;
         }
       }
-      if (sim.time - this.snapT >= SNAPSHOT_INTERVAL) this.snapshot(sim);
+      // Yeni bir dönüm noktası olunca o anın kaydı alınır ve seyreltmeye girmez: "Bu ana dön" tam oraya döner.
+      if (sim.milestones.length > this.msCount) {
+        this.msCount = sim.milestones.length;
+        this.snapshot(sim, true);
+      } else if (sim.time - this.snapT >= SNAPSHOT_INTERVAL) this.snapshot(sim);
     }
     this.rateSim += stepped * STEP;
     this.rateT += elapsedMs;
@@ -163,12 +184,15 @@ export class SimHost {
   }
 
   /** Zaman yolculuğu için anlık kayıt. Liste dolunca eski kayıtlar seyreltilir. */
-  private snapshot(sim: Sim): void {
+  private snapshot(sim: Sim, keep = false): void {
     this.snapT = sim.time;
-    this.snaps.push({ t: sim.time, data: JSON.stringify(sim.serialize()) });
-    if (this.snaps.length > SNAPSHOT_CAP) {
-      const half = this.snaps.length >> 1;
-      this.snaps = this.snaps.filter((_, i) => i >= half || i % 2 === 0);
+    this.snaps.push({ t: sim.time, data: JSON.stringify(sim.serialize()), keep });
+    // Seyreltme yalnızca düzenli kayıtlara uygulanır; dönüm noktası kayıtları korunur.
+    const regular = this.snaps.filter((s) => !s.keep);
+    if (regular.length > SNAPSHOT_CAP) {
+      const half = regular.length >> 1;
+      const thinned = new Set(regular.filter((_, i) => i >= half || i % 2 === 0));
+      this.snaps = this.snaps.filter((s) => s.keep || thinned.has(s));
     }
   }
 
@@ -320,6 +344,7 @@ export class SimHost {
       line: sim.lineStats(),
       fossils: this.fossilSent === sim.fossilVersion ? null : ((this.fossilSent = sim.fossilVersion), sim.fossils()),
       snaps: this.snaps.map((s) => s.t),
+      canUndo: this.undo !== null,
       autoEvents: sim.autoEvents,
       rescueEnabled: sim.rescueEnabled,
       evolutionSpeed: sim.evolutionSpeed,

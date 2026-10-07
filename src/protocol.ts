@@ -31,7 +31,8 @@ export type Command =
   | { type: "stage"; id: number; stage: number }
   | { type: "set"; autoEvents?: boolean; rescueEnabled?: boolean; nutrientMultiplier?: number; evolutionSpeed?: EvolutionSpeed }
   | { type: "save"; req: number }
-  | { type: "rewind"; index: number };
+  | { type: "rewind"; index: number }
+  | { type: "unrewind" };
 
 export interface SpeciesInfo {
   id: number;
@@ -100,6 +101,8 @@ export interface UiPayload {
   /** Tükenmiş türler; yalnızca değiştiğinde dolu gelir (aksi hâlde null, arayüz eskisini korur). */
   fossils: Fossil[] | null;
   snaps: number[];
+  /** Son geri sarma geri alınabilir mi. */
+  canUndo: boolean;
   autoEvents: boolean;
   rescueEnabled: boolean;
   evolutionSpeed: EvolutionSpeed;
