@@ -613,9 +613,8 @@ const GREET = {
   },
 };
 
-/** Soru, Rehber bir kez bitirilene (ya da kapatılana) dek her açılışta sorulur; "Hayır" yalnızca o oturum için hatırlanır. */
+/** Soru her açılışta (sayfa yüklenişinde) bir kez sorulur; yanıt yalnızca o oturum için hatırlanır. */
 export function greeted(): boolean {
-  if (tourSeen()) return true;
   try {
     return sessionStorage.getItem("evosim-greeted") === "1";
   } catch {
