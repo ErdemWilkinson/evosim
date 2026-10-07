@@ -766,6 +766,41 @@ input[type="range"] {
   color: var(--ink-3, #8a93a3);
 }
 
+.pred-q {
+  margin: 0 0 8px;
+  line-height: 1.55;
+}
+
+.pred-q small {
+  color: var(--ink-3, #8a93a3);
+}
+
+.pred-wait,
+.pred-why {
+  margin: 0 0 6px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.pred-res {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.pred-res.right b {
+  color: #7bd88f;
+}
+
+.pred-res.wrong b {
+  color: #ff8a7a;
+}
+
+.pred-res.neutral b {
+  color: var(--ink-2);
+}
+
 /* ------------------------------------------------------------ panel içerikleri */
 
 .kpis {

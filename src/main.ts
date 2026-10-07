@@ -14,6 +14,7 @@ import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
 import { MS_LABEL, fossilCards, lineBlock, milestoneStrip } from "./history";
 import type { Fossil } from "./sim";
+import { answerPredict, predictEnabled, predictHtml, resetPredict, setPredictEnabled, tickPredict } from "./predict";
 
 /** Derleme bayrağı: yalnızca yayın parçasında (artifact) doğrudur; dosya indirme köprüsünü açar. */
 declare const __ARTIFACT__: boolean;
@@ -226,10 +227,13 @@ function refresh(v: View, ui: UiPayload): void {
   if (v.epoch !== msEpoch) {
     msEpoch = v.epoch;
     msSeen = msTop;
+    resetPredict();
   } else if (msTop > msSeen) {
     for (const m of ui.milestones) if (m.seq > msSeen) scene.pulse(m.id, MS_LABEL[m.key] ?? m.key);
     msSeen = msTop;
   }
+
+  tickPredict(ui, v.frame.time);
 
   // Oyuncunun soyu tükendiyse bir kez haber verilir.
   if (ui.line && ui.line.alive === 0 && ui.line.extinctAt >= 0 && lineToldFor !== ui.line.root) {
@@ -266,6 +270,7 @@ function refreshTab(v: View, ui: UiPayload): void {
   } else if (tab === "history") {
     setHtml($("history-ms"), milestoneStrip(ui, v.frame.time, msPick, (t) => ui.snaps.some((s) => s <= t)));
     setHtml($("history-line"), lineBlock(ui.line));
+    setHtml($("history-predict"), predictHtml(v.frame.time));
     if (ui.fossils) fossils = ui.fossils;
     if (setHtml($("history-fossils"), fossilCards(fossils))) {
       for (const canvas of $("history-fossils").querySelectorAll<HTMLCanvasElement>("canvas[data-fossil]")) {
@@ -426,6 +431,9 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
   const button = target.closest<HTMLElement>("[data-action]");
   if (!button) return;
   switch (button.dataset.action) {
+    case "pred":
+      answerPredict(button.dataset.g ?? "");
+      break;
     case "line-mark":
       if (selected) {
         client.send({ type: "line", id: selected });
@@ -539,6 +547,11 @@ function setGameMode(on: boolean): void {
 $<HTMLInputElement>("set-game").addEventListener("change", (e) => setGameMode((e.target as HTMLInputElement).checked));
 $<HTMLInputElement>("set-events").addEventListener("change", (e) => client.send({ type: "set", autoEvents: (e.target as HTMLInputElement).checked }));
 $<HTMLSelectElement>("set-evo").addEventListener("change", (e) => client.send({ type: "set", evolutionSpeed: (e.target as HTMLSelectElement).value as EvolutionSpeed }));
+{
+  const box = $<HTMLInputElement>("set-predict");
+  box.checked = predictEnabled();
+  box.addEventListener("change", () => setPredictEnabled(box.checked));
+}
 $<HTMLInputElement>("set-rescue").addEventListener("change", (e) => client.send({ type: "set", rescueEnabled: (e.target as HTMLInputElement).checked }));
 $<HTMLInputElement>("set-plants").addEventListener("input", (e) => client.send({ type: "set", nutrientMultiplier: Number((e.target as HTMLInputElement).value) }));
 
