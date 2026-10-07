@@ -1364,6 +1364,12 @@ export class OriginFilm {
       const v = Math.sin(i * 127.1 + k * 311.7 + c.seed * 0.013) * 43758.5453;
       return v - Math.floor(v);
     };
+    const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+    const out3 = (k: number): number => 1 - Math.pow(1 - clamp01(k), 3);
+    const back = (k: number): number => {
+      const x = clamp01(k) - 1;
+      return 1 + 2.4 * x * x * x + 1.4 * x * x;
+    };
     const stars = (): void => {
       for (let i = 0; i < 90; i++) {
         ctx.fillStyle = `rgba(255,255,255,${0.2 + rnd(i, 3) * 0.6})`;
@@ -1442,6 +1448,16 @@ export class OriginFilm {
 
     if (scene === 0) {
       stars();
+      const zoom = 0.9 + 0.1 * out3(p * 2.2);
+      const halo = ctx.createRadialGradient(cx, cy, R * 0.9, cx, cy, R * 1.35);
+      halo.addColorStop(0, liquid(60, 0.28 * out3(p * 3)));
+      halo.addColorStop(1, liquid(60, 0));
+      ctx.fillStyle = halo;
+      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-cx, -cy);
       ctx.save();
       ctx.beginPath();
       ctx.arc(cx, cy, R, 0, Math.PI * 2);
@@ -1464,11 +1480,12 @@ export class OriginFilm {
       ctx.beginPath();
       ctx.arc(cx, cy, R + 3, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
       c.elements.forEach((e, i) => {
         const appear = Math.min(1, Math.max(0, p * 6 - i * 0.35));
         const a = (i / 10) * Math.PI * 2 - Math.PI / 2 + t * 0.12;
         const orbit = R * 1.42;
-        chip(e.sym, cx + Math.cos(a) * orbit * (w < h ? 0.92 : 1.25), cy + Math.sin(a) * orbit * (w < h ? 1.25 : 0.92), 11 + Math.sqrt(e.share) * (w < 620 ? 16 : 26), appear);
+        chip(e.sym, cx + Math.cos(a) * orbit * (w < h ? 0.92 : 1.25), cy + Math.sin(a) * orbit * (w < h ? 1.25 : 0.92), (11 + Math.sqrt(e.share) * (w < 620 ? 16 : 26)) * back(appear), clamp01(appear * 3));
       });
     } else if (scene === 1) {
       drawOriginScene(ctx, c, w, h, t, p, { liquid, ground, rnd, stars, chip });
@@ -1487,10 +1504,11 @@ export class OriginFilm {
           const ty = y0 + Math.sin(i * 0.9 + t * 1.5 + k) * 10;
           const fx = rnd(i, k) * w;
           const fy = rnd(i, k + 20) * h + Math.sin(t + i) * 8;
-          const x = fx + (tx - fx) * join;
-          const y = fy + (ty - fy) * join;
+          const m = out3(join);
+          const x = fx + (tx - fx) * m;
+          const y = fy + (ty - fy) * m;
           if (prev && join > 0.95) {
-            ctx.strokeStyle = "rgba(200, 208, 235, 0.7)";
+            ctx.strokeStyle = `rgba(200, 208, 235, ${0.7 * clamp01((join - 0.95) * 20)})`;
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(prev[0], prev[1]);
@@ -1509,7 +1527,15 @@ export class OriginFilm {
       const n = 46;
       const gather = Math.min(1, p * 1.5);
       const ease = gather * gather * (3 - 2 * gather);
-      if (ease > 0.85) cell(cx, cy, R, Math.min(1, Math.max(0, (p - 0.7) * 4)), Math.min(1, (ease - 0.85) * 7));
+      const closed = clamp01((p - 0.72) / 0.28);
+      if (ease > 0.85) cell(cx, cy, R * (1 + 0.07 * Math.sin(closed * Math.PI * 3) * (1 - closed)), Math.min(1, Math.max(0, (p - 0.7) * 4)), Math.min(1, (ease - 0.85) * 7));
+      if (closed > 0 && closed < 1) {
+        ctx.strokeStyle = liquid(70, (1 - closed) * 0.5);
+        ctx.lineWidth = 3 * (1 - closed) + 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * (1.05 + out3(closed) * 0.7), 0, Math.PI * 2);
+        ctx.stroke();
+      }
       for (let i = 0; i < n; i++) {
         const a = (i / n) * Math.PI * 2;
         const fx = rnd(i, 1) * w;
@@ -1550,8 +1576,17 @@ export class OriginFilm {
       ctx.textBaseline = "middle";
       labels.forEach(([k, v], i) => {
         const appear = Math.min(1, Math.max(0, p * 7 - i * 0.6));
-        const x = narrow ? 18 : w * 0.6;
+        const slide = (1 - out3(appear)) * 26;
+        const x = (narrow ? 18 : w * 0.6) + slide;
         const y = narrow ? h * 0.56 + i * 26 : h * 0.2 + i * (h * 0.6) / 5;
+        if (!narrow && appear > 0) {
+          ctx.strokeStyle = `rgba(109, 240, 210, ${0.28 * appear})`;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(ccx + rr * 1.02, ccy + (i - 2.5) * rr * 0.28);
+          ctx.lineTo(x - 12, y);
+          ctx.stroke();
+        }
         ctx.globalAlpha = appear;
         ctx.font = "600 12px Onest, system-ui, sans-serif";
         ctx.fillStyle = "#6df0d2";
@@ -1566,8 +1601,6 @@ export class OriginFilm {
       ctx.fillRect(0, 0, w, h);
       // Bölünme agar.io'daki "W" gibi: ana hücre gerilir, içinden küçük bir hücre fırlar,
       // hızla uzaklaşıp yavaşlar; ikisi de kütlenin yarısıyla jöle gibi titreyerek oturur.
-      const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
-      const out3 = (k: number): number => 1 - Math.pow(1 - clamp01(k), 3);
       const rBig = R * 0.78;
       const rHalf = rBig * Math.SQRT1_2;
       const charge = clamp01((p - 0.2) / 0.2);
@@ -1609,6 +1642,12 @@ export class OriginFilm {
           ctx.stroke();
         }
       }
+    }
+    // Her sahne karanlıktan yumuşakça açılır.
+    const lead = clamp01(p / 0.08);
+    if (lead < 1) {
+      ctx.fillStyle = `rgba(5, 7, 15, ${1 - lead})`;
+      ctx.fillRect(0, 0, w, h);
     }
   }
 }
