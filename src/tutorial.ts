@@ -34,6 +34,8 @@ interface Step {
   skipIf?: (ctx: TourContext) => boolean;
   /** Hedefin üstündeki halka yerine büyük bir bölgeyi vurgular. */
   wide?: boolean;
+  /** Yapı penceresi açıkken gösterilen adım: pencere kapalıysa önce açılır, başka adımlarda kapatılır. */
+  inspect?: boolean;
 }
 
 const STEPS: Step[] = [
@@ -75,10 +77,62 @@ const STEPS: Step[] = [
     creature: true,
   },
   {
-    tr: ["Yapıyı incele", "Bu düğme canlıyı hücre düzeyine kadar açar: kabuk kesiti, molekül, hatta atom. Her hücrenin duvarı, zarı, kalıtım polimeri ve organları kendi genomundan gelir; farklı hücrelerde farklı görünür. Pencereyi şimdi açmıyorum, siz denersiniz."],
-    en: ["Inspect structure", "This button opens the creature down to the cell level: a cross-section of its shell, a molecule, even an atom. Each cell's wall, membrane, heredity polymer and organs come from its own genome, so different cells look different. I won't open the window now; you can try it."],
+    tr: ["Yapıyı incele", "Bu düğme canlıyı hücre düzeyine kadar açar. Şimdi ben açıyorum; her hücrenin duvarı, zarı, kalıtım polimeri ve organları kendi genomundan gelir, bu yüzden farklı hücreler farklı görünür."],
+    en: ["Inspect structure", "This button opens the creature down to the cell level. I'm opening it now; each cell's wall, membrane, heredity polymer and organs come from its own genome, so different cells look different."],
     target: '[data-action="inspect"]',
+    click: true,
+  },
+  {
+    tr: ["Dört büyütme düzeyi", "Canlı, kabuk kesiti, molekül ve atom: her düzey bir öncekinden yüz ila yüz bin kat büyük bakar. Buradaki düğmelerle dilediğiniz düzeye atlarsınız; ya da görüntüye dokunarak yavaşça yakınlaşırsınız."],
+    en: ["Four magnification levels", "Creature, shell cross-section, molecule and atom: each level looks far closer than the one before. Jump to any level with these buttons, or tap the picture to zoom in smoothly."],
+    target: "#inspect-levels",
     click: false,
+    inspect: true,
+    wide: true,
+  },
+  {
+    tr: ["Kabuk kesiti", "Şimdi “Kabuk kesiti”ne iniyorum. Üstte dış ortam, altta hücrenin içi var; aralarında hücre duvarı ve zar katmanları dizilir."],
+    en: ["Shell cross-section", "I'm dropping into the “Shell cross-section” now. The outside is at the top and the cell interior at the bottom, with the wall and membrane layers between them."],
+    target: '#inspect-levels [data-level="1"]',
+    click: true,
+    inspect: true,
+  },
+  {
+    tr: ["Duvara, zara ya da içine dokunun", "Kesitte duvara, zara ya da hücre içine dokunursanız ekran o yapıya yakınlaşır. Sağdaki listeden de herhangi bir parçayı (zar, duvar, kalıtım polimeri, enerji taşıyıcısı, katalizör, organlar) seçebilirsiniz."],
+    en: ["Tap the wall, membrane or interior", "Tap the wall, the membrane or the cell interior in the cross-section and the view zooms into that structure. You can also pick any part (membrane, wall, heredity polymer, energy carrier, catalyst, organs) from the list on the right."],
+    target: "#inspect-canvas",
+    click: false,
+    inspect: true,
+    wide: true,
+  },
+  {
+    tr: ["Molekül", "Şimdi “Molekül”e iniyorum: seçili yapıyı kuran molekül top-çubuk modeliyle görünür. R zincirin devamıdır. Atomlardan birine dokunursanız o atom açılır."],
+    en: ["Molecule", "I'm going down to “Molecule” now: the molecule that builds the selected structure appears as a ball-and-stick model. R is the continuation of the chain. Tap any atom to open it."],
+    target: '#inspect-levels [data-level="2"]',
+    click: true,
+    inspect: true,
+  },
+  {
+    tr: ["Atom", "En derin düzey atomdur: çekirdek ve elektron kabukları. Sağda atomun gezegendeki payı ve bu yapıdaki rolü yazar."],
+    en: ["Atom", "The deepest level is the atom: the nucleus and its electron shells. On the right you see the element's share on this planet and its role in this structure."],
+    target: '#inspect-levels [data-level="3"]',
+    click: true,
+    inspect: true,
+  },
+  {
+    tr: ["Komşu atomlara geçin", "Atomun altında bağlı olduğu komşu atomlar küçük toplar olarak durur. Hangisine dokunursanız ekran o atoma geçer; hidrojene dokunursanız bağlı olduğu atoma geri dönebilirsiniz. Böylece molekülde atomdan atoma yürüyebilirsiniz."],
+    en: ["Walk to neighbouring atoms", "Under the atom, the atoms it is bonded to sit as small balls. Tap one and the view switches to that atom; tap a hydrogen and you can return to the atom it hangs from. That way you can walk through the molecule, atom by atom."],
+    target: "#inspect-canvas",
+    click: false,
+    inspect: true,
+    wide: true,
+  },
+  {
+    tr: ["Pencereyi kapatıyorum", "Yapı penceresini kapatıp haritaya dönüyorum. Bir canlıyı seçip “Yapıyı incele”ye basarak istediğiniz hücreye bu yolu kendiniz yürüyebilirsiniz."],
+    en: ["Closing the window", "I'm closing the structure window and going back to the map. Select any creature and press “Inspect structure” to walk this path yourself on any cell."],
+    target: "#dlg-inspect [data-close]",
+    click: true,
+    inspect: true,
   },
   {
     tr: ["Genom: canlının yazılı planı", "Aşağı kaydırınca Birey sekmesinde canlının genomu bir şerit olarak görünür. Her basamak bir gen: beden büyüklüğü, hız, algı menzili, renk, beslenme biçimi, organlar ve karar ağının her bir ağırlığı. Oyundaki genom bu sayısal özelliklerin listesidir; gerçek bir nükleotit dizisi değildir. Şeridin biçimi (sarmal, merdiven, istif, tabaka…) bu gezegenin kalıtım polimerinden gelir; DNA olmak zorunda değildir."],
@@ -231,6 +285,11 @@ export class Tour {
     this.root?.remove();
     this.root = null;
     const s = this.saved;
+    const insp = document.getElementById("dlg-inspect") as HTMLDialogElement | null;
+    if (insp?.open) {
+      if (this.root) document.body.appendChild(this.root);
+      insp.close();
+    }
     // Rehberin açtığı gen kartı kapatılır.
     document.querySelector<HTMLElement>("#cr-dna .gene-card .x")?.click();
     if (s) {
@@ -328,6 +387,22 @@ export class Tour {
     this.card.querySelector(".tour-dots")!.innerHTML = STEPS.map((_, i) => `<i class="${i === this.index ? "on" : i < this.index ? "past" : ""}"></i>`).join("");
     this.root?.querySelector<HTMLElement>(".tour-name")!.replaceChildren(L.dev);
 
+    // Yapı penceresi yalnızca ona ait adımlarda açık durur.
+    const dlg = document.getElementById("dlg-inspect") as HTMLDialogElement | null;
+    if (dlg) {
+      if (!step.inspect && dlg.open) {
+        this.root && document.body.appendChild(this.root);
+        dlg.close();
+        this.raise();
+      }
+      else if (step.inspect && !dlg.open) {
+        document.querySelector<HTMLElement>('[data-action="inspect"]')?.click();
+        this.raise();
+        await sleep(quick ? 0 : 450);
+        if (token !== this.run) return;
+      }
+    }
+
     // Hedefi bul (dar ekranda görünür kıl).
     let point: { x: number; y: number; w: number; h: number } | null = null;
     let pick: (() => void) | null = null;
@@ -390,7 +465,25 @@ export class Tour {
         // SVG öğelerinde click() yoktur (gen basamakları); olay elle gönderilir.
         if (typeof el.click === "function") el.click();
         else el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+        // Tıklama bir pencere açtıysa rehber yine en üste alınır.
+        this.raise();
       }
+    }
+  }
+
+  /** Üst katman sırasında en öne alır (sonradan açılan pencerelerin üstüne çıkmak için). */
+  private raise(): void {
+    const r = this.root;
+    if (!r) return;
+    // Açık bir kip penceresi (showModal) dışındaki her şeyi tıklanamaz yapar; rehber o pencerenin içine alınır.
+    // Üst katmandaki öğenin konumu pencereden etkilenmez.
+    const open = Array.from(document.querySelectorAll<HTMLDialogElement>("dialog[open]")).pop();
+    // Öğe taşınınca açılır pencere durumu kendiliğinden kapanır; yeni yerinde yeniden gösterilir.
+    (open ?? document.body).appendChild(r);
+    try {
+      r.showPopover();
+    } catch {
+      /* zaten açıksa sorun değil */
     }
   }
 
@@ -407,4 +500,122 @@ export function tourSeen(): boolean {
   } catch {
     return true;
   }
+}
+
+const GREET = {
+  tr: {
+    title: "Simülasyona yeni başlıyor gibisin",
+    text: "Emin ol, bu simülasyonda Rehber'e ihtiyaç duyacaksın. Yardım edeyim mi?",
+    yes: "Evet",
+    no: "Hayır",
+    later: "Tamam. Rehber düğmesi burada; canın isteyince basarsın, ben beklerim.",
+  },
+  en: {
+    title: "You look new to the simulation",
+    text: "Trust me, you're going to want the guide in here. Shall I help?",
+    yes: "Yes",
+    no: "No",
+    later: "Okay. The Guide button is right here; press it whenever you like, I'll be waiting.",
+  },
+};
+
+export function greeted(): boolean {
+  try {
+    return localStorage.getItem("evosim-greeted") === "1";
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Oyuna girince Developer imleci gelir ve rehbere ihtiyaç olup olmadığını sorar. Soru yanıtlanana kadar ekrandaki
+ * hiçbir yere basılamaz. Evet: rehber başlar. Hayır: imleç Rehber düğmesini gösterir ve çekilir.
+ */
+export function greet(tour: Tour): void {
+  if (document.getElementById("greet") || tour.isOpen) return;
+  const L = GREET[getLang() === "en" ? "en" : "tr"];
+  const lang = getLang() === "en" ? "en" : "tr";
+  const root = document.createElement("div");
+  root.id = "greet";
+  root.setAttribute("popover", "manual");
+  root.innerHTML =
+    `<div class="tour-ring"></div>` +
+    `<div class="tour-cursor">${ARROW}<span class="tour-name">${LABELS[lang].dev}</span></div>` +
+    `<div class="tour-card greet-card" role="alertdialog" aria-live="assertive" data-pos="bottom"><h3>${L.title}</h3><p>${L.text}</p>` +
+    `<div class="tour-actions"><button type="button" class="btn btn-small btn-primary" data-g="yes">${L.yes}</button><button type="button" class="btn btn-small" data-g="no">${L.no}</button></div></div>`;
+  document.body.appendChild(root);
+  root.showPopover?.();
+  const cursor = root.querySelector<HTMLElement>(".tour-cursor")!;
+  const ring = root.querySelector<HTMLElement>(".tour-ring")!;
+  const card = root.querySelector<HTMLElement>(".greet-card")!;
+  const put = (x: number, y: number, instant = false): void => {
+    if (instant) cursor.style.transition = "none";
+    cursor.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
+    if (instant) {
+      void cursor.offsetWidth;
+      cursor.style.transition = "";
+    }
+  };
+  const mark = (on: boolean): void => {
+    try {
+      if (on) localStorage.setItem("evosim-greeted", "1");
+    } catch {
+      /* depolama kapalıysa yalnızca bu oturum */
+    }
+  };
+  const swallow = (e: KeyboardEvent): void => {
+    if (e.key === "Tab" || e.key === "Enter" || e.key === " ") return;
+    e.stopPropagation();
+    e.preventDefault();
+  };
+  document.addEventListener("keydown", swallow, true);
+  const done = (): void => {
+    document.removeEventListener("keydown", swallow, true);
+    root.hidePopover?.();
+    root.remove();
+  };
+  // İmleç ekranın dışından gelir, kartın üst köşesine yerleşir.
+  card.style.opacity = "0";
+  put(window.innerWidth + 40, window.innerHeight * 0.3, true);
+  window.setTimeout(() => {
+    const r = card.getBoundingClientRect();
+    put(r.left + 36, r.top - 26);
+    card.style.transition = "opacity 0.6s";
+    card.style.opacity = "1";
+    root.querySelector<HTMLElement>('[data-g="yes"]')?.focus({ preventScroll: true });
+  }, 60);
+  root.addEventListener("click", (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>("[data-g]");
+    if (!b) return;
+    mark(true);
+    if (b.dataset.g === "yes") {
+      card.style.opacity = "0";
+      // İmleç ekranın ortasına süzülür; rehber de oradan başlar.
+      put(window.innerWidth / 2, window.innerHeight / 2);
+      window.setTimeout(() => {
+        done();
+        tour.start();
+      }, 800);
+      return;
+    }
+    // Hayır: engel kalkar, imleç Rehber düğmesini gösterir.
+    root.classList.add("free");
+    const btn = document.getElementById("btn-tour");
+    card.querySelector("h3")!.textContent = "";
+    card.querySelector("p")!.textContent = L.later;
+    card.querySelector(".tour-actions")!.remove();
+    card.dataset.pos = "bottom";
+    if (btn) {
+      const br = btn.getBoundingClientRect();
+      const w = Math.max(34, br.width + 12);
+      const h = Math.max(34, br.height + 12);
+      ring.style.opacity = "1";
+      ring.style.width = `${w}px`;
+      ring.style.height = `${h}px`;
+      ring.style.transform = `translate(${Math.round(br.left + br.width / 2 - w / 2)}px, ${Math.round(br.top + br.height / 2 - h / 2)}px)`;
+      put(br.left + br.width / 2 - 4, br.top + br.height / 2 - 3);
+      btn.classList.add("pulse");
+    }
+    window.setTimeout(done, 4200);
+  });
 }

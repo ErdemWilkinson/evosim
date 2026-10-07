@@ -3,7 +3,7 @@ import { EvolutionSpeed } from "./genome";
 import { OrganType } from "./organs";
 import { PhyloTree } from "./phylo";
 import { refsHtml } from "./refs";
-import { Tour, tourSeen } from "./tutorial";
+import { Tour, greet, greeted, tourSeen } from "./tutorial";
 import { StartMenu } from "./intro";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
@@ -206,7 +206,7 @@ function onEpoch(v: View): void {
       if (tourAfterFilm) {
         tourAfterFilm = false;
         window.setTimeout(() => tour.start(), 900);
-      }
+      } else if (!greeted()) window.setTimeout(() => greet(tour), 1200);
     });
   }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;
