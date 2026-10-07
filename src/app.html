@@ -173,6 +173,11 @@
           <div id="history-atlas"></div>
         </section>
         <section class="block">
+          <h3>Zaman atlamalı kayıt <span>hızlandırılmış gösterim</span></h3>
+          <p class="note" id="lapse-info"></p>
+          <div class="card-actions"><button type="button" class="btn btn-small" data-action="lapse-open">Yaklaşık bir dakikada izle</button></div>
+        </section>
+        <section class="block">
           <h3>Fosil kaydı <span>tükenmiş türler</span></h3>
           <div id="history-fossils" class="fossils"></div>
         </section>
@@ -269,6 +274,23 @@
       <button type="button" class="btn" id="card-copy">Bağlantıyı kopyala</button>
       <button type="button" class="btn btn-primary" id="card-save">Resmi kaydet</button>
     </footer>
+  </div>
+</dialog>
+
+<dialog class="dialog dialog-wide" id="dlg-lapse">
+  <div class="dialog-body">
+    <header class="dialog-head">
+      <h2>Zaman atlamalı kayıt</h2>
+      <span class="mono dim" id="lapse-clock"></span>
+      <span class="bar-space"></span>
+      <button type="button" class="btn btn-icon" data-close aria-label="Kapat">✕</button>
+    </header>
+    <div class="card-holder"><canvas id="lapse-canvas" width="960" height="600"></canvas></div>
+    <div class="lapse-bar">
+      <button type="button" class="btn btn-small" id="lapse-play">Duraklat</button>
+      <input type="range" id="lapse-range" min="0" max="1000" value="0" aria-label="Kayıt konumu">
+    </div>
+    <p class="foot" id="lapse-mem"></p>
   </div>
 </dialog>
 

@@ -889,6 +889,25 @@ input[type="range"] {
   border-radius: var(--r-md);
 }
 
+.lapse-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.lapse-bar input[type="range"] {
+  flex: 1;
+  min-width: 0;
+}
+
+#lapse-canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-md);
+}
+
 /* ------------------------------------------------------------ panel içerikleri */
 
 .kpis {

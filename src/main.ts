@@ -14,6 +14,7 @@ import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
 import { MS_LABEL, fossilCards, lineBlock, milestoneStrip } from "./history";
 import type { Fossil } from "./sim";
+import { dietClass, drawTimelapse, recordTimelapse, resetTimelapse, timelapseSeconds, timelapseStats } from "./timelapse";
 import { dailySeed, drawCard, encodeShare, parseShare, Share } from "./card";
 import { atlasHtml, observeAtlas, resetAtlasWorld } from "./atlas";
 import { tr } from "./i18n";
@@ -239,6 +240,7 @@ function refresh(v: View, ui: UiPayload): void {
     msSeen = msTop;
     resetPredict();
     resetAtlasWorld();
+    resetTimelapse();
   } else if (msTop > msSeen) {
     for (const m of ui.milestones) if (m.seq > msSeen) scene.pulse(m.id, MS_LABEL[m.key] ?? m.key);
     msSeen = msTop;
@@ -274,6 +276,7 @@ function refresh(v: View, ui: UiPayload): void {
     }
   }
 
+  recordTimelapse(v.frame.time, v.frame.n, v.frame.c, STRIDE, (id) => dietClass(v.genomes.get(id)?.diet ?? ""));
   tickPredict(ui, v.frame.time);
   for (const a of observeAtlas(ui, v.planet, v.frame.time, fossils.length, document.documentElement.hasAttribute("data-game"))) {
     toast(`${tr("Başarım kazanıldı")}: ${tr(a.label)}${a.game ? ` (${tr("oyun modunda")})` : ""}`);
@@ -316,6 +319,11 @@ function refreshTab(v: View, ui: UiPayload): void {
     setHtml($("history-line"), lineBlock(ui.line));
     setHtml($("history-predict"), predictHtml(v.frame.time));
     setHtml($("history-atlas"), atlasHtml());
+    {
+      const st = timelapseStats();
+      $("lapse-info").textContent = st.frames < 2 ? "Dünya ilerledikçe küçük anlık görüntüler biriktirilir; yeterince biriktiğinde buradan hızlandırılmış izleyebilirsiniz." : `${st.frames} kare birikti (${fmtTime(st.span)} süre, ${fmtTime(st.interval)} aralıkla).`;
+      $<HTMLButtonElement>("lapse-open").disabled = st.frames < 2;
+    }
     if (ui.fossils) fossils = ui.fossils;
     if (setHtml($("history-fossils"), fossilCards(fossils))) {
       for (const canvas of $("history-fossils").querySelectorAll<HTMLCanvasElement>("canvas[data-fossil]")) {
@@ -476,6 +484,9 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
   const button = target.closest<HTMLElement>("[data-action]");
   if (!button) return;
   switch (button.dataset.action) {
+    case "lapse-open":
+      openLapse();
+      break;
     case "planet-card":
       openCard();
       break;
@@ -709,6 +720,62 @@ $("dlg-planet").addEventListener("close", () => {
     return;
   }
   startPlanet();
+});
+
+// Zaman atlamalı kayıt
+let lapseRaf = 0;
+let lapseT = 0;
+let lapseLast = 0;
+let lapsePlaying = true;
+let lapseTerrain: HTMLCanvasElement | null = null;
+function lapseDraw(): void {
+  const canvas = $<HTMLCanvasElement>("lapse-canvas");
+  const ctx = canvas.getContext("2d")!;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (lapseTerrain) ctx.drawImage(lapseTerrain, 0, 0, canvas.width, canvas.height);
+  const info = drawTimelapse(ctx, canvas.width, canvas.height, lapseT, theme);
+  if (info) $("lapse-clock").textContent = `${fmtTime(info.t)} · ${info.n} canlı`;
+  $<HTMLInputElement>("lapse-range").value = String(Math.round(lapseT * 1000));
+}
+function lapseLoop(now: number): void {
+  const dialog = $<HTMLDialogElement>("dlg-lapse");
+  if (!dialog.open) {
+    lapseRaf = 0;
+    return;
+  }
+  if (lapsePlaying) {
+    lapseT += (now - lapseLast) / 1000 / timelapseSeconds;
+    if (lapseT >= 1) {
+      lapseT = 1;
+      lapsePlaying = false;
+      $("lapse-play").textContent = "Baştan oynat";
+    }
+  }
+  lapseLast = now;
+  lapseDraw();
+  lapseRaf = requestAnimationFrame(lapseLoop);
+}
+function openLapse(): void {
+  if (!view) return;
+  const st = timelapseStats();
+  lapseTerrain = renderTerrain(view.world, isDark(), 960);
+  lapseT = 0;
+  lapsePlaying = true;
+  lapseLast = performance.now();
+  $("lapse-play").textContent = "Duraklat";
+  $("lapse-mem").textContent = `${st.frames} kare · bellek ${(st.bytes / 1024).toFixed(1)} KB · en çok 600 kare tutulur, dolunca kareler seyrekleştirilir.`;
+  $<HTMLDialogElement>("dlg-lapse").showModal();
+  if (!lapseRaf) lapseRaf = requestAnimationFrame(lapseLoop);
+}
+$("lapse-play").addEventListener("click", () => {
+  if (lapseT >= 1) lapseT = 0;
+  lapsePlaying = !lapsePlaying;
+  $("lapse-play").textContent = lapsePlaying ? "Duraklat" : "Oynat";
+});
+$<HTMLInputElement>("lapse-range").addEventListener("input", (e) => {
+  lapseT = Number((e.target as HTMLInputElement).value) / 1000;
+  lapsePlaying = false;
+  $("lapse-play").textContent = "Oynat";
 });
 
 // Gezegen kartı
