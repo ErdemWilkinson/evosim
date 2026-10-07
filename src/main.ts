@@ -117,14 +117,33 @@ const TOOL_HINT: Record<Tool, string> = {
   radiate: "Çemberin içindeki canlıların bir kısmının genleri mutasyona uğrar; basılı tutup sürükleyebilirsiniz.",
 };
 
+/**
+ * Dar ekranda harita üzerindeki dikey kaydırma varsayılan olarak sayfayı kaydırır; böylece parmak haritadayken
+ * sayfa donmuş gibi kalmaz. Haritayı parmakla kaydırmak için raftaki düğme açılır; araç seçiliyken (boyama) harita her zaman parmağı alır.
+ */
+let mapPan = false;
+function applyTouch(): void {
+  const narrow = window.matchMedia("(max-width: 920px)").matches;
+  $("scene").style.touchAction = narrow && tool === "select" && !mapPan ? "pan-y pinch-zoom" : "none";
+}
+window.matchMedia("(max-width: 920px)").addEventListener("change", applyTouch);
+
 function setTool(next: Tool): void {
   tool = next;
+  applyTouch();
   if (next !== "place") placeTemplate = 0;
   for (const b of document.querySelectorAll<HTMLElement>("[data-tool]")) b.setAttribute("aria-pressed", String(b.dataset.tool === next));
   const hint = next === "place" ? (placeTemplate ? `Tıkladığınız yere #${placeTemplate} numaralı bireyin kopyası yerleştirilir.` : "Tıkladığınız yere organsız bir mikroorganizma yerleştirilir (suya).") : TOOL_HINT[next];
   $("tool-hint").textContent = hint;
   $("tool-hint").hidden = hint === "";
 }
+
+$("btn-mappan").addEventListener("click", () => {
+  mapPan = !mapPan;
+  $("btn-mappan").setAttribute("aria-pressed", String(mapPan));
+  applyTouch();
+  toast(mapPan ? "Harita parmakla kayar; sayfayı kaydırmak için haritanın dışına dokunun." : "Haritada kaydırmak artık sayfayı kaydırır.");
+});
 
 function setTab(next: Tab): void {
   tab = next;
