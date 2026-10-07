@@ -2684,7 +2684,7 @@ textarea {
 }
 
 #greet .tour-cursor {
-  transition-duration: 1.4s;
+  transition-duration: 0.6s;
 }
 
 /* Yeni gezegen penceresi geniş ekranda yatay açılır: solda tohum ve harita, sağda gezegenin bilgileri; kaydırma gerekmez. */

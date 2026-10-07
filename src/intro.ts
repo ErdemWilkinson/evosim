@@ -37,7 +37,7 @@ export class StartMenu {
       }
       this.leaving = true;
       this.runSeq?.();
-      this.leaveTimer = window.setTimeout(() => this.finish(), 2700);
+      this.leaveTimer = window.setTimeout(() => this.finish(), 2400);
     });
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }
