@@ -81,6 +81,30 @@ const STEPS: Step[] = [
     click: false,
   },
   {
+    tr: ["Genom: canlının yazılı planı", "Aşağı kaydırınca Birey sekmesinde canlının genomu bir şerit olarak görünür. Her basamak bir gen: beden büyüklüğü, hız, algı menzili, renk, beslenme biçimi, organlar ve karar ağının her bir ağırlığı. Oyundaki genom bu sayısal özelliklerin listesidir; gerçek bir nükleotit dizisi değildir. Şeridin biçimi (sarmal, merdiven, istif, tabaka…) bu gezegenin kalıtım polimerinden gelir; DNA olmak zorunda değildir."],
+    en: ["Genome: the creature's written plan", "Scroll down in the Individual tab and the creature's genome appears as a strip. Each rung is one gene: body size, speed, sensing range, colour, how it feeds, organs, and every single weight of its decision network. The genome in this game is a list of these numeric traits; it is not a real nucleotide sequence. The strip's shape (helix, ladder, stack, sheet…) comes from this planet's heredity polymer; it does not have to be DNA."],
+    target: "#cr-dna .dna-wrap",
+    wide: true,
+  },
+  {
+    tr: ["Bir gene dokunun", "Her basamak tıklanabilir. Şimdi üçüncü basamağa tıklıyorum: o genin açıklaması bir kart olarak açılır."],
+    en: ["Tap a gene", "Every rung is clickable. I'm clicking the third rung now: that gene's description opens as a card."],
+    target: "#cr-dna rect.dna-hit:nth-of-type(3)",
+    click: true,
+  },
+  {
+    tr: ["Gen kartı", "Kart genin ne işe yaradığını, değer aralığını ve ilk canlıdaki ile şimdiki değerini gösterir. Aynı basamağa yeniden ya da ✕ düğmesine basarsanız kapanır; başka bir basamağa basarsanız o açılır. Karar ağının ağırlıkları da böyle birer gendir."],
+    en: ["The gene card", "The card shows what the gene does, its range, and its value in the first creature and now. Click the same rung again or the ✕ button to close it; click another rung to open that one. The decision network's weights are genes like this too."],
+    target: "#cr-dna .gene-card",
+    wide: true,
+  },
+  {
+    tr: ["Renkler ve mutasyon", "Parlak basamaklar ilk canlıdan kalanlar, mor olanlar mutasyonla değişenler, turuncular sonradan kazanılan organ genleridir. Yavru, ebeveynin genomunun kopyasıdır; kopyalama nadiren ve rastgele bozulur. Hangi değişimin kalacağını mutasyon değil, çevre (açlık, avcı, rakip) belirler. Kopyalama hatası çarpanı polimere göre değişir."],
+    en: ["Colours and mutation", "Bright rungs are inherited from the first creature, purple ones changed by mutation, orange ones are organ genes gained later. The offspring is a copy of the parent's genome; copying occasionally and randomly goes wrong. Mutation does not decide which change stays; the environment (hunger, predators, rivals) does. The copy-error multiplier depends on the polymer."],
+    target: "#cr-dna .legend",
+    wide: true,
+  },
+  {
     tr: ["Genel sekmesi", "Genel sekmesi gezegenin özetidir: nüfus, tür sayısı, nesil, kullanılan kimya, atmosfer, basınç ve yaşamın nasıl başladığı. “Hücre yapısını incele” gezegenin ilk hücresini açar."],
     en: ["Overview tab", "The Overview tab summarises the planet: population, species count, generations, the chemistry in use, the atmosphere, the pressure and how life began. “Inspect cell structure” opens the planet's first cell."],
     target: '[data-tab="overview"]',
@@ -124,8 +148,8 @@ const STEPS: Step[] = [
     skipIf: (ctx) => ctx.gameMode(),
   },
   {
-    tr: ["Müdahale araçları", "Sol kenardaki araçlar: bitki ek, canlı yerleştir, meteor düşür, canlıyı kaldır, besin boya, radyasyon fırçası; altında iklim dalgası, rüzgâr ve deprem. Bir aracı seçip haritaya tıklarsınız. Her araçla yaşamın nasıl tepki verdiğini deneyin."],
-    en: ["Intervention tools", "The tools on the left edge: add plants, place a creature, drop a meteor, remove a creature, paint nutrients, a radiation brush; below them a climate wave, wind and an earthquake. Pick a tool and click the map. Try each and see how life reacts."],
+    tr: ["Müdahale araçları", "Sol kenardaki araçlar: bitki ek, canlı yerleştir, meteor düşür, canlıyı kaldır, besin boya, radyasyon fırçası; altında iklim dalgası, rüzgâr ve deprem. Bir aracı seçip haritaya tıklarsınız. Radyasyon fırçası canlıların genlerini zorla mutasyona uğratır; sonucunu genom şeridinde mor basamaklar olarak görürsünüz. Her araçla yaşamın nasıl tepki verdiğini deneyin."],
+    en: ["Intervention tools", "The tools on the left edge: add plants, place a creature, drop a meteor, remove a creature, paint nutrients, a radiation brush; below them a climate wave, wind and an earthquake. Pick a tool and click the map. The radiation brush forces mutations into creatures' genes; you will see the result as purple rungs on the genome strip. Try each and see how life reacts."],
     target: '[data-tool="meteor"]',
     wide: true,
   },
@@ -207,6 +231,8 @@ export class Tour {
     this.root?.remove();
     this.root = null;
     const s = this.saved;
+    // Rehberin açtığı gen kartı kapatılır.
+    document.querySelector<HTMLElement>("#cr-dna .gene-card .x")?.click();
     if (s) {
       this.ctx.clearSelection();
       this.ctx.setGame(s.game);
@@ -361,7 +387,9 @@ export class Tour {
       const el = document.querySelector<HTMLElement>(typeof step.click === "string" ? step.click : step.target);
       if (el) {
         this.ripple();
-        el.click();
+        // SVG öğelerinde click() yoktur (gen basamakları); olay elle gönderilir.
+        if (typeof el.click === "function") el.click();
+        else el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
       }
     }
   }
