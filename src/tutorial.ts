@@ -100,8 +100,8 @@ const STEPS: Step[] = [
     planet: true,
   },
   {
-    tr: ["Başlatalım", "Gezegen hazır. Şimdi “Simülasyonu başlat”a basıyorum. Köken filmini atlıyorum (sonra gezegen bilgilerinden izleyebilirsiniz); ardından oyunun içini gezdiririm."],
-    en: ["Let's start", "The planet is ready. I'm pressing “Start the simulation” now. I'll skip the origin film (you can watch it later from the planet facts); then I'll show you around inside the game."],
+    tr: ["Başlatalım", "Gezegen hazır. Şimdi “Simülasyonu başlat”a basıyorum. Önce köken filmi oynar; rahatça izleyin, film bitince ben geri gelip oyunun içini gezdiririm."],
+    en: ["Let's start", "The planet is ready. I'm pressing “Start the simulation” now. The origin film plays first; watch it at your own pace, and when it ends I'll come back and show you around inside the game."],
     target: "#planet-start",
     click: true,
     planet: true,
@@ -409,6 +409,8 @@ export class Tour {
 
   private readonly onKey = (e: KeyboardEvent): void => {
     if (!this.open) return;
+    // Köken filmi sürerken tuşlar filme aittir.
+    if (document.querySelector("#film:not([hidden])")) return;
     if (e.key === "Escape") {
       e.stopPropagation();
       e.preventDefault();
@@ -554,12 +556,11 @@ export class Tour {
     }
   }
 
-  /** Oyun hazır olana kadar bekler; köken filmi görünürse atlar. */
+  /** Oyun hazır olana ve köken filmi bitene kadar bekler. */
   private async untilReady(token: number): Promise<void> {
-    for (let i = 0; i < 80 && token === this.run; i++) {
-      const film = document.querySelector<HTMLElement>("#film:not([hidden])");
-      if (this.ctx.ready() && !film) return;
-      film?.querySelector<HTMLElement>("#film-skip")?.click();
+    // Köken filmi kendi akışında izlenir (oyuncu isterse kendisi atlar); film bitince rehber geri gelir.
+    for (let i = 0; i < 2400 && token === this.run; i++) {
+      if (this.ctx.ready() && !document.querySelector("#film:not([hidden])")) return;
       await sleep(250);
     }
   }
