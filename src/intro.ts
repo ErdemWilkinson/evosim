@@ -7,6 +7,8 @@ export class StartMenu {
   private timer = 0;
   private raf = 0;
   private leaving = false;
+  private leaveTimer = 0;
+  private lastPress = 0;
   private stopInput: (() => void) | null = null;
   private dots: HTMLElement[] = [];
 
@@ -25,25 +27,38 @@ export class StartMenu {
       dotBox.appendChild(b);
       this.dots.push(b);
     });
-    // Başla'ya basınca toplar düğmeye doğru akarken menü kısa bir an daha açık kalır.
+    // Başla'ya basılan noktada uzuvlar çıkar (yaklaşık 3 sn); sonra menü aşağı doğru sönerek gezegen ekranına geçilir.
+    // Bekleme sırasında Başla'ya bir kez daha basmak geçişi hemen yapar.
     root.querySelector("#start-go")!.addEventListener("click", () => {
-      if (this.leaving) return;
+      if (this.leaving) {
+        window.clearTimeout(this.leaveTimer);
+        this.finish();
+        return;
+      }
       this.leaving = true;
-      window.setTimeout(() => {
-        this.leaving = false;
-        this.choose("go");
-      }, 450);
+      const wait = performance.now() - this.lastPress < 800 ? 2600 : 250;
+      this.leaveTimer = window.setTimeout(() => this.finish(), wait);
     });
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }
 
   public open(): void {
     document.getElementById("app")?.classList.add("hold");
+    this.root.classList.remove("leaving");
+    this.leaving = false;
     this.root.hidden = false;
     this.show(0, false);
     cancelAnimationFrame(this.raf);
     this.stopInput?.();
     this.draw();
+  }
+
+  private finish(): void {
+    this.root.classList.add("leaving");
+    this.leaveTimer = window.setTimeout(() => {
+      this.leaving = false;
+      this.choose("go");
+    }, 450);
   }
 
   private choose(what: "go"): void {
@@ -91,7 +106,9 @@ export class StartMenu {
     let pull: { x: number; y: number } | null = null;
     let pressed = false;
     let releasedAt = 0;
-    let pulse = 0;
+    // Basılan noktada büyüyen, dalgalanan uzuvlar (yaklaşık 3 sn yaşar, son 0,8 sn'de söner).
+    const limbs: { x: number; y: number; t0: number; base: number }[] = [];
+    const LIMB_LIFE = 3000;
     const where = (e: PointerEvent): { x: number; y: number } => {
       const r = canvas.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -103,13 +120,12 @@ export class StartMenu {
         const br = btn.getBoundingClientRect();
         const cr = canvas.getBoundingClientRect();
         pull = { x: br.left + br.width / 2 - cr.left, y: br.top + br.height / 2 - cr.top };
-        pressed = true;
-        pulse = 1;
-        return;
-      }
-      pull = where(e);
+      } else pull = where(e);
       pressed = true;
-      pulse = 1;
+      // Uzuvlar toplanma noktasında değil, basılan noktada çıkar.
+      const at = where(e);
+      limbs.push({ x: at.x, y: at.y, t0: performance.now(), base: Math.random() * 6.28 });
+      this.lastPress = performance.now();
     };
     const onMove = (e: PointerEvent): void => {
       if (pressed && !(e.target as HTMLElement).closest("button, a, input, select")) pull = where(e);
@@ -228,13 +244,49 @@ export class StartMenu {
         ctx.fillStyle = `hsla(${b.h},80%,75%,0.35)`;
         ctx.fill();
       }
-      if (pull && pulse > 0) {
-        pulse = Math.max(0, pulse - dt / 500);
+      const now = performance.now();
+      for (let li = limbs.length - 1; li >= 0; li--) {
+        const L = limbs[li];
+        const age = now - L.t0;
+        if (age > LIMB_LIFE) {
+          limbs.splice(li, 1);
+          continue;
+        }
+        const grow = 1 - Math.pow(1 - Math.min(1, age / 1300), 3);
+        const fade = age > LIMB_LIFE - 800 ? (LIMB_LIFE - age) / 800 : 1;
+        const arms = 8;
+        for (let k = 0; k < arms; k++) {
+          const ang = L.base + (k * Math.PI * 2) / arms + 0.22 * Math.sin(t / 650 + k * 1.7);
+          const len = (46 + (k % 3) * 22) * grow;
+          const dx = Math.cos(ang);
+          const dy = Math.sin(ang);
+          const segs = 16;
+          let px = L.x;
+          let py = L.y;
+          for (let sIdx = 1; sIdx <= segs; sIdx++) {
+            const f = sIdx / segs;
+            const wave = Math.sin(f * 5 - t / 240 + k) * 9 * f;
+            const x = L.x + dx * len * f - dy * wave;
+            const y = L.y + dy * len * f + dx * wave;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(x, y);
+            ctx.lineWidth = Math.max(0.8, 5.5 * (1 - f) + 0.8);
+            ctx.lineCap = "round";
+            ctx.strokeStyle = `hsla(${k % 2 ? 168 : 252},80%,72%,${0.55 * fade})`;
+            ctx.stroke();
+            px = x;
+            py = y;
+          }
+          ctx.beginPath();
+          ctx.arc(px, py, 2.6, 0, 6.2832);
+          ctx.fillStyle = `hsla(168,90%,80%,${0.8 * fade})`;
+          ctx.fill();
+        }
         ctx.beginPath();
-        ctx.arc(pull.x, pull.y, 14 + (1 - pulse) * 60, 0, 6.2832);
-        ctx.strokeStyle = `rgba(109,240,210,${0.5 * pulse})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
+        ctx.arc(L.x, L.y, 9 + 2 * Math.sin(t / 200), 0, 6.2832);
+        ctx.fillStyle = `hsla(168,80%,70%,${0.35 * fade})`;
+        ctx.fill();
       }
       this.raf = requestAnimationFrame(step);
     };
