@@ -78,7 +78,10 @@ export class StartMenu {
     let placed = false;
     let last = 0;
     // Basılı tutulan nokta: toplar oraya çekilir; kısa bir halka basılan yeri gösterir.
+    // Kısa bir tıklama da yeter: basılı değilse çekim yaklaşık 3 sn içinde zayıflayarak sürer.
     let pull: { x: number; y: number } | null = null;
+    let pressed = false;
+    let releasedAt = 0;
     let pulse = 0;
     const where = (e: PointerEvent): { x: number; y: number } => {
       const r = canvas.getBoundingClientRect();
@@ -87,13 +90,16 @@ export class StartMenu {
     const onDown = (e: PointerEvent): void => {
       if ((e.target as HTMLElement).closest("button, a, input, select")) return;
       pull = where(e);
+      pressed = true;
       pulse = 1;
     };
     const onMove = (e: PointerEvent): void => {
-      if (pull) pull = where(e);
+      if (pressed) pull = where(e);
     };
     const onUp = (): void => {
-      pull = null;
+      if (!pressed) return;
+      pressed = false;
+      releasedAt = performance.now();
     };
     this.root.addEventListener("pointerdown", onDown);
     this.root.addEventListener("pointermove", onMove);
@@ -105,6 +111,7 @@ export class StartMenu {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
       pull = null;
+      pressed = false;
     };
     const step = (t: number): void => {
       const dt = Math.min(40, last ? t - last : 16);
@@ -119,12 +126,17 @@ export class StartMenu {
         placed = true;
       }
       ctx.clearRect(0, 0, w, h);
+      let power = 0;
+      if (pull) {
+        power = pressed ? 1 : Math.max(0, 1 - (performance.now() - releasedAt) / 3000);
+        if (power === 0) pull = null;
+      }
       for (const b of balls) {
         if (pull) {
           const dx = pull.x - b.x;
           const dy = pull.y - b.y;
           const d = Math.max(30, Math.hypot(dx, dy));
-          const a = 0.0016 * Math.min(1, 260 / d) * dt;
+          const a = 0.0022 * power * Math.min(1, 320 / d) * dt;
           b.vx += (dx / d) * a;
           b.vy += (dy / d) * a;
           // Çekim yerinde toplar birbirine yığılmasın diye hız hafifçe sönümlenir.
