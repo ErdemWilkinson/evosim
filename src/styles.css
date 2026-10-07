@@ -882,6 +882,13 @@ input[type="range"] {
   font-size: 0.74rem;
 }
 
+.card-holder canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-md);
+}
+
 /* ------------------------------------------------------------ panel içerikleri */
 
 .kpis {

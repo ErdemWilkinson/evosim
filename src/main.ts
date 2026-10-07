@@ -14,6 +14,7 @@ import { getLang, initI18n } from "./i18n";
 import { Music } from "./audio";
 import { MS_LABEL, fossilCards, lineBlock, milestoneStrip } from "./history";
 import type { Fossil } from "./sim";
+import { dailySeed, drawCard, encodeShare, parseShare, Share } from "./card";
 import { atlasHtml, observeAtlas, resetAtlasWorld } from "./atlas";
 import { tr } from "./i18n";
 import { answerPredict, predictEnabled, predictHtml, resetPredict, setPredictEnabled, tickPredict } from "./predict";
@@ -77,6 +78,8 @@ let msSeen = -1;
 let msEpoch = -1;
 let lineToldFor = 0;
 let soundEpoch = -1;
+let pendingShare: Share | null = null;
+let lastHash = "";
 let soundTime = 0;
 let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
@@ -254,6 +257,19 @@ function refresh(v: View, ui: UiPayload): void {
     soundEpoch = v.epoch;
     soundTime = v.frame.time;
     soundSeen = { births: ui.births, hunts, est, gone };
+  }
+
+  {
+    // Adres çubuğu çalışan dünyanın tohumunu ve ayarlarını taşır; paylaşım bağlantısı budur.
+    const hash = encodeShare({ seed: v.world.seed, evo: ui.evolutionSpeed, events: ui.autoEvents, plants: ui.nutrientMultiplier });
+    if (hash !== lastHash && !pendingShare) {
+      lastHash = hash;
+      try {
+        window.history.replaceState(null, "", hash);
+      } catch {
+        /* gömülü çerçevede adres değiştirilemeyebilir; bağlantı yine de kopyalanabilir */
+      }
+    }
   }
 
   tickPredict(ui, v.frame.time);
@@ -458,6 +474,9 @@ document.querySelector(".panel")!.addEventListener("click", (event) => {
   const button = target.closest<HTMLElement>("[data-action]");
   if (!button) return;
   switch (button.dataset.action) {
+    case "planet-card":
+      openCard();
+      break;
     case "pred":
       answerPredict(button.dataset.g ?? "");
       break;
@@ -628,8 +647,8 @@ window.addEventListener("evosim-lang", () => {
   if (view) setHtml($("planet-facts"), planetHtml(view.planet));
 });
 
-function openPlanet(): void {
-  $<HTMLInputElement>("seed-input").value = String(randomSeed());
+function openPlanet(seed?: number): void {
+  $<HTMLInputElement>("seed-input").value = String(seed ?? randomSeed());
   previewPlanet();
   const dialog = $<HTMLDialogElement>("dlg-planet");
   if (!dialog.open) dialog.showModal();
@@ -642,12 +661,27 @@ function startPlanet(): void {
     /* depolama yoksa silinecek kayıt da yoktur */
   }
   started = true;
-  client.send({ type: "init", seed: parseSeed($<HTMLInputElement>("seed-input").value) });
+  const seed = parseSeed($<HTMLInputElement>("seed-input").value);
+  client.send({ type: "init", seed });
   client.send({ type: "speed", value: lastSpeed });
+  // Paylaşım bağlantısından gelen ayarlar yalnızca aynı tohum başlatılırsa uygulanır.
+  if (pendingShare && pendingShare.seed === seed) {
+    client.send({ type: "set", evolutionSpeed: pendingShare.evo, autoEvents: pendingShare.events, nutrientMultiplier: pendingShare.plants });
+  }
+  pendingShare = null;
 }
 
-$("btn-new").addEventListener("click", openPlanet);
+$("btn-new").addEventListener("click", () => {
+  pendingShare = null;
+  openPlanet();
+});
+$("seed-daily").addEventListener("click", () => {
+  pendingShare = null;
+  $<HTMLInputElement>("seed-input").value = String(dailySeed());
+  previewPlanet();
+});
 $("seed-random").addEventListener("click", () => {
+  pendingShare = null;
   $<HTMLInputElement>("seed-input").value = String(randomSeed());
   previewPlanet();
 });
@@ -663,6 +697,49 @@ $("planet-form").addEventListener("submit", (e) => {
 // İlk açılışta pencere başlatmadan kapatılırsa da gösterilen gezegen başlar.
 $("dlg-planet").addEventListener("close", () => {
   if (!started) startPlanet();
+});
+
+// Gezegen kartı
+function shareLink(): string {
+  return `${window.location.href.split("#")[0]}${lastHash}`;
+}
+function openCard(): void {
+  if (!view) return;
+  const holder = $("card-holder");
+  holder.replaceChildren(drawCard(view.world.seed, view.ui ?? null, view.frame.time, view.planet));
+  $<HTMLInputElement>("card-link").value = shareLink();
+  $("card-status").textContent = "";
+  $<HTMLDialogElement>("dlg-card").showModal();
+}
+$("card-copy").addEventListener("click", async () => {
+  const input = $<HTMLInputElement>("card-link");
+  try {
+    await navigator.clipboard.writeText(input.value);
+    $("card-status").textContent = "Bağlantı panoya kopyalandı.";
+  } catch {
+    input.select();
+    $("card-status").textContent = "Bağlantı seçildi; kopyalayabilirsiniz.";
+  }
+});
+$("card-save").addEventListener("click", async () => {
+  const canvas = $("card-holder").querySelector("canvas");
+  if (!canvas || !view) return;
+  const filename = `evosim-${view.world.seed}.png`;
+  const dataUrl = canvas.toDataURL("image/png");
+  if (downloads) {
+    try {
+      await downloads.save({ filename, data: dataUrl });
+      $("card-status").textContent = "Dosya kaydedildi.";
+      return;
+    } catch {
+      /* indirme arayüzü reddederse bağlantı yoluyla denenir */
+    }
+  }
+  const a = document.createElement("a");
+  a.href = dataUrl;
+  a.download = filename;
+  a.click();
+  $("card-status").textContent = "Resim indirildi.";
 });
 
 // Soy ağacı
@@ -799,6 +876,7 @@ try {
 } catch {
   setGameMode(false);
 }
+const sharedAtStart = parseShare(window.location.hash);
 let restored = false;
 try {
   // Eski anahtarla tutulan otomatik kayıt yeni anahtara taşınır.
@@ -807,7 +885,7 @@ try {
     if (!localStorage.getItem(SAVE_KEY)) localStorage.setItem(SAVE_KEY, legacy);
     localStorage.removeItem(LEGACY_SAVE_KEY);
   }
-  const saved = localStorage.getItem(SAVE_KEY);
+  const saved = sharedAtStart ? null : localStorage.getItem(SAVE_KEY);
   if (saved) {
     client.send({ type: "load", data: JSON.parse(saved) as SaveData });
     restored = true;
@@ -820,4 +898,8 @@ if (restored) {
   window.setTimeout(() => {
     if (!view) openPlanet();
   }, 1800);
+} else if (sharedAtStart) {
+  // Paylaşılan bağlantı: kayıt silinmez; gezegen penceresi o tohumla açılır, başlatmak oyuncuya kalır.
+  pendingShare = sharedAtStart;
+  openPlanet(sharedAtStart.seed);
 } else openPlanet();

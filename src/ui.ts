@@ -333,7 +333,7 @@ export function planetHtml(planet: PlanetProfile, actions = true): string {
     `</div><p class="note" style="margin-top:9px">${esc(planet.narrative)}</p>` +
     `<p class="foot" style="margin-top:6px">Kimyanın simülasyona etkisi: metabolizma ${mult(c.mods.metabolism)}, hız ${mult(c.mods.speed)}, can ${mult(c.mods.hp)}, üretici büyümesi ${mult(c.mods.plant)}. ` +
     `${blocked.length > 0 ? `Bu gezegende ortaya çıkamayan organlar: ${blocked.join(", ")}.` : "Bu gezegende tüm organlar ortaya çıkabilir."}</p>` +
-    (actions ? `<div class="card-actions" style="margin-top:9px"><button type="button" class="btn btn-small" data-action="inspect-planet">Hücre yapısını incele</button><button type="button" class="btn btn-small" data-action="origin-film">Köken filmini izle</button></div>` : "") +
+    (actions ? `<div class="card-actions" style="margin-top:9px"><button type="button" class="btn btn-small" data-action="inspect-planet">Hücre yapısını incele</button><button type="button" class="btn btn-small" data-action="origin-film">Köken filmini izle</button><button type="button" class="btn btn-small" data-action="planet-card">Gezegen kartı</button></div>` : "") +
     `<details class="refs"><summary>Kaynaklar</summary><ul>${refs.map((o) => `<li><b>${esc(o.name)}:</b> ${esc(o.note)} <i>${esc(o.ref)}</i></li>`).join("")}<li><b>${esc(c.origin.name)}:</b> <i>${esc(c.origin.ref)}</i></li></ul></details>`
   );
 }

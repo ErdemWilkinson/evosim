@@ -240,6 +240,7 @@
     <div class="seed-row">
       <label class="field"><span class="label">Tohum</span><input type="text" id="seed-input" inputmode="numeric" autocomplete="off" maxlength="10"></label>
       <button type="button" class="btn" id="seed-random">Rastgele</button>
+      <button type="button" class="btn" id="seed-daily">Günün gezegeni</button>
     </div>
     <div class="planet-preview">
       <canvas id="planet-map" width="480" height="300"></canvas>
@@ -250,6 +251,24 @@
       <button type="submit" class="btn btn-primary" id="planet-start" autofocus>Simülasyonu başlat</button>
     </footer>
   </form>
+</dialog>
+
+<dialog class="dialog dialog-wide" id="dlg-card">
+  <div class="dialog-body">
+    <header class="dialog-head">
+      <h2>Gezegen kartı</h2>
+      <span class="bar-space"></span>
+      <button type="button" class="btn btn-icon" data-close aria-label="Kapat">✕</button>
+    </header>
+    <div id="card-holder" class="card-holder"></div>
+    <p class="note">Kartı resim olarak kaydedebilirsiniz. Bağlantı, tohumu ve ayarları taşır; açan kişi aynı gezegeni kendi tarayıcısında başlatır, sizin canlılarınızı değil.</p>
+    <label class="field"><span class="label">Paylaşım bağlantısı</span><input type="text" id="card-link" readonly></label>
+    <footer class="dialog-foot">
+      <span class="foot" id="card-status" role="status"></span>
+      <button type="button" class="btn" id="card-copy">Bağlantıyı kopyala</button>
+      <button type="button" class="btn btn-primary" id="card-save">Resmi kaydet</button>
+    </footer>
+  </div>
 </dialog>
 
 <dialog class="dialog dialog-wide" id="dlg-inspect">
