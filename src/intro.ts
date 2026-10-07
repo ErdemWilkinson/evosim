@@ -8,7 +8,7 @@ export class StartMenu {
   private raf = 0;
   private leaving = false;
   private leaveTimer = 0;
-  private lastPress = 0;
+  private runSeq: (() => void) | null = null;
   private stopInput: (() => void) | null = null;
   private dots: HTMLElement[] = [];
 
@@ -36,8 +36,8 @@ export class StartMenu {
         return;
       }
       this.leaving = true;
-      const wait = performance.now() - this.lastPress < 800 ? 2600 : 250;
-      this.leaveTimer = window.setTimeout(() => this.finish(), wait);
+      this.runSeq?.();
+      this.leaveTimer = window.setTimeout(() => this.finish(), 2700);
     });
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }
@@ -92,12 +92,23 @@ export class StartMenu {
       m: number;
       phase: number;
       h: number;
+      /** Başla'ya basılınca çıkan organlar: yön ve boy. */
+      org: { a: number; len: number }[];
+      /** Mutasyonla alacağı renk (-1: değişmez). */
+      mut: number;
+      /** Enerjisi çekilme oranı (0..1). */
+      drain: number;
     }
     const balls: Ball[] = Array.from({ length: 46 }, () => {
       const r = 5 + rnd() * 16;
       const a = rnd() * Math.PI * 2;
       const v = 0.015 + rnd() * 0.03;
-      return { x: rnd(), y: rnd(), vx: Math.cos(a) * v, vy: Math.sin(a) * v, r, m: r * r, phase: rnd() * 6.28, h: rnd() < 0.5 ? 168 : 252 };
+      return { x: rnd(), y: rnd(), vx: Math.cos(a) * v, vy: Math.sin(a) * v, r, m: r * r, phase: rnd() * 6.28,
+        h: rnd() < 0.5 ? 168 : 252,
+        org: Array.from({ length: 3 + Math.floor(rnd() * 3) }, () => ({ a: rnd() * 6.28, len: 0.55 + rnd() * 0.7 })),
+        mut: rnd() < 0.45 ? [24, 330, 52, 200][Math.floor(rnd() * 4)] : -1,
+        drain: 0,
+      };
     });
     let placed = false;
     let last = 0;
@@ -107,6 +118,19 @@ export class StartMenu {
     let pressed = false;
     let releasedAt = 0;
     // Basılan noktada büyüyen, dalgalanan uzuvlar (yaklaşık 3 sn yaşar, son 0,8 sn'de söner).
+    // "Başla" dizisi: toplar titrer, organ çıkarır, bazıları mutasyonla renk değiştirir; düğmeden çıkan uzuvlar birkaç
+    // hücreye saplanıp enerjilerini çekmeye başlar.
+    let seq: { t0: number; targets: Ball[]; ox: number; oy: number } | null = null;
+    this.runSeq = (): void => {
+      const btn = this.root.querySelector<HTMLElement>("#start-go");
+      if (!btn || seq) return;
+      const br = btn.getBoundingClientRect();
+      const cr = canvas.getBoundingClientRect();
+      const ox = br.left + br.width / 2 - cr.left;
+      const oy = br.top + br.height / 2 - cr.top;
+      const targets = [...balls].sort((a, b) => Math.hypot(a.x - ox, a.y - oy) - Math.hypot(b.x - ox, b.y - oy)).slice(0, 4);
+      seq = { t0: performance.now(), targets, ox, oy };
+    };
     const limbs: { x: number; y: number; t0: number; base: number }[] = [];
     const LIMB_LIFE = 3000;
     const where = (e: PointerEvent): { x: number; y: number } => {
@@ -116,6 +140,9 @@ export class StartMenu {
     const onDown = (e: PointerEvent): void => {
       // Düğmeye basılınca toplar o düğmenin ortasına doğru toplanır.
       const btn = (e.target as HTMLElement).closest("button, a, input, select");
+      if (btn && btn.id === "start-go") {
+        return;
+      }
       if (btn) {
         const br = btn.getBoundingClientRect();
         const cr = canvas.getBoundingClientRect();
@@ -125,7 +152,6 @@ export class StartMenu {
       // Uzuvlar toplanma noktasında değil, basılan noktada çıkar.
       const at = where(e);
       limbs.push({ x: at.x, y: at.y, t0: performance.now(), base: Math.random() * 6.28 });
-      this.lastPress = performance.now();
     };
     const onMove = (e: PointerEvent): void => {
       if (pressed && !(e.target as HTMLElement).closest("button, a, input, select")) pull = where(e);
@@ -230,19 +256,115 @@ export class StartMenu {
           }
         }
       }
+      const nowT = performance.now();
+      const sq = seq ? nowT - seq.t0 : 0;
+      const org = seq ? Math.min(1, sq / 1100) : 0;
+      const mutP = seq ? Math.min(1, Math.max(0, (sq - 300) / 700)) : 0;
       for (const b of balls) {
-        const pulseR = b.r * (1 + 0.06 * Math.sin(t / 900 + b.phase * 9));
+        // Titreme: dizi başlayınca giderek artar.
+        const amp = seq ? 0.4 + 2.6 * org : 0;
+        const bx = b.x + Math.sin(t * 0.083 + b.phase * 7) * amp;
+        const by = b.y + Math.cos(t * 0.091 + b.phase * 5) * amp;
+        const hue = b.mut >= 0 ? b.h + (b.mut - b.h) * mutP : b.h;
+        const keep = 1 - 0.55 * b.drain;
+        const pulseR = b.r * (1 + 0.06 * Math.sin(t / 900 + b.phase * 9)) * (1 - 0.12 * b.drain);
+        if (org > 0) {
+          // Organlar: kısa, dalgalı çıkıntılar ve uçlarında küçük kesecikler.
+          for (const o of b.org) {
+            const len = b.r * (0.5 + 0.9 * o.len) * org;
+            const ca = Math.cos(o.a);
+            const sa = Math.sin(o.a);
+            const wob = Math.sin(t / 210 + o.a * 3) * 2;
+            const ex = bx + ca * (pulseR + len) - sa * wob;
+            const ey = by + sa * (pulseR + len) + ca * wob;
+            ctx.beginPath();
+            ctx.moveTo(bx + ca * pulseR, by + sa * pulseR);
+            ctx.lineTo(ex, ey);
+            ctx.lineWidth = 1.4;
+            ctx.strokeStyle = `hsla(${hue},80%,72%,${0.5 * keep})`;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(ex, ey, 1.6 + 1.4 * o.len * org, 0, 6.2832);
+            ctx.fillStyle = `hsla(${hue},85%,78%,${0.6 * keep})`;
+            ctx.fill();
+          }
+        }
         ctx.beginPath();
-        ctx.arc(b.x, b.y, pulseR, 0, 6.2832);
-        ctx.fillStyle = `hsla(${b.h},70%,60%,0.07)`;
+        ctx.arc(bx, by, pulseR, 0, 6.2832);
+        ctx.fillStyle = `hsla(${hue},70%,60%,${0.07 + (b.mut >= 0 ? 0.1 * mutP : 0)})`;
         ctx.fill();
         ctx.lineWidth = 1.2;
-        ctx.strokeStyle = `hsla(${b.h},80%,70%,0.28)`;
+        ctx.strokeStyle = `hsla(${hue},80%,70%,${0.28 + (b.mut >= 0 ? 0.3 * mutP : 0)})`;
         ctx.stroke();
         ctx.beginPath();
-        ctx.arc(b.x, b.y, b.r * 0.28, 0, 6.2832);
-        ctx.fillStyle = `hsla(${b.h},80%,75%,0.35)`;
+        ctx.arc(bx, by, b.r * 0.28 * (1 + 0.5 * org), 0, 6.2832);
+        ctx.fillStyle = `hsla(${hue},80%,75%,${0.35 * keep + (b.mut >= 0 ? 0.25 * mutP : 0)})`;
         ctx.fill();
+      }
+      if (seq) {
+        // Düğmeden çıkan uzuvlar: hedef hücreye uzanır (0,3-1,8 sn), saplanır, enerji çekilir (1,8 sn sonrası).
+        const sx = seq.ox;
+        const sy = seq.oy;
+        const reach = Math.min(1, Math.max(0, (sq - 300) / 1500));
+        const g = 1 - Math.pow(1 - reach, 3);
+        const drainP = Math.min(1, Math.max(0, (sq - 1800) / 800));
+        const waveAt = (f: number, k: number): number => Math.sin(f * 7 - t / 190 + k * 1.3) * 14 * Math.sin(Math.PI * Math.min(1, f * 1.2));
+        seq.targets.forEach((tb, k) => {
+          tb.drain = drainP;
+          const dx = tb.x - sx;
+          const dy = tb.y - sy;
+          const dist = Math.hypot(dx, dy) || 1;
+          const nx = -dy / dist;
+          const ny = dx / dist;
+          const calm = g >= 1 ? 0.3 : 1;
+          const segs = 22;
+          const pts: { x: number; y: number }[] = [];
+          for (let q = 0; q <= segs; q++) {
+            const f = (q / segs) * g;
+            const w = waveAt(f, k) * calm;
+            pts.push({ x: sx + dx * f + nx * w, y: sy + dy * f + ny * w });
+          }
+          for (let q = 1; q < pts.length; q++) {
+            const f = q / pts.length;
+            ctx.beginPath();
+            ctx.moveTo(pts[q - 1].x, pts[q - 1].y);
+            ctx.lineTo(pts[q].x, pts[q].y);
+            ctx.lineWidth = 1 + 4.2 * (1 - f);
+            ctx.lineCap = "round";
+            ctx.strokeStyle = `hsla(${k % 2 ? 168 : 190},85%,72%,0.7)`;
+            ctx.stroke();
+          }
+          const tip = pts[pts.length - 1];
+          if (g >= 1) {
+            // Saplanma: hücrenin içine giren uç ve yayılan halka.
+            const ring = Math.min(1, (sq - 1800) / 600);
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, tb.r * (0.4 + 1.1 * ring), 0, 6.2832);
+            ctx.strokeStyle = `hsla(168,90%,80%,${0.6 * (1 - ring)})`;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, 3.2, 0, 6.2832);
+            ctx.fillStyle = "hsla(168,95%,85%,0.95)";
+            ctx.fill();
+            if (drainP > 0) {
+              // Hücreden düğmeye doğru akan enerji parçacıkları.
+              for (let j = 0; j < 3; j++) {
+                const f = 1 - ((t / 520 + j / 3 + k * 0.21) % 1);
+                const w = waveAt(f, k) * calm;
+                ctx.beginPath();
+                ctx.arc(sx + dx * f + nx * w, sy + dy * f + ny * w, 2.6, 0, 6.2832);
+                ctx.fillStyle = `hsla(52,95%,72%,${0.9 * drainP})`;
+                ctx.fill();
+              }
+            }
+          } else {
+            ctx.beginPath();
+            ctx.arc(tip.x, tip.y, 3, 0, 6.2832);
+            ctx.fillStyle = "hsla(168,90%,85%,0.9)";
+            ctx.fill();
+          }
+        });
       }
       const now = performance.now();
       for (let li = limbs.length - 1; li >= 0; li--) {
