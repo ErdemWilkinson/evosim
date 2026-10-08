@@ -51,50 +51,74 @@ const STEPS: Step[] = [
     anyStage: true,
   },
   {
-    tr: ["Önce gezegeni kuralım", "Burası “Yeni gezegen” ekranı: oyun her seferinde başka bir dünyayla başlar. Önce burayı gezdireyim, sonra oyunun içine geçeriz."],
-    en: ["First, let's build a planet", "This is the “New planet” screen: the game starts with a different world every time. I'll show you around here first, then we'll go into the game."],
+    tr: ["Önce gezegeni kuralım", "Burası “Yeni gezegen” ekranı. Bu oyunda hiçbir şey hazır gelmez: her gezegenin kimyası sıfırdan, bir sayıdan üretilir ve yaşam o kimyanın izin verdiği yoldan evrilir. Dünya'daki yaşam yalnızca bir örnektir; burada su yerine amonyak, karbon yerine silisyum bile çıkabilir. Önce bu ekranı tek tek gezelim, sonra oyunun içine geçeriz."],
+    en: ["First, let's build a planet", "This is the “New planet” screen. Nothing here comes pre-made: every planet's chemistry is generated from scratch from a number, and life evolves along whatever path that chemistry allows. Life on Earth is just one example; here the liquid might be ammonia instead of water, or silicon might stand in for carbon. Let's go through this screen piece by piece first, then step into the game."],
     planet: true,
   },
   {
-    tr: ["Tohum", "Gezegenin tamamı bu sayıdan üretilir: kimya, sıvı, harita ve ilk hücre. Aynı tohumu yazan herkes aynı gezegeni görür. İstediğiniz sayıyı yazabilirsiniz."],
-    en: ["Seed", "The whole planet is generated from this number: chemistry, liquid, map and first cell. Anyone who types the same seed sees the same planet. You can type any number you like."],
+    tr: ["Tohum", "Gezegenin tamamı bu tek sayıdan türetilir: kabuktaki elementler, yüzey sıvısı, sıcaklık, basınç, atmosfer, yaşamın kökeni, ilk hücrenin yapısı ve haritanın şekli. Bilgisayar aynı sayıyla her seferinde aynı sonucu çıkardığı için aynı tohumu yazan herkes birebir aynı dünyayı görür; bir gezegeni arkadaşınıza yalnızca sayısını söyleyerek gönderebilirsiniz. İstediğiniz sayıyı yazabilirsiniz."],
+    en: ["Seed", "The whole planet is derived from this single number: crust elements, surface liquid, temperature, pressure, atmosphere, the origin of life, the structure of the first cell and the shape of the map. Because the computer produces the same result from the same number every time, anyone who types the same seed sees exactly the same world; you can send a planet to a friend just by telling them its number. You can type any number you like."],
     target: "#seed-input",
     click: false,
     planet: true,
   },
   {
-    tr: ["Rastgele", "Bu düğme yeni bir tohum seçer. Şimdi basıyorum; harita ve sağdaki bilgiler anında değişir."],
-    en: ["Random", "This button picks a new seed. I'm pressing it now; the map and the facts on the right change at once."],
+    tr: ["Rastgele", "Bu düğme yeni bir tohum seçer. Şimdi basıyorum: harita, sağdaki kutular ve ilk hücrenin yapısı birlikte değişir; çünkü hepsi aynı sayıdan çıkar. Birkaç kez basarsanız bambaşka dünyalar görürsünüz: buzlu amonyak denizleri, kızgın kükürt gölleri, silisyumlu kabuklar. Beğendiğiniz birini bulana kadar deneyebilirsiniz."],
+    en: ["Random", "This button picks a new seed. I'm pressing it now: the map, the boxes on the right and the structure of the first cell all change together, because they all come from the same number. Press it a few times and you'll see wildly different worlds: icy ammonia seas, scalding sulphur lakes, silicon crusts. Keep trying until you find one you like."],
     target: "#seed-random",
     click: true,
     planet: true,
   },
   {
-    tr: ["Günün gezegeni", "Bugün herkes için aynı olan gezegeni açar. Arkadaşlarınızla aynı dünyayı karşılaştırmak için güzel bir yol."],
-    en: ["Planet of the day", "Opens the planet that is the same for everyone today. A nice way to compare the same world with your friends."],
+    tr: ["Günün gezegeni", "Bugünün tarihinden türetilen ortak bir tohum açar: o gün oyunu açan herkes aynı dünyayı görür, ertesi gün yenisi gelir. Arkadaşlarınızla aynı gezegende kimin yaşamı daha ileri götürdüğünü, hangi türlerin çıktığını ya da erken öldüğünü karşılaştırmak için güzel bir yoldur."],
+    en: ["Planet of the day", "Opens a shared seed derived from today's date: everyone who opens the game that day sees the same world, and a new one arrives the next day. It's a nice way to compare with friends on the same planet whose life got further, which species appeared, or which died out early."],
     target: "#seed-daily",
     click: false,
     planet: true,
   },
   {
-    tr: ["Gezegenin haritası", "Seçilen tohumun haritası: koyu alanlar derin sıvı, açık alanlar kara. Yaşam bu haritada, sıvının içinde ve kıyısında başlar."],
-    en: ["The planet map", "The map of the chosen seed: dark areas are deep liquid, light areas are land. Life starts on this map, in the liquid and along its shores."],
+    tr: ["Gezegenin haritası", "Seçilen tohumun haritası. Koyu alanlar derin sıvı, açık alanlar kara, çok açık çıkıntılar dağ. Sıvının oranı kimyaya bağlıdır: uçucu elementleri bol gezegen daha çok deniz kaplar, kayaç ağırlıklı olan daha engebelidir. Yaşam bu haritada, çözünmüş besinin en yoğun olduğu sıvıda başlar; kıyıya, karaya ve dağlara sonra yayılır. Toprağın rengi bile kabuğun içindeki demir, kükürt ya da bakıra göre değişir."],
+    en: ["The planet map", "The map of the chosen seed. Dark areas are deep liquid, light areas are land, the palest bumps are mountains. The share of liquid depends on the chemistry: a planet rich in volatile elements is covered by more sea, a rock-heavy one is more rugged. Life starts on this map in the liquid where dissolved nutrients are densest, and spreads to the shore, the land and the mountains later. Even the colour of the ground changes with the iron, sulphur or copper in the crust."],
     target: "#planet-map",
     click: false,
     planet: true,
     wide: true,
   },
   {
-    tr: ["Gezegenin kimyası", "Sağdaki kutular bu dünyanın yazgısını belirler: kabuktaki elementler, yüzey sıvısı, basınç, atmosfer, yaşamın kökeni ve ilk hücrenin zarı, kalıtımı, enerjisi. Hücre duvarı ilk hücrede yoktur; sonradan evrilir."],
-    en: ["The planet's chemistry", "The boxes on the right decide this world's fate: crust elements, surface liquid, pressure, atmosphere, the origin of life and the first cell's membrane, heredity and energy. The first cell has no wall; one evolves later."],
+    tr: ["Gezegenin kimyası", "Sağdaki kutular bu dünyanın yazgısını belirler. Yukarıdan aşağıya: kabuktaki elementler, yüzey sıvısı, sıcaklık ve basınç, atmosfer, yaşamın nasıl başladığı ve ilk hücrenin zarı, kalıtım molekülü, enerji taşıyıcısı ve katalizörü. Bunlar rastgele süs değildir; oyundaki her şeyi, canlıların ne kadar hızlı yaşayıp ne kadar dayandığını bile etkiler. Şimdi bu kutuları sırayla anlatıyorum."],
+    en: ["The planet's chemistry", "The boxes on the right decide this world's fate. From top to bottom: the elements in the crust, the surface liquid, temperature and pressure, the atmosphere, how life began, and the first cell's membrane, heredity molecule, energy carrier and catalyst. These aren't decoration; they affect everything in the game, even how fast creatures live and how tough they are. Let me walk through the boxes one by one."],
     target: "#planet-preview-facts",
     click: false,
     planet: true,
     wide: true,
   },
   {
-    tr: ["Dil", "Oyun İngilizce ve Türkçe oynanabilir. Buradan istediğiniz zaman değiştirebilirsiniz."],
-    en: ["Language", "The game can be played in English or Turkish. You can switch here at any time."],
+    tr: ["Elementler ve sıvı", "Kabukta en bol on element ve payları yazılır; iz miktardaki dört element ayrıca belirtilir. Yaşamın hangi yapı taşlarını kullanabileceğini bu liste belirler: karbon yoksa karbonlu zincirler kurulamaz, silisyum varsa siloksan zincirleri denenebilir. Yüzey sıvısı da bu elementlerden çıkar: su için hidrojen ile oksijen, amonyak için azotla hidrojen gerekir. Sıvı, o sıcaklıkta gerçekten sıvı kalabiliyorsa seçilir; bu yüzden basınç ve sıcaklık buna göre ayarlanır."],
+    en: ["Elements and the liquid", "The ten most abundant crust elements and their shares are listed, with four trace elements noted separately. This list decides which building blocks life can use: without carbon you can't build carbon chains, with silicon you can try siloxane chains. The surface liquid comes from these elements too: water needs hydrogen and oxygen, ammonia needs nitrogen and hydrogen. A liquid is chosen only if it can really stay liquid at that temperature, so pressure and temperature are set to fit."],
+    target: "#planet-preview-facts",
+    click: false,
+    planet: true,
+    wide: true,
+  },
+  {
+    tr: ["Atmosfer ve kökeni", "Atmosfer, bulunan elementlerden kurulabilen gazların karışımıdır; oyunda oksijen göstergesi, bu gezegenin ana gazını izler. Yaşamın kökeni de kimyaya göre seçilir: derin deniz bacası, sığ bir havuz, yağmur damlacıkları, buz, uzaydan gelen moleküller ya da mineral yüzey. Her senaryonun gerçek bir bilimsel dayanağı vardır ve altında kaynağı yazar; ayrıca ilk hücrenin boyuna, hızına ve ömrüne küçük farklar katar."],
+    en: ["Atmosphere and origin", "The atmosphere is a mix of whichever gases can be built from the available elements; the gas gauge in the game follows this planet's main gas. The origin of life is also chosen to match the chemistry: a deep-sea vent, a shallow pool, rain droplets, ice, molecules from space or a mineral surface. Each scenario has a real scientific basis with its source listed underneath, and it nudges the first cell's size, speed and lifespan slightly."],
+    target: "#planet-preview-facts",
+    click: false,
+    planet: true,
+    wide: true,
+  },
+  {
+    tr: ["İlk hücre", "İlk hücreyi dört parça kurar: zar, kalıtım molekülü, enerji taşıyıcısı ve katalizör. Zar hücreyi dışarıdan ayırır; kalıtım molekülü bilgiyi yavrulara taşır ve ne kadar hatasız kopyalandığı mutasyon hızını belirler; enerji taşıyıcısı ATP gibi işe yarar; katalizör tepkimeleri hızlandırır. Hepsi gezegendeki elementlerden çıkar, yani aynı hücre iki gezegende iki ayrı biçimde kurulur. Hücre duvarı ilk hücrede yoktur; yaşam yeterince ilerleyince evrilir."],
+    en: ["The first cell", "Four parts build the first cell: the membrane, the heredity molecule, the energy carrier and the catalyst. The membrane separates the cell from its surroundings; the heredity molecule carries information to offspring, and how faithfully it copies sets the mutation rate; the energy carrier works like ATP; the catalyst speeds up reactions. All of them come from the planet's elements, so the same cell is built two different ways on two different planets. The first cell has no wall; one evolves once life has advanced enough."],
+    target: "#planet-preview-facts",
+    click: false,
+    planet: true,
+    wide: true,
+  },
+  {
+    tr: ["Dil", "Oyun Türkçe ve İngilizce oynanabilir. Buradan istediğiniz zaman değiştirebilirsiniz; tüm anlatımlar, organ açıklamaları ve gezegen bilgileri seçtiğiniz dilde görünür."],
+    en: ["Language", "The game can be played in Turkish and English. You can switch here at any time; all narration, organ descriptions and planet facts appear in the language you choose."],
     target: "#dlg-planet .lang-pick",
     click: false,
     planet: true,
@@ -528,9 +552,8 @@ export class Tour {
     if (this.root) this.root.style.visibility = "";
     window.clearTimeout(this.auto);
     if (!step.planet && !step.anyStage && this.index < this.steps.length - 1) {
-      // Oyun içi adımlar kendiliğinden ilerler: metin uzadıkça 15 sn'den 20 sn'ye çıkar.
-      const len = step[this.lang()][1].length;
-      const ms = 15000 + Math.min(5000, Math.max(0, len - 120) * 30);
+      // Oyun içi adımlar 10 sn sonra kendiliğinden ilerler.
+      const ms = 10000;
       this.auto = window.setTimeout(() => {
         if (token === this.run && this.open && !document.querySelector("#film:not([hidden])")) this.go(this.index + 1);
       }, ms);
