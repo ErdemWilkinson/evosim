@@ -347,6 +347,8 @@ export class Tour {
   private open = false;
   /** Rehber oyunu kendisi başlattı: gezegen adımları artık gösterilmez, "Başlat" yeniden basılmaz. */
   private launched = false;
+  /** Rehber gezegen ekranından başladı: ilk (karşılama) adım oyuncunun "İleri"sini bekler. */
+  private fromStage = false;
   private auto = 0;
   private saved: { speed: number; game: boolean; tab: string } | null = null;
   private steps: Step[] = STEPS;
@@ -363,6 +365,7 @@ export class Tour {
     if (this.open || (!stage && !this.ctx.ready())) return;
     this.steps = STEPS.filter((st) => stage || !st.planet);
     this.launched = false;
+    this.fromStage = stage;
     this.open = true;
     this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab() };
     this.ctx.setSpeed(1);
@@ -551,7 +554,7 @@ export class Tour {
     }
     if (this.root) this.root.style.visibility = "";
     window.clearTimeout(this.auto);
-    if (!step.planet && !step.anyStage && this.index < this.steps.length - 1) {
+    if (!step.planet && !(step.anyStage && this.fromStage) && this.index < this.steps.length - 1) {
       // Oyun içi adımlar 10 sn sonra kendiliğinden ilerler.
       const ms = 10000;
       this.auto = window.setTimeout(() => {
