@@ -15,6 +15,12 @@ import { makeEpithet, makeGenus } from "./taxonomy";
 
 export const STEP = 1 / 30;
 export const MAX_CREATURES = 480;
+/** Hedefe bu kadar sn boyunca (STUCK_PROGRESS birimden fazla) yaklaşamayan canlı o hedefi bırakır. */
+const STUCK_GIVE_UP = 4;
+const STUCK_PROGRESS = 2.5;
+/** Ulaşılamayan hedefin hafızada kalma süresi (sn) ve sonrasındaki sapmanın süresi (sn). */
+const STUCK_MEMORY = 60;
+const STUCK_DETOUR = 1.4;
 /** Bütün yaşam tek bir ortak atadan türer: simülasyon, ilk hücrenin ilk bölünmesinden hemen
  *  sonra, özdeş iki kardeş hücreyle başlar (köken filminin son sahnesi). */
 export const INITIAL_CREATURES = 2;
@@ -448,6 +454,11 @@ export interface Creature {
   thinkT: number;
   wanderT: number;
   blockedT: number;
+  /** Hedefe yaklaşma kaydı: şimdiye dek en yakın mesafe ve ilerlemeden geçen süre (takıldı mı?). Kayda geçmez. */
+  seekBest: number;
+  seekStall: number;
+  /** Ulaşamadığı için bir süre aramayı bıraktığı besinler ve cesetler (hedef, kalan sn). Kayda geçmez. */
+  avoid: { ref: object; t: number }[];
   divideCd: number;
   attackCd: number;
   hgtCd: number;
@@ -1005,6 +1016,9 @@ export class Sim {
       thinkT: rng.range(0, THINK_INTERVAL),
       wanderT: rng.range(0.5, 2),
       blockedT: 0,
+      seekBest: Infinity,
+      seekStall: 0,
+      avoid: [],
       divideCd: this.cooldown(g),
       attackCd: 0,
       hgtCd: 0,
@@ -1574,7 +1588,7 @@ export class Sim {
     let best: Nutrient | null = null;
     let bestD = radius * radius;
     this.nHash.query(c.x, c.y, radius, (n) => {
-      if (n.dead) return;
+      if (n.dead || this.avoided(c, n)) return;
       const dx = n.x - c.x;
       const dy = n.y - c.y;
       const d = dx * dx + dy * dy;
@@ -1585,11 +1599,41 @@ export class Sim {
     return best;
   }
 
+  /** Bu hedefe ulaşamadığı için bir süre aramayı bırakmış mı? */
+  private avoided(c: Creature, target: object): boolean {
+    for (const a of c.avoid) if (a.ref === target) return true;
+    return false;
+  }
+
+  /**
+   * Hedefe yaklaşıp yaklaşmadığını izler. STUCK_GIVE_UP sn boyunca anlamlı ilerleme olmazsa (kıyı, dağ ya da akıntı
+   * yolu kapatıyorsa) hedef hafızaya "ulaşılamıyor" diye yazılır, canlı kısa bir sapma yapar ve başka besine bakar.
+   */
+  private stalled(c: Creature, target: { x: number; y: number }, dt: number): boolean {
+    const dist = Math.hypot(target.x - c.x, target.y - c.y);
+    if (dist < c.seekBest - STUCK_PROGRESS) {
+      c.seekBest = dist;
+      c.seekStall = 0;
+      return false;
+    }
+    c.seekStall += dt;
+    if (c.seekStall < STUCK_GIVE_UP) return false;
+    c.avoid.push({ ref: target, t: STUCK_MEMORY });
+    if (c.avoid.length > 6) c.avoid.shift();
+    c.seekBest = Infinity;
+    c.seekStall = 0;
+    // Geldiği yönün yan tarafına doğru kısa bir sapma: duvarın dibinde yerinde saymasın.
+    c.heading += (rng.chance(0.5) ? 1 : -1) * rng.range(Math.PI * 0.4, Math.PI * 0.9);
+    c.blockedT = STUCK_DETOUR;
+    c.thinkT = 0;
+    return true;
+  }
+
   private findCorpse(c: Creature, radius: number): Corpse | null {
     let best: Corpse | null = null;
     let bestD = radius * radius;
     for (const k of this.corpses) {
-      if (k.energy <= 0.5) continue;
+      if (k.energy <= 0.5 || this.avoided(c, k)) continue;
       const dx = k.x - c.x;
       const dy = k.y - c.y;
       const d = dx * dx + dy * dy;
@@ -1784,9 +1828,17 @@ export class Sim {
         return;
       case ACT.forage:
         if (corpse) {
+          if (c.tK !== corpse) {
+            c.seekBest = Infinity;
+            c.seekStall = 0;
+          }
           c.tK = corpse;
           c.state = "scavenge";
         } else if (nutrient) {
+          if (c.tN !== nutrient) {
+            c.seekBest = Infinity;
+            c.seekStall = 0;
+          }
           c.tN = nutrient;
           c.state = "seek";
         } else if (host) {
@@ -1923,6 +1975,10 @@ export class Sim {
     if (c.attackCd > 0) c.attackCd -= dt;
     if (c.hgtCd > 0) c.hgtCd -= dt;
     if (c.blockedT > 0) c.blockedT -= dt;
+    if (c.avoid.length > 0) {
+      for (const a of c.avoid) a.t -= dt;
+      c.avoid = c.avoid.filter((a) => a.t > 0);
+    }
     if (c.careT > 0) c.careT -= dt;
     if (c.immuneT > 0) c.immuneT -= dt;
     if (c.resistT > 0) c.resistT -= dt;
@@ -2099,6 +2155,9 @@ export class Sim {
           if (dx * dx + dy * dy <= reach * reach) {
             this.eatNutrient(c, c.tN);
             c.thinkT = 0;
+          } else if (this.stalled(c, c.tN, dt)) {
+            c.tN = null;
+            break;
           }
         } else {
           const host = c.tC as Creature;
@@ -2145,6 +2204,10 @@ export class Sim {
         const dx = k.x - c.x;
         const dy = k.y - c.y;
         const contact = reach + k.r;
+        if (dx * dx + dy * dy > contact * contact && this.stalled(c, k, dt)) {
+          c.tK = null;
+          break;
+        }
         if (dx * dx + dy * dy <= contact * contact) {
           const bite = Math.min(k.energy, SCAVENGE_RATE * dt);
           k.energy -= bite;
