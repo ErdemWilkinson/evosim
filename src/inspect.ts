@@ -1372,6 +1372,8 @@ export class StructureViewer {
   private atom = -1;
   /** Hidrojen seçiliyse bağlı olduğu atomun sırası (hidrojen çizimde yoktur, yalnızca komşu olarak açılır). */
   private hFrom = -1;
+  /** Kesitte son tıklanan nokta (katalizör gibi birden çok yerde duran parçalar için). */
+  private lastPick: { x: number; y: number } | null = null;
   private nbHits: NeighbourHit[] = [];
   private parts: Part[] = [];
   private chem: Chemistry | null = null;
@@ -1423,6 +1425,7 @@ export class StructureViewer {
             this.part = picked;
             this.atom = -1;
     this.hFrom = -1;
+            this.lastPick = { x, y };
             this.go(2, x, y);
           }
         }
@@ -1506,10 +1509,36 @@ export class StructureViewer {
   private go(level: number, fx = Number.NaN, fy = Number.NaN): void {
     const to = !this.genome && level === 0 ? 1 : level;
     const from = this.level;
+    // Uzaklaşırken görüntü, parçanın kesitteki gerçek yerinden açılır (örn. kalıtımdan çıkınca zardan değil kalıtımdan).
+    if (to < from && Number.isNaN(fx)) {
+      const at = this.pivotFor(to);
+      if (at) [fx, fy] = [at.x, at.y];
+    }
     this.level = to;
     this.sync();
     if (from === to || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     this.anim = { from, to, t0: this.now, fx, fy };
+  }
+
+  /** `level` düzeyinde seçili parçanın ekrandaki yeri; bilinmiyorsa null (ortadan açılır). */
+  private pivotFor(level: number): { x: number; y: number } | null {
+    if (level !== 1 || !this.chem || this.part >= ORGAN_PART_START) return null;
+    const r = this.canvas.getBoundingClientRect();
+    const { wallH, memH, memTop } = envelopeGeometry(this.chem, r.height);
+    const inTop = memTop + memH + 34;
+    const inH = r.height - inTop - 34;
+    switch (this.part) {
+      case 0:
+        return { x: r.width / 2, y: memTop + memH / 2 };
+      case 1:
+        return { x: r.width / 2, y: memTop - wallH / 2 - 2 };
+      case 2:
+        return { x: r.width / 2, y: inTop + inH * 0.45 };
+      case 3:
+        return { x: r.width / 2, y: inTop + inH * 0.8 };
+      default:
+        return this.lastPick ?? { x: r.width / 2, y: inTop + inH * 0.5 };
+    }
   }
 
   private pickedSym(): string {
