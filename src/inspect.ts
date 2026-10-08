@@ -1,4 +1,4 @@
-import { CATALYSTS, Chemistry, ELEMENTS, ENERGIES, GENETICS, MEMBRANES, Option, WALLS, originSteps } from "./chemistry";
+import { CATALYSTS, Chemistry, ELEMENTS, ENERGIES, GENETICS, GeneticOption, MEMBRANES, Option, WALLS, originSteps } from "./chemistry";
 import { Genome } from "./genome";
 import { ORGANS, OrganType } from "./organs";
 import { Theme, drawCreature } from "./render";
@@ -486,7 +486,665 @@ function drawAtom(ctx: CanvasRenderingContext2D, sym: string, cx: number, cy: nu
   });
 }
 
-/** Zar ve duvarın kesiti: üstte dış ortam (çözücü), altta hücre içi. */
+/** Dört baz rengi (kalıtım polimerlerinde) ve sekiz harfli polimer için dört ek renk. */
+const BASES = ["#6df0d2", "#f59a3c", "#ff7ad9", "#8a7dff", "#f2d94e", "#5fb4ff", "#ff6b6b", "#b6e86b"];
+
+/** Sabit, deterministik sahte rastgele sayı (0–1): kesit çizimlerinde yer ve boyut çeşitliliği için. */
+function hash01(i: number, salt = 0): number {
+  const s = Math.sin(i * 127.1 + salt * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+function hexPath(ctx: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  ctx.moveTo(x + r, y);
+  for (let k = 1; k < 6; k++) ctx.lineTo(x + Math.cos((k * Math.PI) / 3) * r, y + Math.sin((k * Math.PI) / 3) * r);
+  ctx.closePath();
+}
+
+/** Duvarın kesiti: her duvar türü kendi örgüsüyle çizilir (üstte dış ortam, altta zar). */
+function drawWallLayer(ctx: CanvasRenderingContext2D, id: string, top: number, wallH: number, w: number, t: number): void {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, top, w, wallH);
+  ctx.clip();
+  const bot = top + wallH;
+  switch (id) {
+    case "silica": {
+      // Camsı kabuk: yarı saydam levhalar, düzenli gözenek dizisi ve kaburga çizgileri.
+      ctx.fillStyle = "rgba(190, 224, 244, 0.55)";
+      ctx.fillRect(0, top + 2, w, wallH - 4);
+      ctx.strokeStyle = "rgba(235, 248, 255, 0.9)";
+      ctx.lineWidth = 1.4;
+      for (let x = 0; x < w; x += 46) {
+        ctx.beginPath();
+        ctx.moveTo(x, top + 2);
+        ctx.lineTo(x, bot - 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "rgba(20, 40, 60, 0.7)";
+      for (let x = 12; x < w; x += 15)
+        for (let r = 0; r < 2; r++) {
+          ctx.beginPath();
+          ctx.arc(x + (r ? 7 : 0), top + wallH * (0.32 + r * 0.36), 2.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      break;
+    }
+    case "calcite": {
+      // Kalsit pullar: çatı kiremiti gibi üst üste binen beyaz levhalar.
+      for (let row = 0; row < 3; row++)
+        for (let x = -30 + (row % 2) * 19; x < w + 30; x += 38) {
+          const y = top + 4 + row * (wallH / 3);
+          ctx.fillStyle = row % 2 ? "#e9e4cf" : "#f4f1e4";
+          ctx.strokeStyle = "rgba(120, 110, 80, 0.6)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(x, y + wallH / 3, 22, wallH / 2.6, 0, Math.PI, 0);
+          ctx.fill();
+          ctx.stroke();
+        }
+      break;
+    }
+    case "ironsulfide": {
+      // Demir-sülfür zırh: düzensiz boyda koyu altın küpler, üstlerinde parıltı.
+      for (let i = 0; i < w / 14; i++) {
+        const s = 8 + hash01(i, 1) * 14;
+        const x = i * 14 + hash01(i, 2) * 6;
+        const y = top + hash01(i, 3) * (wallH - s);
+        ctx.fillStyle = `hsl(${42 + hash01(i, 4) * 12} ${55 + hash01(i, 5) * 20}% ${32 + hash01(i, 6) * 18}%)`;
+        ctx.fillRect(x, y, s, s);
+        ctx.fillStyle = "rgba(255, 240, 170, 0.55)";
+        ctx.fillRect(x + 1, y + 1, s * 0.35, 2);
+      }
+      break;
+    }
+    case "cellulose": {
+      // Selüloz: iki kat çapraz lif demeti; demetler arası hidrojen bağı noktaları.
+      for (let layer = 0; layer < 2; layer++) {
+        ctx.strokeStyle = layer ? "rgba(160, 214, 140, 0.85)" : "rgba(196, 232, 170, 0.9)";
+        ctx.lineWidth = 3.2;
+        for (let k = -wallH; k < w + wallH; k += 11) {
+          ctx.beginPath();
+          ctx.moveTo(k, layer ? bot - 3 : top + 3);
+          ctx.lineTo(k + (layer ? 1 : -1) * wallH * 0.55, layer ? top + 3 : bot - 3);
+          ctx.stroke();
+        }
+      }
+      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      for (let x = 6; x < w; x += 22) ctx.fillRect(x, top + wallH / 2 - 1, 2, 2);
+      break;
+    }
+    case "borate": {
+      // Borat köprüsü: şeker zincirleri kare bor düğümleriyle birbirine kilitlenir.
+      ctx.strokeStyle = "rgba(231, 182, 164, 0.9)";
+      ctx.lineWidth = 2.2;
+      for (const f of [0.22, 0.78]) {
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 6) ctx.lineTo(x, top + wallH * f + Math.sin(x * 0.06 + t * 0.7) * 2);
+        ctx.stroke();
+      }
+      for (let x = 14; x < w; x += 30) {
+        ctx.strokeStyle = "rgba(231, 182, 164, 0.7)";
+        ctx.beginPath();
+        ctx.moveTo(x, top + wallH * 0.22);
+        ctx.lineTo(x, top + wallH * 0.78);
+        ctx.stroke();
+        ctx.fillStyle = "#f2b8a8";
+        ctx.fillRect(x - 4, top + wallH / 2 - 4, 8, 8);
+      }
+      break;
+    }
+    case "slayer": {
+      // S-katman: tek tip proteinin altıgen kafesi.
+      ctx.strokeStyle = "rgba(154, 208, 192, 0.95)";
+      ctx.fillStyle = "rgba(154, 208, 192, 0.2)";
+      ctx.lineWidth = 1.3;
+      const hr = wallH / 3.1;
+      ctx.beginPath();
+      for (let r = 0; r * hr * 1.5 < wallH + hr; r++)
+        for (let x = (r % 2) * hr * 0.87; x < w + hr; x += hr * 1.74) hexPath(ctx, x, top + hr * 0.9 + r * hr * 1.5, hr * 0.95);
+      ctx.fill();
+      ctx.stroke();
+      break;
+    }
+    case "manganese": {
+      // Manganez oksit kın: koyu mor-kahve kabuk, taneli doku ve çatlaklar.
+      ctx.fillStyle = "#4a3b50";
+      ctx.fillRect(0, top + 2, w, wallH - 4);
+      for (let i = 0; i < w / 5; i++) {
+        ctx.fillStyle = `rgba(${90 + hash01(i, 1) * 50}, ${70 + hash01(i, 2) * 30}, ${100 + hash01(i, 3) * 40}, 0.85)`;
+        ctx.beginPath();
+        ctx.arc(i * 5 + 2, top + 4 + hash01(i, 4) * (wallH - 8), 1.5 + hash01(i, 5) * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = "rgba(20, 12, 24, 0.8)";
+      ctx.lineWidth = 1;
+      for (let x = 20; x < w; x += 70) {
+        ctx.beginPath();
+        ctx.moveTo(x, top + 2);
+        ctx.lineTo(x + 6, top + wallH / 2);
+        ctx.lineTo(x - 3, bot - 2);
+        ctx.stroke();
+      }
+      break;
+    }
+    default: {
+      // Peptidoglikan: uzun şeker zincirleri ve aralarındaki peptit köprüleri; köprü uçlarında düğüm.
+      ctx.strokeStyle = "rgba(232, 226, 200, 0.9)";
+      ctx.lineWidth = 2;
+      for (let row = 0; row < 3; row++) {
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 6) ctx.lineTo(x, top + 5 + (row * (wallH - 10)) / 2 + Math.sin(x * 0.05 + row * 2 + t * 0.8) * 2);
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1.2;
+      ctx.fillStyle = "#e8e2c8";
+      for (let x = 8; x < w; x += 20)
+        for (let row = 0; row < 2; row++) {
+          const y0 = top + 5 + (row * (wallH - 10)) / 2;
+          const y1 = top + 5 + ((row + 1) * (wallH - 10)) / 2;
+          ctx.beginPath();
+          ctx.moveTo(x, y0);
+          ctx.lineTo(x + 4, y1);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(x + 2, (y0 + y1) / 2, 1.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+    }
+  }
+  ctx.restore();
+}
+
+/** Zarın kesiti: her zar türü kendi yapısıyla (çift katman, tek katman, sarmal, tabaka, mineral) çizilir. */
+function drawMembraneLayer(ctx: CanvasRenderingContext2D, id: string, memTop: number, memH: number, w: number, t: number): void {
+  const cy = memTop + memH / 2;
+  const headR = 5.2;
+  ctx.lineCap = "round";
+  ctx.lineWidth = 2;
+  if (id === "pore") {
+    // Mineral gözenek bölmesi: çökeltiden duvarlar ve içlerinde gözenekler.
+    for (let x = 6, i = 0; x < w; x += 15, i++) {
+      ctx.fillStyle = i % 4 === 3 ? "#5b5142" : "#8d7f6a";
+      ctx.fillRect(x - 7.5, memTop, 16, memH);
+    }
+    ctx.fillStyle = "rgba(10, 8, 6, 0.85)";
+    for (let x = 36; x < w; x += 60) {
+      ctx.beginPath();
+      ctx.ellipse(x, cy, 7, memH * 0.28, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
+  if (id === "pah") {
+    // Halkalı karbon tabakası: yan yana duran, üst üste dizili düz altıgen halkalar (sikke yığınları).
+    for (let x = 14; x < w; x += 30)
+      for (let k = 0; k < 4; k++) {
+        const y = memTop + 6 + k * ((memH - 12) / 3);
+        const wob = Math.sin(t * 1.2 + x * 0.1 + k) * 1.5;
+        ctx.fillStyle = k % 2 ? "rgba(138, 147, 163, 0.85)" : "rgba(168, 176, 190, 0.85)";
+        ctx.strokeStyle = "#3a4050";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.ellipse(x + wob, y, 12, 4.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#1c202c";
+        ctx.beginPath();
+        ctx.ellipse(x + wob, y, 4.2, 1.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    return;
+  }
+  for (let x = 6, i = 0; x < w; x += id === "fattyacid" ? 11 + hash01(i, 7) * 8 : 15, i++) {
+    const sway = Math.sin(t * 2 + i * 0.7) * 1.6;
+    const yTop = memTop + headR;
+    const yBot = memTop + memH - headR;
+    if (id === "siloxane") {
+      ctx.strokeStyle = elementColor("Si");
+      ctx.beginPath();
+      for (let y = memTop; y <= memTop + memH; y += 4) ctx.lineTo(x + Math.sin(y * 0.3 + i + t * 1.5) * 3.5, y);
+      ctx.stroke();
+      ctx.fillStyle = elementColor("O");
+      for (const y of [memTop, memTop + memH]) {
+        ctx.beginPath();
+        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue;
+    }
+    if (id === "azotosome") {
+      // Ters zar: azotlu uçlar ortada kenetlenir, karbon uçlar dışa bakar.
+      ctx.strokeStyle = "rgba(183, 190, 214, 0.8)";
+      ctx.beginPath();
+      ctx.moveTo(x + sway, memTop + 2);
+      ctx.lineTo(x, cy - 5);
+      ctx.moveTo(x - sway, memTop + memH - 2);
+      ctx.lineTo(x + 7.5, cy + 5);
+      ctx.stroke();
+      ctx.fillStyle = elementColor("N");
+      ctx.beginPath();
+      ctx.arc(x, cy - 5, 3.6, 0, Math.PI * 2);
+      ctx.arc(x + 7.5, cy + 5, 3.6, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+    if (id === "peptide") {
+      // Amfifilik peptit: zarı boydan boya geçen mavi sarmal; iki ucunda polar boncuk.
+      ctx.strokeStyle = "rgba(111, 141, 250, 0.95)";
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (let y = yTop; y <= yBot; y += 2) ctx.lineTo(x + Math.sin((y - yTop) * 0.55 + i + t) * 3.4, y);
+      ctx.stroke();
+      ctx.fillStyle = elementColor("N");
+      for (const y of [yTop, yBot]) {
+        ctx.beginPath();
+        ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue;
+    }
+    if (id === "etherlipid") {
+      // Eter lipit tek katman: zarı boydan boya geçen dallı zincir; her iki ucunda baş, gövdede metil dalları.
+      ctx.strokeStyle = "rgba(226, 192, 138, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + sway, yTop);
+      ctx.lineTo(x - sway, yBot);
+      for (let b = 1; b <= 3; b++) {
+        const y = yTop + ((yBot - yTop) * b) / 4;
+        ctx.moveTo(x + sway * (1 - b / 2), y);
+        ctx.lineTo(x + (b % 2 ? 5 : -5), y - 3);
+      }
+      ctx.stroke();
+      ctx.fillStyle = elementColor("O");
+      for (const y of [yTop, yBot]) {
+        ctx.beginPath();
+        ctx.arc(x, y, headR + 0.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      continue;
+    }
+    // Fosfolipit (çift kuyruklu, kıvrık, fosfor başlı çift katman) ve yağ asidi (tek kuyruklu, seyrek, kırmızı küçük baş).
+    const phos = id === "phospholipid";
+    ctx.strokeStyle = phos ? "rgba(226, 192, 138, 0.9)" : "rgba(238, 170, 150, 0.85)";
+    ctx.beginPath();
+    for (const side of [-1, 1]) {
+      const y0 = side < 0 ? yTop : yBot;
+      const y1 = cy + side * 2;
+      for (const dx of phos ? [-2.6, 2.6] : [0]) {
+        ctx.moveTo(x + dx, y0);
+        const kink = phos && dx > 0 ? 1.8 : 0;
+        ctx.lineTo(x + dx + sway * side * -1 + kink, (y0 + y1) / 2);
+        ctx.lineTo(x + dx - sway * side * -1, y1);
+      }
+    }
+    ctx.stroke();
+    ctx.fillStyle = phos ? elementColor("P") : elementColor("O");
+    for (const y of [yTop, yBot]) {
+      ctx.beginPath();
+      ctx.arc(x, y, phos ? headR : headR * 0.72, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (id === "phospholipid") {
+    // Zara gömülü protein kanalları.
+    ctx.fillStyle = "rgba(120, 170, 210, 0.8)";
+    for (let x = 90; x < w; x += 220) {
+      ctx.beginPath();
+      ctx.roundRect(x - 16, memTop - 4, 12, memH + 8, 5);
+      ctx.roundRect(x + 4, memTop - 4, 12, memH + 8, 5);
+      ctx.fill();
+    }
+  }
+  if (id === "fattyacid") {
+    // Yağ asidi veziküllerinin geçirgenliği: küçük bir molekül zardan sızar.
+    const k = (t * 0.25) % 1;
+    ctx.fillStyle = "rgba(150, 240, 200, 0.9)";
+    ctx.beginPath();
+    ctx.arc(w * 0.7, memTop - 14 + k * (memH + 28), 3.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+/** Kalıtım polimerinin kesiti: sarmal, merdiven, tabaka, istif, kristal, şerit ya da bulut; her biri kendi çizimiyle. */
+function drawGeneticLayer(ctx: CanvasRenderingContext2D, g: GeneticOption, inTop: number, inH: number, w: number, t: number): void {
+  const mid = inTop + inH * 0.45;
+  const amp = inH * 0.22;
+  const id = g.id;
+  ctx.lineCap = "round";
+  const strand = (phase: number, color: string, width: number, zig = false): void => {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += zig ? 14 : 4) {
+      const y = mid + Math.sin(x * 0.035 + t * 0.9 + phase) * amp * (zig ? 0.8 : 1);
+      if (zig) ctx.lineTo(x, mid + (Math.floor(x / 14) % 2 ? -1 : 1) * amp * 0.45 + Math.sin(x * 0.035 + t * 0.9 + phase) * amp * 0.5);
+      else if (x === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  };
+  if (id === "hachimoji" || id === "tna" || id === "gna") {
+    // Çift sarmal: iki omurga, aralarında baz çiftleri. Hachimoji sekiz renk, TNA dört köşeli şeker, GNA zikzak omurga.
+    const zig = id === "gna";
+    const colors = id === "hachimoji" ? BASES : BASES.slice(0, 4);
+    const back = id === "tna" ? "#7ad1e0" : id === "gna" ? "#e08ab8" : "#8a7dff";
+    const stepX = id === "hachimoji" ? 9 : 12;
+    for (let x = 6, i = 0; x < w; x += stepX, i++) {
+      const a = mid + Math.sin(x * 0.035 + t * 0.9) * amp * (zig ? 0.8 : 1);
+      const b = mid + Math.sin(x * 0.035 + t * 0.9 + Math.PI) * amp * (zig ? 0.8 : 1);
+      const c1 = colors[i % colors.length];
+      const c2 = colors[(i + colors.length / 2 + (i % 2)) % colors.length];
+      ctx.lineWidth = id === "hachimoji" ? 3 : 2.4;
+      ctx.strokeStyle = c1;
+      ctx.beginPath();
+      ctx.moveTo(x, a);
+      ctx.lineTo(x, (a + b) / 2);
+      ctx.stroke();
+      ctx.strokeStyle = c2;
+      ctx.beginPath();
+      ctx.moveTo(x, (a + b) / 2);
+      ctx.lineTo(x, b);
+      ctx.stroke();
+      if (id === "tna") {
+        ctx.fillStyle = back;
+        ctx.fillRect(x - 2, a - 2, 4, 4);
+        ctx.fillRect(x - 2, b - 2, 4, 4);
+      }
+    }
+    strand(0, back, id === "tna" ? 3.4 : 2.4, zig);
+    strand(Math.PI, back, id === "tna" ? 3.4 : 2.4, zig);
+    return;
+  }
+  if (id === "pna" || id === "phosphodiester") {
+    if (id === "pna") {
+      // Peptit nükleik asit: düz, fosfatsız amit omurga; azotlu bağlantı noktaları ve baz basamakları.
+      for (const f of [-0.5, 0.5]) {
+        ctx.strokeStyle = "#7a96e8";
+        ctx.lineWidth = 2.6;
+        ctx.beginPath();
+        for (let x = 0; x <= w; x += 6) ctx.lineTo(x, mid + f * amp * 1.6 + Math.sin(x * 0.05 + t) * 1.5);
+        ctx.stroke();
+      }
+      for (let x = 8, i = 0; x < w; x += 12, i++) {
+        ctx.strokeStyle = BASES[i % 4];
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(x, mid - amp * 0.8);
+        ctx.lineTo(x, mid + amp * 0.8);
+        ctx.stroke();
+        ctx.fillStyle = elementColor("N");
+        ctx.beginPath();
+        ctx.arc(x, mid - amp * 0.8, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+    // Fosfodiester (RNA benzeri): tek omurga, üzerinde fosfat noktaları, bazlar dışa sarkar.
+    strand(0, "#8a7dff", 2);
+    for (let x = 6, i = 0; x < w; x += 12, i++) {
+      const y = mid + Math.sin(x * 0.035 + t * 0.9) * amp;
+      ctx.strokeStyle = BASES[i % 4];
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + 9);
+      ctx.stroke();
+      if (i % 3 === 0) {
+        ctx.fillStyle = elementColor("P");
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    return;
+  }
+  if (id === "amyloid") {
+    // Amiloid: üst üste dizilmiş beta-iplikler (oklar), aralarında dikey hidrojen bağları.
+    for (let row = 0; row < 3; row++) {
+      const y = mid + (row - 1) * amp * 0.9;
+      ctx.fillStyle = row === 1 ? "#c9a7ff" : "#a98aef";
+      for (let x = 4; x < w; x += 46) {
+        ctx.beginPath();
+        ctx.moveTo(x, y - 5);
+        ctx.lineTo(x + 32, y - 5);
+        ctx.lineTo(x + 32, y - 9);
+        ctx.lineTo(x + 43, y);
+        ctx.lineTo(x + 32, y + 9);
+        ctx.lineTo(x + 32, y + 5);
+        ctx.lineTo(x, y + 5);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    ctx.strokeStyle = "rgba(255,255,255,0.55)";
+    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = 1;
+    for (let x = 14; x < w; x += 23) {
+      ctx.beginPath();
+      ctx.moveTo(x, mid - amp * 0.9);
+      ctx.lineTo(x, mid + amp * 0.9);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    return;
+  }
+  if (id === "pahstack") {
+    // Halkalı karbon istifi: yan görünüşte sikke gibi dizili halkalar, kenarlarında renkli yan gruplar bilgi taşır.
+    for (let x = 10, i = 0; x < w; x += 16, i++) {
+      const y = mid + Math.sin(x * 0.02 + t * 0.7) * amp * 0.5;
+      ctx.fillStyle = "rgba(150, 160, 180, 0.9)";
+      ctx.strokeStyle = "#2b3040";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.ellipse(x, y, 4.5, amp * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = BASES[(i * 3) % 8];
+      ctx.beginPath();
+      ctx.arc(x, y - amp * 0.9 - 3, 2.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (i % 2) {
+        ctx.fillStyle = BASES[(i * 5) % 8];
+        ctx.beginPath();
+        ctx.arc(x, y + amp * 0.9 + 3, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    return;
+  }
+  if (id === "clay") {
+    // Kil kristali: üst üste tabakalar; yük kusurları (renkli noktalar) kopyalanan bilgiyi taşır.
+    for (let row = 0; row < 3; row++) {
+      const y = mid + (row - 1) * amp * 0.75;
+      ctx.fillStyle = `hsl(${28 + row * 6} 38% ${40 + row * 6}%)`;
+      ctx.beginPath();
+      ctx.moveTo(0, y - 6);
+      ctx.lineTo(w, y - 10);
+      ctx.lineTo(w, y + 6);
+      ctx.lineTo(0, y + 10);
+      ctx.closePath();
+      ctx.fill();
+      for (let x = 10, i = row; x < w; x += 18, i++)
+        if (hash01(i, row + 3) > 0.45) {
+          ctx.fillStyle = BASES[Math.floor(hash01(i, 9) * 4)];
+          ctx.beginPath();
+          ctx.arc(x, y + Math.sin(x * 0.03 + row) * 2, 2.4, 0, Math.PI * 2);
+          ctx.fill();
+        }
+    }
+    return;
+  }
+  if (id === "polysilane") {
+    // Siloksan şerit: Si–O dönüşümlü boncuklu omurga ve yanlarda renkli yan gruplar.
+    for (let x = 4, i = 0; x < w; x += 12, i++) {
+      const y = mid + Math.sin(x * 0.03 + t * 0.8) * amp * 0.8;
+      ctx.fillStyle = i % 2 ? elementColor("O") : elementColor("Si");
+      ctx.beginPath();
+      ctx.arc(x, y, i % 2 ? 3 : 4.6, 0, Math.PI * 2);
+      ctx.fill();
+      if (i % 2 === 0) {
+        ctx.strokeStyle = BASES[(i / 2) % 4 | 0];
+        ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 2, y + ((i / 2) % 2 ? 11 : -11));
+        ctx.stroke();
+      }
+    }
+    return;
+  }
+  // Bileşimsel kalıtım: dizi yoktur; kesenin içindeki molekül karışımı, oranlarıyla yavruya geçer.
+  for (let i = 0; i < 70; i++) {
+    const x = (hash01(i, 1) * w + Math.sin(t * 0.5 + i) * 10 + w) % w;
+    const y = mid + (hash01(i, 2) - 0.5) * amp * 2.4 + Math.cos(t * 0.6 + i * 0.7) * 5;
+    ctx.fillStyle = BASES[Math.floor(hash01(i, 3) * (i % 5 === 0 ? 8 : 3))];
+    ctx.globalAlpha = 0.75;
+    ctx.beginPath();
+    ctx.arc(x, y, 2.4 + hash01(i, 4) * 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** Katalizör taneciklerinin konumu (çizim ve tıklama için ortak). */
+function catalystPoint(i: number, t: number, w: number, inTop: number, inH: number): { x: number; y: number } {
+  return { x: (i * 131 + Math.sin(t * 0.6 + i) * 14 + w * 0.1) % w, y: inTop + ((i * 47) % inH) };
+}
+
+function drawCatalystDots(ctx: CanvasRenderingContext2D, cat: Option, t: number, w: number, inTop: number, inH: number): void {
+  const metal = cat.needs.find((n) => n !== "S") ?? cat.needs[0];
+  const color = metal ? elementColor(metal) : "#b7bed6";
+  for (let i = 0; i < 7; i++) {
+    const { x, y } = catalystPoint(i, t, w, inTop, inH);
+    if (cat.id === "fes") {
+      // Fe₄S₄ kümesi: dönüşümlü demir ve kükürt köşeli küp.
+      const s = 5.2;
+      const pts: [number, number, string][] = [
+        [-s, -s, elementColor("Fe")],
+        [s, -s, elementColor("S")],
+        [-s, s, elementColor("S")],
+        [s, s, elementColor("Fe")],
+      ];
+      ctx.strokeStyle = "rgba(220,220,230,0.5)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - s, y - s, s * 2, s * 2);
+      for (const [dx, dy, c] of pts) {
+        ctx.fillStyle = c;
+        ctx.beginPath();
+        ctx.arc(x + dx, y + dy, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (cat.id === "organo") {
+      // Metalsiz organik katalizör: küçük halkalı organik molekül.
+      ctx.fillStyle = "rgba(183, 190, 214, 0.7)";
+      ctx.strokeStyle = "#b7bed6";
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      hexPath(ctx, x, y, 5.6);
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      // Metal merkez: dört ligand (azot) onu çevreler.
+      ctx.fillStyle = elementColor("N");
+      for (let k = 0; k < 4; k++) {
+        ctx.beginPath();
+        ctx.arc(x + Math.cos((k * Math.PI) / 2 + t * 0.4) * 8, y + Math.sin((k * Math.PI) / 2 + t * 0.4) * 8, 2.4, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 5.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+/** Enerji taşıyıcılarının hücre içindeki konumu (çizim ve tıklama için ortak). */
+function energyPoint(i: number, t: number, w: number, inTop: number, inH: number): { x: number; y: number } {
+  return { x: (i * 97 + 40 + Math.sin(t * 0.7 + i * 1.3) * 16) % w, y: inTop + inH * (0.8 + 0.15 * Math.sin(t * 0.5 + i)) };
+}
+
+function drawEnergyCarriers(ctx: CanvasRenderingContext2D, en: Option, t: number, w: number, inTop: number, inH: number, memTop: number, wallTop: number): void {
+  const n = 8;
+  for (let i = 0; i < n; i++) {
+    const { x, y } = energyPoint(i, t, w, inTop, inH);
+    switch (en.id) {
+      case "polyphosphate": {
+        // ATP benzeri: fosfat zinciri; uçtaki bağ parlayıp koparak enerji verir.
+        const glow = 0.5 + 0.5 * Math.sin(t * 2 + i);
+        for (let k = 0; k < 3; k++) {
+          ctx.fillStyle = k === 2 ? `rgba(255, 220, 120, ${0.5 + glow * 0.5})` : elementColor("P");
+          ctx.beginPath();
+          ctx.arc(x + k * 9, y, 3.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      case "thioester": {
+        // Tiyoester: kükürt (sarı) ve karbonil karbonu arasındaki yüksek enerjili bağ.
+        ctx.strokeStyle = "rgba(255, 230, 120, 0.9)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 10, y);
+        ctx.stroke();
+        ctx.fillStyle = elementColor("S");
+        ctx.beginPath();
+        ctx.arc(x + 10, y, 4.2, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = elementColor("C");
+        ctx.beginPath();
+        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+      }
+      case "sodium":
+      case "proton": {
+        // Gradyan: iyonlar zarın dışında yığılır, içeride seyrektir; pil gibi.
+        if (i < 3) {
+          ctx.fillStyle = en.id === "sodium" ? "#f0b04a" : "#eef2f8";
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = "#1a1f2e";
+          ctx.font = "600 9px Onest, system-ui, sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText("+", x, y + 0.5);
+          ctx.textAlign = "left";
+        }
+        const ox = (i * 83 + 20 + Math.sin(t * 0.8 + i) * 10) % w;
+        const oy = Math.max(10, wallTop - 14 - ((i * 29) % Math.max(10, wallTop - 40)));
+        ctx.fillStyle = en.id === "sodium" ? "#f0b04a" : "#eef2f8";
+        for (let k = 0; k < 2; k++) {
+          ctx.beginPath();
+          ctx.arc(ox + k * 26, oy + k * 6, 3.6, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+      }
+      default: {
+        // Mineral yüzeyde elektron aktarımı: iletken şerit boyunca sıçrayan elektron.
+        if (i === 0) {
+          ctx.strokeStyle = "rgba(200, 205, 220, 0.5)";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(0, inTop + inH * 0.93);
+          ctx.lineTo(w, inTop + inH * 0.93);
+          ctx.stroke();
+        }
+        ctx.fillStyle = "#6df0d2";
+        ctx.beginPath();
+        ctx.arc(((i * w) / n + t * 40) % w, inTop + inH * 0.93, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  void memTop;
+}
+
+/** Zar ve duvarın kesiti: üstte dış ortam (çözücü), altta hücre içi. Her yapı türü kendi görünümüne sahiptir. */
 function drawEnvelope(ctx: CanvasRenderingContext2D, chem: Chemistry, w: number, h: number, t: number): void {
   const hue = chem.solvent.hue;
   ctx.fillStyle = `hsl(${hue} ${chem.solvent.sat * 60}% 11%)`;
@@ -519,146 +1177,24 @@ function drawEnvelope(ctx: CanvasRenderingContext2D, chem: Chemistry, w: number,
     ctx.fill();
   }
 
-  // duvar
+  // hücre içi alanı (enerji taşıyıcıları dış ortam iyonlarını da çizer; bu yüzden duvardan önce)
+  const inTop = memTop + memH + 34;
+  const inH = h - inTop - 34;
+
   if (wallH > 0) {
     const top = memTop - wallH - 4;
-    const id = chem.wall.id;
-    const mineral = id === "silica" || id === "calcite" || id === "ironsulfide" || id === "manganese";
-    const color = id === "silica" ? "#cfe3ee" : id === "calcite" ? "#e8e2c8" : id === "ironsulfide" ? "#c9a24a" : id === "manganese" ? "#6b5a7a" : id === "borate" ? "#e7b6a4" : id === "slayer" ? "#9ad0c0" : "#c7b98a";
-    ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    if (mineral) {
-      const bw = 34;
-      for (let x = -bw; x < w + bw; x += bw + 5) {
-        for (let row = 0; row < 2; row++) {
-          ctx.globalAlpha = 0.75;
-          ctx.beginPath();
-          ctx.roundRect(x + (row ? bw / 2 : 0), top + row * (wallH / 2), bw, wallH / 2 - 3, 3);
-          ctx.fill();
-        }
-      }
-      ctx.globalAlpha = 1;
-    } else {
-      ctx.lineWidth = 1.6;
-      ctx.globalAlpha = 0.85;
-      for (let row = 0; row < 3; row++) {
-        ctx.beginPath();
-        for (let x = 0; x <= w; x += 6) {
-          const y = top + 4 + (row * (wallH - 8)) / 2 + Math.sin(x * 0.05 + row * 2 + t * 0.8) * 2.5;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-      }
-      for (let x = 8; x < w; x += 22) {
-        ctx.beginPath();
-        ctx.moveTo(x, top + 4);
-        ctx.lineTo(x + 6, top + wallH - 4);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    }
+    drawWallLayer(ctx, chem.wall.id, top, wallH + 4, w, t);
     label(`Duvar: ${chem.wall.name}`, top - 14);
   }
 
-  // zar
-  const id = chem.membrane.id;
-  const gap = 15;
-  const headR = 5.2;
-  ctx.lineWidth = 2;
-  ctx.lineCap = "round";
-  for (let x = 6, i = 0; x < w; x += gap, i++) {
-    const sway = Math.sin(t * 2 + i * 0.7) * 1.6;
-    const yTop = memTop + headR;
-    const yBot = memTop + memH - headR;
-    if (id === "pore") {
-      ctx.fillStyle = "#8d7f6a";
-      if (i % 4 !== 3) ctx.fillRect(x - gap / 2, memTop, gap + 1, memH);
-      continue;
-    }
-    if (id === "siloxane") {
-      ctx.strokeStyle = elementColor("Si");
-      ctx.beginPath();
-      for (let y = memTop; y <= memTop + memH; y += 4) ctx.lineTo(x + Math.sin(y * 0.3 + i + t * 1.5) * 3.5, y);
-      ctx.stroke();
-      ctx.fillStyle = elementColor("O");
-      for (const y of [memTop, memTop + memH]) {
-        ctx.beginPath();
-        ctx.arc(x, y, 3.4, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      continue;
-    }
-    if (id === "azotosome") {
-      // Ters zar: azotlu uçlar ortada kenetlenir, karbon uçlar dışa bakar.
-      ctx.strokeStyle = "rgba(183, 190, 214, 0.8)";
-      ctx.beginPath();
-      ctx.moveTo(x + sway, memTop + 2);
-      ctx.lineTo(x, mid + wallH / 2 - 5);
-      ctx.moveTo(x - sway, memTop + memH - 2);
-      ctx.lineTo(x + gap / 2, mid + wallH / 2 + 5);
-      ctx.stroke();
-      ctx.fillStyle = elementColor("N");
-      ctx.beginPath();
-      ctx.arc(x, mid + wallH / 2 - 5, 3.6, 0, Math.PI * 2);
-      ctx.arc(x + gap / 2, mid + wallH / 2 + 5, 3.6, 0, Math.PI * 2);
-      ctx.fill();
-      continue;
-    }
-    const mono = id === "etherlipid" || id === "peptide";
-    ctx.strokeStyle = id === "peptide" ? "rgba(111, 141, 250, 0.9)" : "rgba(226, 192, 138, 0.85)";
-    ctx.beginPath();
-    if (mono) {
-      ctx.moveTo(x + sway, yTop);
-      ctx.lineTo(x - sway, yBot);
-    } else {
-      for (const dx of [-2.5, 2.5]) {
-        ctx.moveTo(x + dx, yTop);
-        ctx.lineTo(x + dx + sway, mid + wallH / 2 - 2);
-        ctx.moveTo(x + dx, yBot);
-        ctx.lineTo(x + dx - sway, mid + wallH / 2 + 2);
-      }
-    }
-    ctx.stroke();
-    ctx.fillStyle = id === "phospholipid" ? elementColor("P") : elementColor("O");
-    for (const y of [yTop, yBot]) {
-      ctx.beginPath();
-      ctx.arc(x, y, headR, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
+  drawMembraneLayer(ctx, chem.membrane.id, memTop, memH, w, t);
   label(`Zar: ${chem.membrane.name}`, memTop + memH + 16);
 
-  // hücre içi: kalıtım polimeri, katalizör, enerji taşıyıcıları
-  const inTop = memTop + memH + 34;
-  const inH = h - inTop - 34;
+  // hücre içi: kalıtım polimeri, enerji taşıyıcıları, katalizör
   if (inH > 30) {
-    ctx.strokeStyle = "#8a7dff";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let x = 0; x <= w; x += 5) {
-      const y = inTop + inH * 0.45 + Math.sin(x * 0.035 + t * 0.9) * inH * 0.22;
-      if (x === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.stroke();
-    for (let x = 6; x < w; x += 12) {
-      const y = inTop + inH * 0.45 + Math.sin(x * 0.035 + t * 0.9) * inH * 0.22;
-      ctx.strokeStyle = x % 24 < 12 ? "#6df0d2" : "#f59a3c";
-      ctx.beginPath();
-      ctx.moveTo(x, y);
-      ctx.lineTo(x, y + 9);
-      ctx.stroke();
-    }
-    const metal = chem.catalyst.needs[0];
-    for (let i = 0; i < 7; i++) {
-      const x = (i * 131 + Math.sin(t * 0.6 + i) * 14 + w * 0.1) % w;
-      const y = inTop + ((i * 47) % inH);
-      ctx.fillStyle = metal ? elementColor(metal) : "#b7bed6";
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI * 2);
-      ctx.fill();
-    }
+    drawGeneticLayer(ctx, chem.genetic, inTop, inH, w, t);
+    drawEnergyCarriers(ctx, chem.energy, t, w, inTop, inH, memTop, memTop - wallH - 4);
+    drawCatalystDots(ctx, chem.catalyst, t, w, inTop, inH);
     label(`Kalıtım: ${chem.genetic.name}`, h - 18);
   }
   label(`Dış ortam: ${chem.solvent.name.toLocaleLowerCase("tr")}, ${chem.temperature} K`, 18);
@@ -689,9 +1225,12 @@ function envelopePick(chem: Chemistry, w: number, h: number, t: number, x: numbe
   const inH = h - inTop - 34;
   if (inH > 30) {
     for (let i = 0; i < 7; i++) {
-      const dx = (i * 131 + Math.sin(t * 0.6 + i) * 14 + w * 0.1) % w;
-      const dy = inTop + ((i * 47) % inH);
-      if (Math.hypot(dx - x, dy - y) <= 16) return 4;
+      const c = catalystPoint(i, t, w, inTop, inH);
+      if (Math.hypot(c.x - x, c.y - y) <= 16) return 4;
+    }
+    for (let i = 0; i < 8; i++) {
+      const e = energyPoint(i, t, w, inTop, inH);
+      if (Math.hypot(e.x + 9 - x, e.y - y) <= 22) return 3;
     }
   }
   return 2;
