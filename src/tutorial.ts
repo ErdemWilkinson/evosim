@@ -321,6 +321,9 @@ export class Tour {
   private index = 0;
   private run = 0;
   private open = false;
+  /** Rehber oyunu kendisi başlattı: gezegen adımları artık gösterilmez, "Başlat" yeniden basılmaz. */
+  private launched = false;
+  private auto = 0;
   private saved: { speed: number; game: boolean; tab: string } | null = null;
   private steps: Step[] = STEPS;
 
@@ -335,23 +338,32 @@ export class Tour {
     const stage = (document.getElementById("dlg-planet") as HTMLDialogElement | null)?.open === true;
     if (this.open || (!stage && !this.ctx.ready())) return;
     this.steps = STEPS.filter((st) => stage || !st.planet);
+    this.launched = false;
     this.open = true;
     this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab() };
     this.ctx.setSpeed(1);
     this.build();
     this.index = 0;
     void this.show();
+    // Kart da düğmeden büyüyerek çıkar (ilk adım kartı eşzamanlı yerleştirir).
+    const slot = this.slot();
+    if (slot) {
+      // Animasyon bitince bırakılır; yoksa sonraki üst/alt geçişlerinin transform'unu ezer.
+      const a = this.fly(this.card, slot, false);
+      void a.finished.then(() => a.cancel()).catch(() => undefined);
+    }
   }
 
   public stop(): void {
     if (!this.open) return;
     this.open = false;
     this.run++;
+    window.clearTimeout(this.auto);
     document.removeEventListener("keydown", this.onKey, true);
     window.removeEventListener("resize", this.onResize);
-    this.root?.hidePopover?.();
-    this.root?.remove();
+    const gone = this.root;
     this.root = null;
+    this.dismiss(gone);
     const s = this.saved;
     const insp = document.getElementById("dlg-inspect") as HTMLDialogElement | null;
     if (insp?.open) {
@@ -372,6 +384,50 @@ export class Tour {
     } catch {
       // depolama kapalıysa yalnızca bu oturumda hatırlanır
     }
+  }
+
+  /** Rehber düğmesinin ekrandaki merkezi; gezegen penceresi açıkken ya da düğme yoksa null. */
+  private slot(): { x: number; y: number } | null {
+    if ((document.getElementById("dlg-planet") as HTMLDialogElement | null)?.open) return null;
+    const r = document.getElementById("btn-tour")?.getBoundingClientRect();
+    return r && r.width > 0 && r.height > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
+  }
+
+  /** Kartın düğmeye küçülmüş hâli ile yerindeki hâli arasındaki animasyon (`into`: düğmeye girer, değilse düğmeden çıkar). */
+  private fly(card: HTMLElement, slot: { x: number; y: number }, into: boolean): Animation {
+    const r = card.getBoundingClientRect();
+    const y = card.style.getPropertyValue("--y") || "0px";
+    const dx = slot.x - (r.left + r.width / 2);
+    const dy = slot.y - (r.top + r.height / 2);
+    const home = { transform: `translate(-50%, ${y})`, opacity: 1, filter: "blur(0px)" };
+    const away = { transform: `translate(calc(-50% + ${dx}px), calc(${y} + ${dy}px)) scale(0.06)`, opacity: 0, filter: "blur(6px)" };
+    return card.animate(into ? [home, away] : [away, home], { duration: into ? 650 : 750, easing: "cubic-bezier(0.22, 0.8, 0.2, 1)", fill: "both" });
+  }
+
+  /** Rehber kapanırken Erdem ve kart yukarıdaki Rehber düğmesine kayıp küçülerek içine girer. */
+  private dismiss(root: HTMLElement | null): void {
+    if (!root) return;
+    const slot = this.slot();
+    const card = root.querySelector<HTMLElement>(".tour-card");
+    const cursor = root.querySelector<HTMLElement>(".tour-cursor");
+    const ring = root.querySelector<HTMLElement>(".tour-ring");
+    if (!slot || !card || !cursor || !ring) {
+      root.hidePopover?.();
+      root.remove();
+      return;
+    }
+    ring.style.opacity = "0";
+    this.place(cursor, slot.x - 4, slot.y - 3);
+    cursor.classList.toggle("flip", slot.x > window.innerWidth - 120);
+    this.fly(card, slot, true);
+    window.setTimeout(() => {
+      cursor.style.transition = "opacity 0.2s";
+      cursor.style.opacity = "0";
+    }, 650);
+    window.setTimeout(() => {
+      root.hidePopover?.();
+      root.remove();
+    }, 900);
   }
 
   private lang(): "tr" | "en" {
@@ -403,8 +459,9 @@ export class Tour {
     });
     document.addEventListener("keydown", this.onKey, true);
     window.addEventListener("resize", this.onResize);
-    // İmleç ekranın ortasından doğar.
-    this.place(this.cursor, window.innerWidth / 2, window.innerHeight / 2, true);
+    // İmleç Rehber düğmesinden çıkar (düğme yoksa ekranın ortasından doğar).
+    const slot = this.slot();
+    this.place(this.cursor, slot ? slot.x - 4 : window.innerWidth / 2, slot ? slot.y - 3 : window.innerHeight / 2, true);
   }
 
   private readonly onKey = (e: KeyboardEvent): void => {
@@ -432,6 +489,25 @@ export class Tour {
     void this.show();
   }
 
+  /** Kartı üst ya da alt kenara oturtur; yer değişince ışınlanmaz, bulanıklıkla süzülerek gider. */
+  private dock(pos: "top" | "bottom"): void {
+    const card = this.card;
+    const first = card.dataset.pos === undefined;
+    const y = pos === "top" ? 18 : Math.max(18, window.innerHeight - card.offsetHeight - 18);
+    if (first) card.style.transition = "none";
+    card.style.setProperty("--y", `${Math.round(y)}px`);
+    if (!first && card.dataset.pos !== pos) {
+      card.classList.remove("glide");
+      void card.offsetWidth;
+      card.classList.add("glide");
+    }
+    card.dataset.pos = pos;
+    if (first) {
+      void card.offsetWidth;
+      card.style.transition = "";
+    }
+  }
+
   private place(el: HTMLElement, x: number, y: number, instant = false): void {
     if (instant) el.style.transition = "none";
     el.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
@@ -448,6 +524,16 @@ export class Tour {
     if (!step.planet && !step.anyStage && (!this.ctx.ready() || document.querySelector("#film:not([hidden])"))) {
       await this.untilReady(token);
       if (token !== this.run) return;
+    }
+    if (this.root) this.root.style.visibility = "";
+    window.clearTimeout(this.auto);
+    if (!step.planet && !step.anyStage && this.index < this.steps.length - 1) {
+      // Oyun içi adımlar kendiliğinden ilerler: metin uzadıkça 15 sn'den 20 sn'ye çıkar.
+      const len = step[this.lang()][1].length;
+      const ms = 15000 + Math.min(5000, Math.max(0, len - 120) * 30);
+      this.auto = window.setTimeout(() => {
+        if (token === this.run && this.open && !document.querySelector("#film:not([hidden])")) this.go(this.index + 1);
+      }, ms);
     }
     // Açık bir pencere varsa rehber onun içinde, yoksa sayfada durur (kip pencereleri dışını tıklanamaz yapar).
     const want = Array.from(document.querySelectorAll<HTMLDialogElement>("dialog[open]")).pop() ?? document.body;
@@ -482,7 +568,13 @@ export class Tour {
     }
 
     // Hedefi bul (dar ekranda görünür kıl).
-    let point: { x: number; y: number; w: number; h: number } | null = null;
+    type Point = { x: number; y: number; w: number; h: number };
+    const measure = (): Point | null => {
+      const el = step.target ? document.querySelector<HTMLElement>(step.target) : null;
+      const r = el?.getBoundingClientRect();
+      return r && r.width > 0 && r.height > 0 ? { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height } : null;
+    };
+    let point: Point | null = null;
     let pick: (() => void) | null = null;
     let creatureId = 0;
     if (step.creature) {
@@ -496,10 +588,10 @@ export class Tour {
       const el = document.querySelector<HTMLElement>(step.target);
       if (el) {
         if (!quick) el.scrollIntoView({ block: "center", inline: "center", behavior: "smooth" });
-        await sleep(quick ? 0 : 250);
+        // Yapı penceresi açılırken yerleşir (önceki adımın tıklaması da onu yeni açmış olabilir); oturmadan ölçülmez.
+        await sleep(quick ? 0 : step.inspect ? 600 : 250);
         if (token !== this.run) return;
-        const r = el.getBoundingClientRect();
-        if (r.width > 0 && r.height > 0) point = { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height };
+        point = measure();
       }
     }
     if (token !== this.run) return;
@@ -514,7 +606,7 @@ export class Tour {
       ring.style.height = `${Math.max(34, point.h + pad * 2)}px`;
       ring.style.transform = `translate(${Math.round(point.x - Math.max(34, point.w + pad * 2) / 2)}px, ${Math.round(point.y - Math.max(34, point.h + pad * 2) / 2)}px)`;
     } else ring.style.opacity = "0";
-    this.card.dataset.pos = point.y > window.innerHeight * 0.5 && step.target !== "#btn-tour" ? "top" : "bottom";
+    this.dock(point.y > window.innerHeight * 0.5 && step.target !== "#btn-tour" ? "top" : "bottom");
 
     // İmleç hedefe kayar; kuyruğu hedefin içinde kalacak biçimde biraz sağ-alta.
     this.cursor.classList.toggle("flip", point.x > window.innerWidth - 120);
@@ -522,6 +614,21 @@ export class Tour {
     if (quick) return;
     await sleep(1000);
     if (token !== this.run) return;
+    // Hedef bu sürede kaydıysa (pencere animasyonu, kaydırma) imleç ve halka yeni yerine gider.
+    if (step.target && !pick) {
+      const now = measure();
+      if (now && (Math.abs(now.x - point.x) > 3 || Math.abs(now.y - point.y) > 3)) {
+        const pad = step.wide ? 4 : 6;
+        const rw = Math.max(34, now.w + pad * 2);
+        const rh = Math.max(34, now.h + pad * 2);
+        ring.style.width = `${rw}px`;
+        ring.style.height = `${rh}px`;
+        ring.style.transform = `translate(${Math.round(now.x - rw / 2)}px, ${Math.round(now.y - rh / 2)}px)`;
+        this.place(this.cursor, now.x - 4, now.y - 3);
+        await sleep(500);
+        if (token !== this.run) return;
+      }
+    }
     if (pick) {
       // Canlı bu bir saniyede kımıldadı: imleç son konuma kısa bir kayışla varır, sonra tıklar.
       const again = this.ctx.pickCreature(creatureId);
@@ -539,6 +646,8 @@ export class Tour {
     if (step.click !== false && step.target && step.click && !(step.skipIf && step.skipIf(this.ctx))) {
       const el = document.querySelector<HTMLElement>(typeof step.click === "string" ? step.click : step.target);
       if (el) {
+        // Oyun zaten başlatıldıysa (Geri ile bu adıma dönüldü) "Başlat" yeniden basılmaz.
+        if (step.startGame && this.launched) return;
         this.ripple();
         // SVG öğelerinde click() yoktur (gen basamakları); olay elle gönderilir.
         if (typeof el.click === "function") el.click();
@@ -546,19 +655,31 @@ export class Tour {
         // Tıklama bir pencere açtıysa rehber yine en üste alınır.
         this.raise();
         if (step.startGame) {
-          await this.untilReady(token);
+          // Gezegen pencerelerine artık dönülemez: Geri, oyun öncesi adımlara değil Merhaba adımına gider.
+          this.launched = true;
+          // Film açılana ve bitene kadar kart görünmez; film sonrası doğrudan sıradaki adım gelir.
+          if (this.root) this.root.style.visibility = "hidden";
+          this.steps = this.steps.filter((st) => !st.planet || st === step);
+          this.index = this.steps.indexOf(step);
+          await this.untilReady(token, true);
           if (token !== this.run) return;
           await sleep(900);
           if (token !== this.run) return;
-          this.go(this.index + 1);
+          this.steps = this.steps.filter((st) => st !== step);
+          this.index = Math.min(this.index, this.steps.length - 1);
+          void this.show();
         }
       }
     }
   }
 
   /** Oyun hazır olana ve köken filmi bitene kadar bekler. */
-  private async untilReady(token: number): Promise<void> {
+  private async untilReady(token: number, awaitFilm = false): Promise<void> {
     // Köken filmi kendi akışında izlenir (oyuncu isterse kendisi atlar); film bitince rehber geri gelir.
+    // Oyun başlatılınca pencere hemen kapanır, film ise dünya gelince açılır: önce filmin açılması beklenir.
+    if (awaitFilm) {
+      for (let i = 0; i < 40 && token === this.run && !document.querySelector("#film:not([hidden])"); i++) await sleep(150);
+    }
     for (let i = 0; i < 2400 && token === this.run; i++) {
       if (this.ctx.ready() && !document.querySelector("#film:not([hidden])")) return;
       await sleep(250);
