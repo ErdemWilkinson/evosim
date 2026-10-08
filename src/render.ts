@@ -187,25 +187,33 @@ const VESICLE_PULSE: Partial<Record<OrganType, [number, number]>> = {
 };
 
 function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome, t: number, id: number, fast: boolean): void {
-  const k = organScale(p);
   ctx.save();
-  // Uzantılar gövdenin arkasında çizilir: küçülünce kökleri gövdenin içine çekilir. Kaplamalar ve keseler kendi ölçeğini kullanır.
-  const scaled = BEHIND.has(type) && type !== "mucus_coat";
-  if (scaled) ctx.scale(k, k);
-  else {
-    const a = ANCHOR[type];
-    if (a) {
-      ctx.translate(a[0] * fx, a[1] * sy);
-      ctx.scale(k, k);
-      ctx.translate(-a[0] * fx, -a[1] * sy);
-    }
+  // Küçük işaret organları kendi merkezine doğru büzülür; uzantılar kendi köklerinde büyür (bkz. `rooted`).
+  const a = ANCHOR[type];
+  if (a) {
+    const k = organScale(p);
+    ctx.translate(a[0] * fx, a[1] * sy);
+    ctx.scale(k, k);
+    ctx.translate(-a[0] * fx, -a[1] * sy);
   }
-  drawOrganBody(ctx, type, scaled ? 1 : p, scaled ? k : 1, r, fx, sy, pal, g, t, id, fast);
+  drawOrganBody(ctx, type, p, r, fx, sy, pal, g, t, id, fast);
   ctx.restore();
 }
 
-function drawOrganBody(ctx: CanvasRenderingContext2D, type: OrganType, p: number, sc: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome, t: number, id: number, fast: boolean): void {
-  const lw = Math.max(0.35, r * 0.09) / sc;
+function drawOrganBody(ctx: CanvasRenderingContext2D, type: OrganType, power: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome, t: number, id: number, fast: boolean): void {
+  const p = power;
+  const lw = Math.max(0.35, r * 0.09);
+  const k = organScale(power);
+  // Uzantı organları gövdeye bağlı oldukları noktada büyür: küçükken gövdenin içine gömülmez, kökünden çıkan bir tomurcuk olur.
+  const rooted = (rx: number, ry: number, draw: () => void): void => {
+    ctx.save();
+    ctx.translate(rx, ry);
+    ctx.scale(k, k);
+    ctx.translate(-rx, -ry);
+    ctx.lineWidth = lw / k;
+    draw();
+    ctx.restore();
+  };
   ctx.strokeStyle = pal.edge;
   ctx.lineWidth = lw;
   ctx.lineCap = "round";
@@ -220,92 +228,98 @@ function drawOrganBody(ctx: CanvasRenderingContext2D, type: OrganType, p: number
   }
   switch (type) {
     case "tentacle":
-      for (const s of [-1, 1]) {
-        const len = r * (0.9 + p);
-        // Dalga köke yakın küçük, uçta büyüktür: kamçı gibi savrulur.
-        const w1 = Math.sin(ph * 6 + s) * len * 0.08;
-        const w2 = Math.sin(ph * 6 + s - 1.2) * len * 0.16;
-        const w3 = Math.sin(ph * 6 + s - 2.4) * len * 0.26;
+      for (const s of [-1, 1])
+        rooted(-fx * 0.92, s * sy * 0.25, () => {
+          const len = r * 1.9;
+          // Dalga köke yakın küçük, uçta büyüktür: kamçı gibi savrulur.
+          const w1 = Math.sin(ph * 6 + s) * len * 0.08;
+          const w2 = Math.sin(ph * 6 + s - 1.2) * len * 0.16;
+          const w3 = Math.sin(ph * 6 + s - 2.4) * len * 0.26;
+          ctx.beginPath();
+          ctx.moveTo(-fx * 0.92, s * sy * 0.25);
+          ctx.bezierCurveTo(-fx - len * 0.35, s * sy * 0.9 + w1, -fx - len * 0.65, -s * sy * 0.3 + w2, -fx - len, s * sy * 0.45 + w3);
+          ctx.stroke();
+        });
+      break;
+    case "fin":
+      rooted(-fx * 0.85, 0, () => {
+        const flap = Math.sin(ph * 7);
+        const len = r * 1.1 * (1 + 0.1 * flap);
+        ctx.fillStyle = pal.pale;
         ctx.beginPath();
-        ctx.moveTo(-fx * 0.92, s * sy * 0.25);
-        ctx.bezierCurveTo(-fx - len * 0.35, s * sy * 0.9 + w1, -fx - len * 0.65, -s * sy * 0.3 + w2, -fx - len, s * sy * 0.45 + w3);
+        ctx.moveTo(-fx * 0.85, 0);
+        ctx.lineTo(-fx - len, -sy * 0.7 * (1 + 0.18 * flap));
+        ctx.lineTo(-fx - len * 0.7, 0);
+        ctx.lineTo(-fx - len, sy * 0.7 * (1 + 0.18 * flap));
+        ctx.closePath();
+        ctx.fill();
         ctx.stroke();
-      }
+      });
       break;
-    case "fin": {
-      const flap = Math.sin(ph * 7);
-      const len = r * (0.55 + p * 0.55) * (1 + 0.1 * flap);
-      ctx.fillStyle = pal.pale;
-      ctx.beginPath();
-      ctx.moveTo(-fx * 0.85, 0);
-      ctx.lineTo(-fx - len, -sy * 0.7 * (1 + 0.18 * flap));
-      ctx.lineTo(-fx - len * 0.7, 0);
-      ctx.lineTo(-fx - len, sy * 0.7 * (1 + 0.18 * flap));
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      break;
-    }
     case "leg":
       for (let i = -1; i <= 1; i++) {
         const x = i * fx * 0.5;
-        const len = r * (0.35 + p * 0.45);
         // Bacaklar sırayla yürür: komşu bacak ters fazda, iki yan da karşılıklı.
-        for (const s of [-1, 1]) line(ctx, x, s * sy * 0.85, x - r * 0.18 + Math.sin(ph * 8 + i * 2.1 + (s > 0 ? Math.PI : 0)) * r * 0.2, s * (sy + len));
+        for (const s of [-1, 1]) rooted(x, s * sy * 0.85, () => line(ctx, x, s * sy * 0.85, x - r * 0.18 + Math.sin(ph * 8 + i * 2.1 + (s > 0 ? Math.PI : 0)) * r * 0.2, s * (sy + r * 0.8)));
       }
       break;
     case "wing":
       ctx.fillStyle = pal.pale;
-      for (const s of [-1, 1]) {
-        const beat = 0.6 + 0.4 * Math.sin(ph * 6);
-        ctx.beginPath();
-        ctx.moveTo(fx * 0.2, s * sy * 0.7);
-        ctx.quadraticCurveTo(-r * 0.2, s * (sy + r * (1 + p * 0.7) * beat), -fx * 0.95, s * (sy + r * 0.25 * beat));
-        ctx.quadraticCurveTo(-fx * 0.4, s * sy * 0.9, fx * 0.2, s * sy * 0.7);
-        ctx.globalAlpha *= 0.6;
-        ctx.fill();
-        ctx.globalAlpha /= 0.6;
-        ctx.stroke();
-      }
+      for (const s of [-1, 1])
+        rooted(0, s * sy * 0.8, () => {
+          const beat = 0.6 + 0.4 * Math.sin(ph * 6);
+          ctx.beginPath();
+          ctx.moveTo(fx * 0.2, s * sy * 0.7);
+          ctx.quadraticCurveTo(-r * 0.2, s * (sy + r * 1.7 * beat), -fx * 0.95, s * (sy + r * 0.25 * beat));
+          ctx.quadraticCurveTo(-fx * 0.4, s * sy * 0.9, fx * 0.2, s * sy * 0.7);
+          ctx.globalAlpha *= 0.6;
+          ctx.fill();
+          ctx.globalAlpha /= 0.6;
+          ctx.stroke();
+        });
       break;
     case "sucker":
-      ctx.beginPath();
-      ctx.arc(-fx - r * 0.14, 0, r * 0.22 * (1 + 0.2 * Math.sin(ph * 2.5)), 0, Math.PI * 2);
-      ctx.stroke();
+      rooted(-fx, 0, () => {
+        ctx.beginPath();
+        ctx.arc(-fx - r * 0.14, 0, r * 0.22 * (1 + 0.2 * Math.sin(ph * 2.5)), 0, Math.PI * 2);
+        ctx.stroke();
+      });
       break;
     case "olfactory":
-      for (const s of [-1, 1]) line(ctx, fx * 0.85, s * sy * 0.2, fx + r * (0.4 + p * 0.35), s * sy * 0.55 + Math.sin(ph * 5 + s * 2) * r * 0.1);
+      for (const s of [-1, 1]) rooted(fx * 0.85, s * sy * 0.2, () => line(ctx, fx * 0.85, s * sy * 0.2, fx + r * 0.75, s * sy * 0.55 + Math.sin(ph * 5 + s * 2) * r * 0.1));
       break;
     case "filter_comb":
-      for (let i = -2; i <= 2; i++) line(ctx, fx * 0.9, i * sy * 0.16, fx + r * (0.3 + p * 0.3), i * sy * 0.3 + Math.sin(ph * 3 + i * 0.9) * r * 0.08);
+      for (let i = -2; i <= 2; i++) rooted(fx * 0.9, i * sy * 0.16, () => line(ctx, fx * 0.9, i * sy * 0.16, fx + r * 0.6, i * sy * 0.3 + Math.sin(ph * 3 + i * 0.9) * r * 0.08));
       break;
     case "claw":
-      for (const s of [-1, 1]) {
-        // Kıskaç açılıp kapanır.
-        const open = 0.85 + 0.2 * Math.sin(ph * 3.5 + (s > 0 ? 0 : Math.PI));
-        ctx.beginPath();
-        ctx.moveTo(fx * 0.75, s * sy * 0.5);
-        ctx.quadraticCurveTo(fx + r * (0.55 + p * 0.4), s * sy * 0.95 * open, fx + r * (0.4 + p * 0.3), s * sy * 0.12 * (2 - open));
-        ctx.lineWidth = lw * 1.5;
-        ctx.stroke();
-        ctx.lineWidth = lw;
-      }
+      for (const s of [-1, 1])
+        rooted(fx * 0.75, s * sy * 0.5, () => {
+          // Kıskaç açılıp kapanır.
+          const open = 0.85 + 0.2 * Math.sin(ph * 3.5 + (s > 0 ? 0 : Math.PI));
+          ctx.beginPath();
+          ctx.moveTo(fx * 0.75, s * sy * 0.5);
+          ctx.quadraticCurveTo(fx + r * 0.95, s * sy * 0.95 * open, fx + r * 0.7, s * sy * 0.12 * (2 - open));
+          ctx.lineWidth = (lw * 1.5) / k;
+          ctx.stroke();
+        });
       break;
     case "spike":
       for (let i = 0; i < 7; i++) {
         const a = Math.PI * 0.35 + (i / 6) * Math.PI * 1.3;
         const cx = Math.cos(a);
         const cy = Math.sin(a);
-        const L = r * (0.25 + p * 0.35) * (1 + 0.14 * Math.sin(ph * 3 + i * 0.9));
+        const L = r * 0.6 * k * (1 + 0.14 * Math.sin(ph * 3 + i * 0.9));
         line(ctx, cx * fx * 0.95, cy * sy * 0.95, cx * (fx + L), cy * (sy + L));
       }
       break;
     case "brood_pouch":
-      ctx.fillStyle = pal.pale;
-      ctx.beginPath();
-      ctx.arc(-r * 0.1, sy * 0.8, r * 0.36 * (1 + 0.07 * Math.sin(ph * 1.6)), 0, Math.PI);
-      ctx.fill();
-      ctx.stroke();
+      rooted(-r * 0.1, sy * 0.8, () => {
+        ctx.fillStyle = pal.pale;
+        ctx.beginPath();
+        ctx.arc(-r * 0.1, sy * 0.8, r * 0.36 * (1 + 0.07 * Math.sin(ph * 1.6)), 0, Math.PI);
+        ctx.fill();
+        ctx.stroke();
+      });
       break;
     case "mucus_coat": {
       // Yavaşça soluyan parlak bir film; güç arttıkça belirginleşir ve kalınlaşır.

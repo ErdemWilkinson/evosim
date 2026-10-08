@@ -109,6 +109,13 @@ function core(s: string, depth: number): string | null {
     });
   }
 
+  // "Başlık: cümle." biçiminde sondaki nokta, cümlenin kendi çevirisini bulmadan önce atılmasın.
+  const titled = /^([^:]+): (.+[.!?])$/.exec(s);
+  if (titled) {
+    const t = parts([titled[1], ": ", titled[2]], depth);
+    if (t !== null) return t;
+  }
+
   const tail = /^(.*?)([.:;!?…]+)$/.exec(s);
   if (tail && tail[1] !== "") {
     const t = core(tail[1], depth + 1);
