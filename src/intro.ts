@@ -8,13 +8,15 @@ export class StartMenu {
   private raf = 0;
   private leaving = false;
   private leaveTimer = 0;
-  private runSeq: (() => void) | null = null;
+  private runSeq: ((id: string) => void) | null = null;
+  /** Seçilen başlangıç: yeni başlayan (rehberli, sade) ya da deneyimli. */
+  private mode: "new" | "pro" = "new";
   private stopInput: (() => void) | null = null;
   private dots: HTMLElement[] = [];
 
   constructor(
     private readonly root: HTMLElement,
-    private readonly onChoice: (what: "go" | "refs") => void,
+    private readonly onChoice: (what: "new" | "pro" | "refs") => void,
   ) {
     const slides = Array.from(root.querySelectorAll<HTMLElement>(".start-slide"));
     const dotBox = root.querySelector<HTMLElement>("#start-dots")!;
@@ -29,16 +31,18 @@ export class StartMenu {
     });
     // Başla'ya basılan noktada uzuvlar çıkar (yaklaşık 3 sn); sonra menü aşağı doğru sönerek gezegen ekranına geçilir.
     // Bekleme sırasında Başla'ya bir kez daha basmak geçişi hemen yapar.
-    root.querySelector("#start-go")!.addEventListener("click", () => {
-      if (this.leaving) {
-        window.clearTimeout(this.leaveTimer);
-        this.finish();
-        return;
-      }
-      this.leaving = true;
-      this.runSeq?.();
-      this.leaveTimer = window.setTimeout(() => this.finish(), 2400);
-    });
+    for (const [id, mode] of [["#start-go", "new"], ["#start-pro", "pro"]] as const)
+      root.querySelector(id)!.addEventListener("click", () => {
+        if (this.leaving) {
+          window.clearTimeout(this.leaveTimer);
+          this.finish();
+          return;
+        }
+        this.leaving = true;
+        this.mode = mode;
+        this.runSeq?.(id);
+        this.leaveTimer = window.setTimeout(() => this.finish(), 2400);
+      });
     root.querySelector("#start-refs")!.addEventListener("click", () => this.onChoice("refs"));
   }
 
@@ -57,11 +61,11 @@ export class StartMenu {
     this.root.classList.add("leaving");
     this.leaveTimer = window.setTimeout(() => {
       this.leaving = false;
-      this.choose("go");
+      this.choose(this.mode);
     }, 450);
   }
 
-  private choose(what: "go"): void {
+  private choose(what: "new" | "pro"): void {
     this.root.hidden = true;
     window.clearTimeout(this.timer);
     cancelAnimationFrame(this.raf);
@@ -121,8 +125,8 @@ export class StartMenu {
     // "Başla" dizisi: toplar titrer, organ çıkarır, bazıları mutasyonla renk değiştirir; düğmeden çıkan uzuvlar birkaç
     // hücreye saplanıp enerjilerini çekmeye başlar.
     let seq: { t0: number; targets: Ball[]; ox: number; oy: number } | null = null;
-    this.runSeq = (): void => {
-      const btn = this.root.querySelector<HTMLElement>("#start-go");
+    this.runSeq = (id: string): void => {
+      const btn = this.root.querySelector<HTMLElement>(id);
       if (!btn || seq) return;
       const br = btn.getBoundingClientRect();
       const cr = canvas.getBoundingClientRect();
@@ -140,7 +144,7 @@ export class StartMenu {
     const onDown = (e: PointerEvent): void => {
       // Düğmeye basılınca toplar o düğmenin ortasına doğru toplanır.
       const btn = (e.target as HTMLElement).closest("button, a, input, select");
-      if (btn && btn.id === "start-go") {
+      if (btn && (btn.id === "start-go" || btn.id === "start-pro")) {
         return;
       }
       if (btn) {

@@ -389,7 +389,8 @@ export class Tour {
     this.fromStage = stage;
     this.open = true;
     this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab(), simple: this.ctx.simple() };
-    this.ctx.setSimple(false);
+    // Kısa tur yalnızca sade ekrandaki öğeleri anlatır; uzun tur her sekmeyi gezdirdiği için Gelişmiş'e geçer.
+    if (full) this.ctx.setSimple(false);
     this.ctx.setSpeed(1);
     this.build();
     this.index = 0;

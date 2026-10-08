@@ -90,7 +90,8 @@ let lastHash = "";
 let keepSave: SaveData | null = null;
 let menuOrigin = false;
 let startMenu: StartMenu | null = null;
-let hintShown = false;
+/** Yeni başlayan seçildi: ilk filmden sonra kısa rehber turu kendiliğinden başlar. */
+let beginnerRun = false;
 let soundTime = 0;
 let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
@@ -226,9 +227,9 @@ function onEpoch(v: View): void {
     playFilm(v, () => {
       client.send({ type: "speed", value: lastSpeed });
       scene.beginGenesis();
-      if (!tourSeen() && !hintShown) {
-        hintShown = true;
-        window.setTimeout(() => toast("Yardım ister misiniz? Sağ üstteki Rehber düğmesine basın."), 1500);
+      if (beginnerRun) {
+        beginnerRun = false;
+        window.setTimeout(() => tour.start(), 1200);
       }
     });
   }
@@ -1129,9 +1130,18 @@ if (restored) {
       $<HTMLDialogElement>("dlg-refs").showModal();
       return;
     }
-    // "Başla": gezegen penceresi açılmaz; rastgele bir gezegen hemen başlar (seçmek isteyen "Yeni gezegen"e basar).
-    menuOrigin = false;
     pendingShare = null;
+    if (what === "pro") {
+      // Deneyimli: tüm sekmeler ve araçlar açık, gezegeni kendisi seçer; Erdem yalnızca "Rehber"e basılırsa gelir.
+      setSimple(false);
+      menuOrigin = true;
+      openPlanet();
+      return;
+    }
+    // Yeni başlayan: sade ekran, rastgele gezegen hemen başlar ve film bitince Erdem kısa turu başlatır (hiçbir şeyi kilitlemez).
+    setSimple(true);
+    menuOrigin = false;
+    beginnerRun = true;
     $<HTMLInputElement>("seed-input").value = String(randomSeed());
     startPlanet();
   });
