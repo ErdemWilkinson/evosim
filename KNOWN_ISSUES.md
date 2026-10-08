@@ -7,35 +7,6 @@ Bölüm A (oyuncu özellikleri) için yapılan tarayıcı testinin sonucu. Test:
 
 ## Açık sorunlar
 
-### 1. İngilizce arayüzde Türkçe metin (zaman atlamalı kayıt satırı)
-- **Belirti:** Tarih sekmesinde "179 kare birikti (24:14 süre, 00:06 aralıkla)." Türkçe kalıyor.
-- **Yer:** `src/main.ts:324`; çeviri anahtarı `src/i18n.manual.ts:22`.
-- **Olası neden (doğrulanmadı):** anahtardaki `§` yer tutucuları `24:14` gibi iki noktalı süre
-  biçimiyle eşleşmiyor olabilir.
-- **Etki:** Düşük. Yalnızca bu satır.
-
-### 2. Gezegen kartı: İngilizce kartta "%66" biçimi
-- **Belirti:** "Ice veins · 97 K · surface %66 liquid"; İngilizcede yüzde işareti sayıdan sonra gelir.
-- **Yer:** `src/card.ts:93` (`%` sayıdan önce sabit yazılmış).
-
-### 3. Gezegen kartı: dönüm noktası satırı kesiliyor
-- **Belirti:** "First sexual reproduction · First parasite · First photosynthetic · First multicellular · Fir…"
-- **Yer:** `src/card.ts` içindeki `fit()` metni kısaltıyor; beş dönüm noktası tek satıra sığmıyor.
-
-### 4. Gezegen kartında "en uzun yaşayan soy" yok
-- **Belirti:** İstenen içerik: tohum, kimya, geçen süre, yaşayan ve tükenen tür sayısı, en uzun
-  yaşayan soy, dönüm noktaları. Kartta soy bilgisi görünmüyor (`src/card.ts` içinde soy verisi
-  kullanılmıyor).
-
-### 5. Dönüm noktasına geri sarma kaba bir ana dönüyor ve ilerlemeyi siliyor
-- **Belirti:** 04:59'daki "ilk parazit" işaretinde "Bu ana dön" dünyayı 01:00'a götürdü; 32 dakikalık
-  ilerleme gitti. Dönülen anda işaretlenen olay henüz görünmüyor.
-- **Neden:** `src/host.ts` her 60 sn'de bir anlık görüntü alıyor, üst sınır 24; sınır dolunca eski
-  yarısı seyreltiliyor (`SNAPSHOT_INTERVAL`, `SNAPSHOT_CAP`). `ms-rewind` en yakın önceki görüntüyü
-  seçiyor, o da çok eski olabiliyor.
-- **Not:** Kod "Bundan sonrası yeniden yaşanacak" bildirimini gösteriyor (`src/main.ts:539`); ekranda
-  görmedim. Onay penceresi yok.
-
 ### 6. Kare hızı: 500 canlı şartı doğrulanmadı
 - **Ölçüm (headless, yazılım çizimi, 1400×850):** 2 canlıda 143,6 fps; 444 canlıda 16,1 fps (1×) ve
   13,8 fps (24×).
@@ -43,6 +14,14 @@ Bölüm A (oyuncu özellikleri) için yapılan tarayıcı testinin sonucu. Test:
   karşılaştırma yapılmadı, yani düşüşün Bölüm A'dan gelip gelmediği bilinmiyor.
 
 ## Düzeltildi
+- **Zaman atlamalı kayıt satırı İngilizcede Türkçe kalıyordu:** `24:14` gibi süreler iki sayı sayıldığı için
+  çeviri anahtarı eşleşmiyordu; iki ve üç parçalı süre kalıpları için anahtarlar eklendi (`src/i18n.manual.ts`).
+- **Gezegen kartında İngilizce "%66" biçimi:** `yüzeyin %§ sıvı` anahtarı "§% of the surface is liquid" olarak çevriliyor
+  (commit `fa6b6f1`); kartta artık "66% of the surface is liquid" görünür.
+- **Dönüm noktası satırı kesiliyordu:** satır artık en çok üç satıra kıvrılıyor (`src/card.ts`, `wrap`).
+- **Kartta "en uzun yaşayan soy" yoktu:** yerleşmiş türler arasında en uzun varlığını sürdüren tür adı ve süresiyle eklendi.
+- **Dönüm noktasına geri sarma kaba bir ana dönüyordu:** her dönüm noktasında ayrı, seyreltilmeyen anlık görüntü
+  alınıyor ve "Geri al" var (commit `6dcbcb3`); ayrıca geri sarma bildirimi gösteriliyor.
 - **Tarih sekmesi her çizimde `null.disabled` hatası veriyordu ve fosil kaydı hiç çizilmiyordu**
   (`src/main.ts:325` bulunmayan `#lapse-open` öğesini arıyordu). Commit `759ea23` ile giderildi.
   Yeniden test: sayfa hatası yok, 24 dakikada 5 fosil kartı göründü.

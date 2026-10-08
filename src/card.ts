@@ -59,6 +59,22 @@ function fit(ctx: CanvasRenderingContext2D, text: string, max: number): string {
   return `${t}…`;
 }
 
+/** Metni `max` genişliğe sığan satırlara böler (ayraçlardan); `lines` satırı aşarsa sonuncu kısaltılır. */
+function wrap(ctx: CanvasRenderingContext2D, text: string, max: number, lines: number): string[] {
+  const out: string[] = [];
+  let cur = "";
+  for (const word of text.split(" · ")) {
+    const next = cur === "" ? word : `${cur} · ${word}`;
+    if (cur !== "" && ctx.measureText(next).width > max) {
+      out.push(cur);
+      cur = word;
+    } else cur = next;
+  }
+  if (cur !== "") out.push(cur);
+  if (out.length > lines) out.length = lines, (out[lines - 1] = `${out[lines - 1]} …`);
+  return out.map((l) => fit(ctx, l, max));
+}
+
 /** Kartı çizer. `ui` varsa çalışan dünyanın özeti de eklenir. */
 export function drawCard(seed: number, ui: UiPayload | null, time: number, profile?: PlanetProfile): HTMLCanvasElement {
   const world = new World(seed);
@@ -135,7 +151,7 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
   row("Atmosfer", c.atmosphere.map((g) => `${g.gas} ${Math.round(g.share * 100)}%`).join(" · "));
 
   // Alt şerit: çalışan dünyanın özeti.
-  const by = H - pad - 44;
+  const by = H - pad - 44 - (ui ? 64 : 0);
   ctx.strokeStyle = "rgba(255,255,255,0.12)";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -151,11 +167,19 @@ export function drawCard(seed: number, ui: UiPayload | null, time: number, profi
     ctx.fillStyle = DIM;
     ctx.font = font(15);
     ctx.fillText(fit(ctx, `${living} ${tr("yaşayan tür")} · ${gone} ${tr("tükenen tür")} · ${ui.milestones.length} ${tr("dönüm noktası")}`, rw), rx, by + 30);
-    const names = ui.milestones.map((m) => tr(MS_LABEL[m.key] ?? m.key)).join(" · ");
-    if (names) {
-      ctx.font = font(13);
-      ctx.fillText(fit(ctx, names, rw), rx, by + 52);
+    // En uzun yaşayan soy: yerleşmiş türler arasında en uzun süre varlığını sürdüren (yaşıyorsa şimdiye kadar, tükendiyse tükendiği ana kadar).
+    let longest: { name: string; span: number; alive: boolean } | null = null;
+    for (const s of ui.species) {
+      if (!s.established) continue;
+      const alive = s.count > 0 || s.extinct < 0;
+      const span = (alive ? time : s.extinct) - s.born;
+      if (!longest || span > longest.span) longest = { name: s.name, span, alive };
     }
+    ctx.font = font(13);
+    if (longest) ctx.fillText(fit(ctx, `${tr("En uzun yaşayan tür")}: ${longest.name} · ${fmtTime(longest.span)}`, rw), rx, by + 52);
+    // Dönüm noktaları tek satıra sığmazsa alta kıvrılır (en çok üç satır).
+    const names = ui.milestones.map((m) => tr(MS_LABEL[m.key] ?? m.key)).join(" · ");
+    if (names) wrap(ctx, names, rw, 3).forEach((line, i) => ctx.fillText(line, rx, by + 74 + i * 17));
   } else {
     ctx.fillStyle = DIM;
     ctx.font = font(15);
