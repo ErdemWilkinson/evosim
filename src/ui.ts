@@ -321,6 +321,9 @@ export function planetHtml(planet: PlanetProfile, actions = true): string {
     `<div class="elements">${c.elements.map((e) => `<span class="el" style="--c:${ELEMENTS[e.sym].color}" title="${ELEMENTS[e.sym].name}"><b>${e.sym}</b><small>${pct(e.share)}</small></span>`).join("")}${c.trace.map((e) => `<span class="el trace" style="--c:${ELEMENTS[e.sym].color}" title="${ELEMENTS[e.sym].name} (iz element)"><b>${e.sym}</b><small>iz</small></span>`).join("")}</div>` +
     `<div class="facts" style="margin-top:9px">` +
     fact("Yüzey sıvısı", esc(c.solvent.name), `${c.temperature} K · yüzeyin ${pct(planet.liquidPercent / 100)}`) +
+    fact("Yaşamın kökeni", esc(c.origin.name)) +
+    `</div><p class="note" style="margin-top:9px">${esc(planet.narrative)}</p>` +
+    `<details class="more"><summary>Tüm kimya ayrıntıları</summary><div class="facts" style="margin-top:9px">` +
     fact("İskelet", esc(c.scaffold.name)) +
     fact("Zar", esc(c.membrane.name)) +
     fact("Evrilebilecek hücre duvarı", esc(c.wall.name), "ilk hücre duvarsızdır") +
@@ -330,11 +333,9 @@ export function planetHtml(planet: PlanetProfile, actions = true): string {
     fact("Işık pigmenti", esc(c.pigment.name)) +
     fact("Yüzey basıncı", `${nf(c.pressure, 2)} bar`, `sıvı bu basınçta ${c.liquidUntil} K'ye kadar sıvı kalır`) +
     fact("Atmosfer", c.atmosphere.map((g) => `${g.gas} ${pct(g.share)}`).join(" · ")) +
-    fact("Yaşamın kökeni", esc(c.origin.name)) +
     fact("Köken enerjisi", esc(c.originEnergy.name)) +
-    `</div><p class="note" style="margin-top:9px">${esc(planet.narrative)}</p>` +
-    `<p class="foot" style="margin-top:6px">Kimyanın simülasyona etkisi: metabolizma ${mult(c.mods.metabolism)}, hız ${mult(c.mods.speed)}, can ${mult(c.mods.hp)}, üretici büyümesi ${mult(c.mods.plant)}. ` +
-    `${blocked.length > 0 ? `Bu gezegende ortaya çıkamayan organlar: ${blocked.join(", ")}.` : "Bu gezegende tüm organlar ortaya çıkabilir."}</p>` +
+    `</div><p class="foot" style="margin-top:6px">Kimyanın simülasyona etkisi: metabolizma ${mult(c.mods.metabolism)}, hız ${mult(c.mods.speed)}, can ${mult(c.mods.hp)}, üretici büyümesi ${mult(c.mods.plant)}. ` +
+    `${blocked.length > 0 ? `Bu gezegende ortaya çıkamayan organlar: ${blocked.join(", ")}.` : "Bu gezegende tüm organlar ortaya çıkabilir."}</p></details>` +
     (actions ? `<div class="card-actions" style="margin-top:9px"><button type="button" class="btn btn-small" data-action="inspect-planet">Hücre yapısını incele</button><button type="button" class="btn btn-small" data-action="origin-film">Köken filmini izle</button><button type="button" class="btn btn-small" data-action="planet-card">Gezegen kartı</button></div>` : "") +
     `<details class="refs"><summary>Kaynaklar</summary><ul>${refs.map((o) => `<li><b>${esc(o.name)}:</b> ${esc(o.note)} <i>${esc(o.ref)}</i></li>`).join("")}<li><b>${esc(c.origin.name)}:</b> <i>${esc(c.origin.ref)}</i></li><li><b>${esc(c.originEnergy.name)}:</b> ${esc(c.originEnergy.note)} <i>${esc(c.originEnergy.ref)}</i></li><li><b>Yüzey basıncı:</b> <i>${esc(PHASE_REF)}</i></li></ul></details>`
   );
@@ -774,7 +775,7 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
       : g.organs
           .map(
             (o) =>
-              `<div class="organ-row"><span>${ORGANS[o.type].label}<small>${esc(ORGANS[o.type].description)}</small></span><i><i style="display:block;height:100%;width:${o.power * 100}%"></i></i><b>${nf(o.power, 2)}</b>` +
+              `<div class="organ-row"><span>${ORGANS[o.type].label}<details class="info"><summary title="Ne işe yarar?">ⓘ</summary><small>${esc(ORGANS[o.type].description)}</small></details></span><i><i style="display:block;height:100%;width:${o.power * 100}%"></i></i><b>${nf(o.power, 2)}</b>` +
               (d.alive ? `<button type="button" class="x game-only" data-action="organ-remove" data-organ="${o.type}" aria-label="${ORGANS[o.type].label} organını kaldır" title="Organı kaldır">✕</button>` : `<span></span>`) +
               `</div>`
           )

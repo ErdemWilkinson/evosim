@@ -3,7 +3,7 @@ import { EvolutionSpeed } from "./genome";
 import { OrganType } from "./organs";
 import { PhyloTree } from "./phylo";
 import { refsHtml } from "./refs";
-import { Tour, greet, greeted, tourSeen } from "./tutorial";
+import { Tour, tourSeen } from "./tutorial";
 import { StartMenu } from "./intro";
 import { OriginFilm, StructureViewer } from "./inspect";
 import { generatePlanetProfile } from "./planet";
@@ -90,6 +90,7 @@ let lastHash = "";
 let keepSave: SaveData | null = null;
 let menuOrigin = false;
 let startMenu: StartMenu | null = null;
+let hintShown = false;
 let soundTime = 0;
 let soundSeen = { births: 0, hunts: 0, est: 0, gone: 0 };
 let fossils: Fossil[] = [];
@@ -159,6 +160,25 @@ function setTab(next: Tab): void {
   if (view?.ui) refreshTab(view, view.ui);
 }
 
+const UI_KEY = "evosim-ui";
+
+/** Sade görünüm (yeni oyuncu): yalnızca harita, hız ve iki sekme. `remember` seçimi sonraki açılışlar için saklar. */
+function setSimple(on: boolean, remember = true): void {
+  document.documentElement.toggleAttribute("data-simple", on);
+  $("btn-adv").setAttribute("aria-pressed", String(!on));
+  if (on) {
+    if (document.documentElement.hasAttribute("data-game")) setGameMode(false);
+    if (tab !== "overview" && tab !== "creature") setTab("overview");
+  }
+  if (!remember) return;
+  try {
+    localStorage.setItem(UI_KEY, on ? "simple" : "full");
+  } catch {
+    /* depolama kapalıysa seçim yalnızca bu oturumda geçerli */
+  }
+}
+$("btn-adv").addEventListener("click", () => setSimple(!document.documentElement.hasAttribute("data-simple")));
+
 function select(id: number): void {
   selected = id;
   selectedAt = performance.now();
@@ -206,6 +226,10 @@ function onEpoch(v: View): void {
     playFilm(v, () => {
       client.send({ type: "speed", value: lastSpeed });
       scene.beginGenesis();
+      if (!tourSeen() && !hintShown) {
+        hintShown = true;
+        window.setTimeout(() => toast("Yardım ister misiniz? Sağ üstteki Rehber düğmesine basın."), 1500);
+      }
     });
   }
   $("seed-chip").textContent = `tohum ${v.world.seed}`;
@@ -717,7 +741,6 @@ function openPlanet(seed?: number): void {
   requestAnimationFrame(top);
   window.setTimeout(top, 120);
   // İlk kez gelen oyuncuya Erdem imleci gezegen ekranında rehber ister.
-  if (!greeted()) window.setTimeout(() => dialog.open && greet(tour), 0);
 }
 
 function startPlanet(): void {
@@ -903,6 +926,8 @@ const tour = new Tour({
   tab: () => tab,
   setTab: (name) => setTab(name as Tab),
   clearSelection: () => select(0),
+  simple: () => document.documentElement.hasAttribute("data-simple"),
+  setSimple: (on) => setSimple(on, false),
   pickCreature: (want) => {
     if (!view || view.frame.n === 0) return null;
     // Haritanın ortasına en yakın canlı.
@@ -1055,6 +1080,17 @@ try {
 } catch {
   setGameMode(false);
 }
+{
+  // Yeni oyuncu sade görünümle başlar; kayıtlı oyunu ya da paylaşım bağlantısı olan, daha önce oynamış sayılır.
+  let simple = true;
+  try {
+    const pref = localStorage.getItem(UI_KEY);
+    simple = pref ? pref === "simple" : localStorage.getItem(SAVE_KEY) === null && localStorage.getItem(LEGACY_SAVE_KEY) === null && parseShare(window.location.hash) === null;
+  } catch {
+    simple = true;
+  }
+  setSimple(simple);
+}
 const sharedAtStart = parseShare(window.location.hash);
 let restored = false;
 try {
@@ -1093,8 +1129,11 @@ if (restored) {
       $<HTMLDialogElement>("dlg-refs").showModal();
       return;
     }
-    menuOrigin = true;
-    openPlanet();
+    // "Başla": gezegen penceresi açılmaz; rastgele bir gezegen hemen başlar (seçmek isteyen "Yeni gezegen"e basar).
+    menuOrigin = false;
+    pendingShare = null;
+    $<HTMLInputElement>("seed-input").value = String(randomSeed());
+    startPlanet();
   });
   startMenu.open();
 }

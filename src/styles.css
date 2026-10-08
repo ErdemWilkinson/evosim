@@ -1351,6 +1351,27 @@ input[type="range"] {
   white-space: nowrap;
 }
 
+details.info {
+  display: inline;
+}
+
+details.info summary {
+  display: inline;
+  margin-left: 6px;
+  cursor: pointer;
+  color: var(--ink-3);
+  list-style: none;
+}
+
+details.info summary::-webkit-details-marker {
+  display: none;
+}
+
+details.info summary:hover,
+details.info[open] summary {
+  color: var(--accent);
+}
+
 .organ-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 64px 34px 26px;
@@ -2055,10 +2076,21 @@ textarea {
   font-size: 12px;
 }
 
-.refs summary {
+.refs summary,
+.more summary {
   cursor: pointer;
   color: var(--ink-2);
   font-weight: 600;
+}
+
+.more {
+  margin-top: 9px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.more summary:hover {
+  color: var(--accent);
 }
 
 .refs ul {
@@ -2405,6 +2437,11 @@ textarea {
     min-width: 0;
     flex: 1 1 auto;
   }
+}
+
+/* Sade görünüm: yeni oyuncuya yalnızca harita, hız, Genel ve Birey sekmeleri gösterilir; "Gelişmiş" gerisini açar. */
+html[data-simple] .adv {
+  display: none !important;
 }
 
 /* ------------------------------------------------------------ rehber (hayalet imleç) */

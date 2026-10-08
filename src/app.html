@@ -21,7 +21,7 @@
       <div class="clock-main" id="clock">00:00</div>
       <div class="clock-sub" id="calendar">Gün 1</div>
     </div>
-    <div class="daylight" title="Gün ışığı">
+    <div class="daylight adv" title="Gün ışığı">
       <span class="label" id="daylight-label">Gündüz</span>
       <div class="daylight-track"><i id="daylight-fill"></i></div>
     </div>
@@ -30,11 +30,12 @@
 
     <div class="bar-actions">
       <button type="button" class="btn" id="btn-tour" title="Erdem size arayüzü gezdirir">Rehber</button>
-      <button type="button" class="btn" id="btn-game" aria-pressed="false" title="Oyun modu: elle müdahale araçlarını ve tahmin sorularını açar">Oyun</button>
-      <button type="button" class="btn" id="btn-tree">Soy ağacı</button>
-      <button type="button" class="btn" id="btn-refs">Kaynakça</button>
+      <button type="button" class="btn" id="btn-adv" aria-pressed="false" title="Gelişmiş: tüm sekmeleri, araçları, zaman yolculuğunu ve ayarları gösterir">Gelişmiş</button>
+      <button type="button" class="btn adv" id="btn-game" aria-pressed="false" title="Oyun modu: elle müdahale araçlarını ve tahmin sorularını açar">Oyun</button>
+      <button type="button" class="btn adv" id="btn-tree">Soy ağacı</button>
+      <button type="button" class="btn adv" id="btn-refs">Kaynakça</button>
       <button type="button" class="btn" id="btn-sound" aria-pressed="true" title="Müziği aç veya kapat">Ses</button>
-      <button type="button" class="btn" id="btn-save">Kayıt</button>
+      <button type="button" class="btn adv" id="btn-save">Kayıt</button>
       <button type="button" class="btn" id="btn-new">Yeni gezegen</button>
     </div>
   </header>
@@ -98,7 +99,7 @@
           <span>Geçmiş bir ana dönebilir ya da yeni bir gezegen başlatabilirsiniz.</span>
         </div>
       </div>
-      <div class="timeline">
+      <div class="timeline adv">
         <span class="label">Zaman yolculuğu</span>
         <input type="range" id="tl-range" min="0" max="0" value="0" step="1" aria-label="Geçmiş kayıt noktası" disabled>
         <span class="mono" id="tl-label">kayıt yok</span>
@@ -110,10 +111,10 @@
     <aside class="panel">
       <nav class="tabs" role="tablist">
         <button type="button" role="tab" data-tab="overview" aria-selected="true">Genel</button>
-        <button type="button" role="tab" data-tab="history" aria-selected="false">Tarih</button>
-        <button type="button" role="tab" data-tab="species" aria-selected="false">Türler</button>
-        <button type="button" role="tab" data-tab="organs" aria-selected="false">Organlar</button>
-        <button type="button" role="tab" data-tab="log" aria-selected="false">Günlük</button>
+        <button type="button" class="adv" role="tab" data-tab="history" aria-selected="false">Tarih</button>
+        <button type="button" class="adv" role="tab" data-tab="species" aria-selected="false">Türler</button>
+        <button type="button" class="adv" role="tab" data-tab="organs" aria-selected="false">Organlar</button>
+        <button type="button" class="adv" role="tab" data-tab="log" aria-selected="false">Günlük</button>
         <button type="button" role="tab" data-tab="creature" aria-selected="false">Birey</button>
       </nav>
 
@@ -123,11 +124,11 @@
           <div class="kpi"><span class="label">Tür</span><b id="k-species">0</b></div>
           <div class="kpi"><span class="label">Nesil</span><b id="k-gen">0</b></div>
           <div class="kpi"><span class="label">Bitki</span><b id="k-plants">0</b></div>
-          <div class="kpi"><span class="label">Karada</span><b id="k-land">0</b></div>
-          <div class="kpi"><span class="label">Hasta</span><b id="k-sick">0</b></div>
+          <div class="kpi adv"><span class="label">Karada</span><b id="k-land">0</b></div>
+          <div class="kpi adv"><span class="label">Hasta</span><b id="k-sick">0</b></div>
         </div>
 
-        <section class="block">
+        <section class="block adv">
           <h3>Örgütlenme düzeyi <span>birey sayısı</span></h3>
           <div id="k-stages"></div>
         </section>
@@ -138,7 +139,7 @@
           <div class="legend" id="pop-legend"></div>
         </section>
 
-        <section class="block">
+        <section class="block adv">
           <h3>Ölüm nedenleri <span id="deaths-total"></span></h3>
           <div class="bars" id="deaths"></div>
         </section>
@@ -148,7 +149,7 @@
           <div id="planet-facts"></div>
         </section>
 
-        <section class="block">
+        <section class="block adv">
           <h3>Dünya ayarları</h3>
           <label class="check"><input type="checkbox" id="set-game"><span>Oyun modu <small>elle müdahale araçlarını açar: bitki ekme, canlı yerleştirme, meteor, olay tetikleme, organ düzenleme</small></span></label>
           <label class="check"><input type="checkbox" id="set-events" checked><span>Kendiliğinden dünya olayları <small>meteor, iklim dalgası, rüzgâr, deprem</small></span></label>
@@ -292,7 +293,7 @@
       <button type="button" class="btn btn-icon" data-close aria-label="Kapat">✕</button>
     </header>
     <p class="hero-title">Bütün yaşam tek bir hücreyle başlar.</p>
-    <p class="note">Her tohum başka bir gezegen üretir: 22 elementten 10'u, o elementlerle kurulabilen bir yüzey sıvısı, zar, hücre duvarı ve yaşamın 20 köken senaryosundan biri. Aynı tohum hep aynı gezegeni verir.</p>
+    <p class="note">Her tohum başka bir gezegen üretir; aynı tohum hep aynı gezegeni verir.</p>
     <p class="note" id="share-note" hidden>Bu bir paylaşım bağlantısı. Kayıtlı oyununuz duruyor: pencereyi kapatırsanız geri yüklenir, "Simülasyonu başlat"a basarsanız bu gezegenle değiştirilir.</p>
     <div class="seed-row">
       <label class="field"><span class="label">Tohum</span><input type="text" id="seed-input" inputmode="numeric" autocomplete="off" maxlength="10"></label>

@@ -17,6 +17,9 @@ export interface TourContext {
   /** Haritadan bir canlı seçer ve ekran konumunu verir; `pick` canlıyı gerçekten seçer. Canlı yoksa null. */
   pickCreature(id?: number): { id: number; x: number; y: number; pick: () => void } | null;
   clearSelection(): void;
+  /** Sade görünüm açık mı; rehber tüm arayüzü gezdirdiği için turun süresince kapatılır. */
+  simple(): boolean;
+  setSimple(on: boolean): void;
 }
 
 type Pair = [string, string];
@@ -40,6 +43,8 @@ interface Step {
   planet?: boolean;
   /** Bu adımın tıklaması oyunu başlatır: köken filmi atlanır, oyun hazır olunca rehber kendiliğinden sürer. */
   startGame?: boolean;
+  /** Kısa turda da gösterilen adım (tam turda hepsi gösterilir). */
+  core?: boolean;
   /** Yapı penceresi açıkken gösterilen adım: pencere kapalıysa önce açılır, başka adımlarda kapatılır. */
   inspect?: boolean;
 }
@@ -49,11 +54,13 @@ const STEPS: Step[] = [
     tr: ["Merhaba, ben Erdem", "Bu oyunu ben yaptım. Şimdi ekranın her köşesini sırayla göstereceğim: düğmelere kendim tıklayacağım, siz yalnızca izleyin. “İleri” ile ilerleyin, “Geri” ile dönün, “Kapat” ile istediğiniz an çıkın."],
     en: ["Hi, I'm Erdem", "I made this game. I'll walk you through every corner of the screen: I'll click the buttons myself, you just watch. Use “Next” to go on, “Back” to return, and “Close” to leave any time."],
     anyStage: true,
+    core: true,
   },
   {
     tr: ["Önce gezegeni kuralım", "Burası “Yeni gezegen” ekranı. Bu oyunda hiçbir şey hazır gelmez: her gezegenin kimyası sıfırdan, bir sayıdan üretilir ve yaşam o kimyanın izin verdiği yoldan evrilir. Dünya'daki yaşam yalnızca bir örnektir; burada su yerine amonyak, karbon yerine silisyum bile çıkabilir. Önce bu ekranı tek tek gezelim, sonra oyunun içine geçeriz."],
     en: ["First, let's build a planet", "This is the “New planet” screen. Nothing here comes pre-made: every planet's chemistry is generated from scratch from a number, and life evolves along whatever path that chemistry allows. Life on Earth is just one example; here the liquid might be ammonia instead of water, or silicon might stand in for carbon. Let's go through this screen piece by piece first, then step into the game."],
     planet: true,
+    core: true,
   },
   {
     tr: ["Tohum", "Gezegenin tamamı bu tek sayıdan türetilir: kabuktaki elementler, yüzey sıvısı, sıcaklık, basınç, atmosfer, yaşamın kökeni, ilk hücrenin yapısı ve haritanın şekli. Bilgisayar aynı sayıyla her seferinde aynı sonucu çıkardığı için aynı tohumu yazan herkes birebir aynı dünyayı görür; bir gezegeni arkadaşınıza yalnızca sayısını söyleyerek gönderebilirsiniz. İstediğiniz sayıyı yazabilirsiniz."],
@@ -61,6 +68,7 @@ const STEPS: Step[] = [
     target: "#seed-input",
     click: false,
     planet: true,
+    core: true,
   },
   {
     tr: ["Rastgele", "Bu düğme yeni bir tohum seçer. Şimdi basıyorum: harita, sağdaki kutular ve ilk hücrenin yapısı birlikte değişir; çünkü hepsi aynı sayıdan çıkar. Birkaç kez basarsanız bambaşka dünyalar görürsünüz: buzlu amonyak denizleri, kızgın kükürt gölleri, silisyumlu kabuklar. Beğendiğiniz birini bulana kadar deneyebilirsiniz."],
@@ -68,6 +76,7 @@ const STEPS: Step[] = [
     target: "#seed-random",
     click: true,
     planet: true,
+    core: true,
   },
   {
     tr: ["Günün gezegeni", "Bugünün tarihinden türetilen ortak bir tohum açar: o gün oyunu açan herkes aynı dünyayı görür, ertesi gün yenisi gelir. Arkadaşlarınızla aynı gezegende kimin yaşamı daha ileri götürdüğünü, hangi türlerin çıktığını ya da erken öldüğünü karşılaştırmak için güzel bir yoldur."],
@@ -130,17 +139,20 @@ const STEPS: Step[] = [
     click: true,
     planet: true,
     startGame: true,
+    core: true,
   },
   {
     tr: ["Bu bir gezegen", "Tek bir hücreyle başlayan yaşamı izliyorsunuz. Kimya, sıvı, harita ve ilk hücre bir sayıdan, “tohumdan” üretilir. Aynı tohum herkeste aynı gezegeni açar; kartı paylaşırsanız arkadaşınız da aynısını görür."],
     en: ["This is a planet", "You are watching life that began with one cell. The chemistry, liquid, map and first cell all come from one number, the “seed”. The same seed opens the same planet for everyone; share the card and a friend sees the same one."],
     target: "#seed-chip",
+    core: true,
   },
   {
     tr: ["Hız düğmeleri", "Zamanı duraklatabilir (Boşluk tuşu da çalışır) ya da 24 kata kadar hızlandırabilirsiniz. Evrim yavaştır: gerçek bir şeyin olması için çoğu zaman 8× ya da 24× gerekir. Şimdi 4×'e basıyorum."],
     en: ["Speed buttons", "You can pause time (the Space key works too) or speed it up to 24×. Evolution is slow: for anything real to happen you usually need 8× or 24×. I'm pressing 4× now."],
     target: '[data-speed="4"]',
     click: true,
+    core: true,
   },
   {
     tr: ["Saat ve gün ışığı", "Burada geçen süre, gün sayısı ve gün ışığı görünür. Işıkla beslenen canlılar gündüz daha çok enerji alır; gece ya da loş sularda zorlanırlar."],
@@ -152,6 +164,7 @@ const STEPS: Step[] = [
     en: ["The map", "This is the world. Drag to pan and use the wheel to zoom. Each coloured blob is a creature; the colour shows how it feeds. I'm pressing the zoom button now."],
     target: "#zoom-in",
     click: true,
+    core: true,
   },
   {
     tr: ["Tüm harita", "Bu düğme bütün haritayı yeniden sığdırır. Yakınlaşınca kaybolursanız buraya basın."],
@@ -163,12 +176,14 @@ const STEPS: Step[] = [
     tr: ["Bir canlı seçelim", "Bir canlıya tıklayınca onu seçersiniz. Sağdaki panel “Birey” sekmesine geçer: enerjisi, canı, yaşı, nasıl beslendiği ve genleri. “F” tuşu seçili canlıyı takip eder, “Esc” seçimi bırakır."],
     en: ["Let's pick a creature", "Click a creature to select it. The right panel switches to the “Individual” tab: its energy, health, age, how it feeds and its genes. The “F” key follows the selected creature, “Esc” lets go."],
     creature: true,
+    core: true,
   },
   {
     tr: ["Yapıyı incele", "Bu düğme canlıyı hücre düzeyine kadar açar. Şimdi ben açıyorum; her hücrenin duvarı, zarı, kalıtım polimeri ve organları kendi genomundan gelir, bu yüzden farklı hücreler farklı görünür."],
     en: ["Inspect structure", "This button opens the creature down to the cell level. I'm opening it now; each cell's wall, membrane, heredity polymer and organs come from its own genome, so different cells look different."],
     target: '[data-action="inspect"]',
     click: true,
+    core: true,
   },
   {
     tr: ["Dört büyütme düzeyi", "Canlı, kabuk kesiti, molekül ve atom: her düzey bir öncekinden yüz ila yüz bin kat büyük bakar. Buradaki düğmelerle dilediğiniz düzeye atlarsınız; ya da görüntüye dokunarak yavaşça yakınlaşırsınız."],
@@ -177,6 +192,7 @@ const STEPS: Step[] = [
     click: false,
     inspect: true,
     wide: true,
+    core: true,
   },
   {
     tr: ["Kabuk kesiti", "Şimdi “Kabuk kesiti”ne iniyorum. Üstte dış ortam, altta hücrenin içi var; aralarında hücre duvarı ve zar katmanları dizilir."],
@@ -221,6 +237,7 @@ const STEPS: Step[] = [
     target: "#dlg-inspect [data-close]",
     click: true,
     inspect: true,
+    core: true,
   },
   {
     tr: ["Genom: canlının yazılı planı", "Aşağı kaydırınca Birey sekmesinde canlının genomu bir şerit olarak görünür. Her basamak bir gen: beden büyüklüğü, hız, algı menzili, renk, beslenme biçimi, organlar ve karar ağının her bir ağırlığı. Oyundaki genom bu sayısal özelliklerin listesidir; gerçek bir nükleotit dizisi değildir. Şeridin biçimi (sarmal, merdiven, istif, tabaka…) bu gezegenin kalıtım polimerinden gelir; DNA olmak zorunda değildir."],
@@ -321,15 +338,16 @@ const STEPS: Step[] = [
     target: "#btn-new",
   },
   {
-    tr: ["Hepsi bu", "Artık dünyayı izlemeye başlayabilirsiniz. Önce 8× deneyin, sonra bir canlıyı seçip yapısını inceleyin; Tarih sekmesinde dönüm noktalarını görün. Bu rehbere her zaman sağ üstteki “Rehber” düğmesinden dönebilirsiniz."],
-    en: ["That's all", "You can start watching the world now. Try 8× first, then pick a creature and inspect its structure; see the milestones in the History tab. You can return to this guide any time with the “Guide” button at the top."],
+    tr: ["Hepsi bu", "Artık dünyayı izlemeye başlayabilirsiniz. Önce 8× deneyin, sonra bir canlı seçip yapısını inceleyin. Daha fazlası için sağ üstteki “Gelişmiş”e basın: tüm sekmeler, araçlar ve zaman yolculuğu açılır. Her sekmeyi ve aracı tek tek anlatan uzun turu da izleyebilirsiniz."],
+    en: ["That's all", "You can start watching the world now. Try 8× first, then pick a creature and inspect its structure. For more, press “Advanced” at the top right: every tab, tool and time travel open up. You can also watch the long tour that explains each tab and tool one by one."],
     target: "#btn-tour",
+    core: true,
   },
 ];
 
 const LABELS = {
-  tr: { dev: "Erdem", next: "İleri", back: "Geri", close: "Kapat", done: "Bitti" },
-  en: { dev: "Erdem", next: "Next", back: "Back", close: "Close", done: "Done" },
+  tr: { dev: "Erdem", next: "İleri", back: "Geri", close: "Kapat", done: "Bitti", full: "Uzun tur" },
+  en: { dev: "Erdem", next: "Next", back: "Back", close: "Close", done: "Done", full: "Long tour" },
 };
 
 const ARROW =
@@ -349,8 +367,10 @@ export class Tour {
   private launched = false;
   /** Rehber gezegen ekranından başladı: ilk (karşılama) adım oyuncunun "İleri"sini bekler. */
   private fromStage = false;
+  /** Uzun tur: çekirdek olmayan adımlar da gösterilir. */
+  private full = false;
   private auto = 0;
-  private saved: { speed: number; game: boolean; tab: string } | null = null;
+  private saved: { speed: number; game: boolean; tab: string; simple: boolean } | null = null;
   private steps: Step[] = STEPS;
 
   constructor(private readonly ctx: TourContext) {}
@@ -359,15 +379,17 @@ export class Tour {
     return this.open;
   }
 
-  public start(): void {
+  public start(full = false): void {
     // Gezegen oluşturma ekranı açıkken rehber o ekranı da anlatır; oyun içinden başlatılınca o adımlar atlanır.
     const stage = (document.getElementById("dlg-planet") as HTMLDialogElement | null)?.open === true;
     if (this.open || (!stage && !this.ctx.ready())) return;
-    this.steps = STEPS.filter((st) => stage || !st.planet);
+    this.full = full;
+    this.steps = STEPS.filter((st) => (stage || !st.planet) && (full || st.core === true));
     this.launched = false;
     this.fromStage = stage;
     this.open = true;
-    this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab() };
+    this.saved = { speed: this.ctx.speed(), game: this.ctx.gameMode(), tab: this.ctx.tab(), simple: this.ctx.simple() };
+    this.ctx.setSimple(false);
     this.ctx.setSpeed(1);
     this.build();
     this.index = 0;
@@ -402,6 +424,7 @@ export class Tour {
     if (s) {
       this.ctx.clearSelection();
       this.ctx.setGame(s.game);
+      this.ctx.setSimple(s.simple);
       this.ctx.setTab(s.tab);
       this.ctx.setSpeed(s.speed);
     }
@@ -469,7 +492,7 @@ export class Tour {
       `<div class="tour-ring"></div>` +
       `<div class="tour-cursor">${ARROW}<span class="tour-name"></span></div>` +
       `<div class="tour-card" role="dialog" aria-live="polite"><div class="tour-step"></div><h3></h3><p></p>` +
-      `<div class="tour-dots"></div><div class="tour-actions"><button type="button" class="btn btn-small" data-t="back"></button><button type="button" class="btn btn-small tour-next" data-t="next"></button><button type="button" class="btn btn-small" data-t="close"></button></div></div>`;
+      `<div class="tour-dots"></div><div class="tour-actions"><button type="button" class="btn btn-small" data-t="back"></button><button type="button" class="btn btn-small tour-next" data-t="next"></button><button type="button" class="btn btn-small" data-t="full" hidden></button><button type="button" class="btn btn-small" data-t="close"></button></div></div>`;
     document.body.appendChild(root);
     root.showPopover?.();
     this.root = root;
@@ -481,6 +504,10 @@ export class Tour {
       const b = (e.target as HTMLElement).closest<HTMLElement>("[data-t]");
       if (!b) return;
       if (b.dataset.t === "close") this.stop();
+      else if (b.dataset.t === "full") {
+        this.stop();
+        this.start(true);
+      }
       else if (b.dataset.t === "next") this.go(this.index + 1);
       else this.go(this.index - 1);
     });
@@ -571,6 +598,9 @@ export class Tour {
     this.card.querySelector(".tour-step")!.textContent = `${this.index + 1} / ${this.steps.length}`;
     this.card.querySelector<HTMLElement>('[data-t="back"]')!.textContent = L.back;
     this.card.querySelector<HTMLElement>('[data-t="close"]')!.textContent = L.close;
+    const more = this.card.querySelector<HTMLElement>('[data-t="full"]')!;
+    more.textContent = L.full;
+    more.hidden = this.full || this.index !== this.steps.length - 1;
     const next = this.card.querySelector<HTMLElement>('[data-t="next"]')!;
     next.textContent = this.index === this.steps.length - 1 ? L.done : L.next;
     this.card.querySelector<HTMLButtonElement>('[data-t="back"]')!.disabled = this.index === 0;
