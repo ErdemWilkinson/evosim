@@ -228,7 +228,8 @@ function refresh(v: View, ui: UiPayload): void {
   for (const b of document.querySelectorAll<HTMLElement>("[data-speed]")) b.setAttribute("aria-pressed", String(Number(b.dataset.speed) === ui.speed));
   if (ui.speed > 0) lastSpeed = ui.speed;
 
-  const chips: string[] = [`<span class="chip">O₂ <b>%${Math.round(ui.oxygen * 100)}</b></span>`];
+  // Solunum gazı: bu gezegenin ana atmosfer gazı (yapı penceresinde solungaçta da bu gaz geçer); yalnızca Dünya'da O₂.
+  const chips: string[] = [`<span class="chip">${v.world.chem.atmosphere[0].gas} <b>%${Math.round(ui.oxygen * 100)}</b></span>`];
   if (ui.climate) chips.push(`<span class="chip">${ui.climate.warm ? "Sıcak dalga" : "Soğuk dalga"} <b>${Math.ceil(ui.climate.left)} sn</b></span>`);
   if (ui.wind) {
     const dirs = getLang() === "en" ? ["E", "SE", "S", "SW", "W", "NW", "N", "NE"] : ["D", "GD", "G", "GB", "B", "KB", "K", "KD"];

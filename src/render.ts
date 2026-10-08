@@ -151,34 +151,96 @@ function dot(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, fil
   ctx.fill();
 }
 
-function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome): void {
-  const lw = Math.max(0.35, r * 0.09);
+/** Organın görsel boyutu: güç 0,05'te minik bir tomurcuk, 1'de tam gelişmiş organ (güç ne kadar küçükse o kadar küçük çizilir). */
+const organScale = (p: number): number => 0.3 + 0.7 * p;
+
+/** Küçük işaret organlarının gövdedeki merkezi (fx, sy oranı); organ küçülünce kendi merkezine doğru büzülür. */
+const ANCHOR: Partial<Record<OrganType, [number, number]>> = {
+  sprint_muscle: [-0.3, 0],
+  eyespot: [0.58, -0.32],
+  eye: [0.55, 0],
+  bioluminescence: [-0.25, -0.05],
+  lateral_line: [-0.05, 0.48],
+  electroreceptor: [0.37, -0.52],
+  mouth: [1, 0],
+  symbiotic_gut_flora: [0.04, 0.48],
+  pigment: [0, 0],
+  camouflage: [0, 0],
+  chromatophore: [0, 0],
+  regeneration: [-0.45, -0.35],
+  gill: [0.3, 0.58],
+  lung: [0.05, 0],
+  torpor: [-0.62, 0],
+  swim_bladder: [-0.05, -0.3],
+  immune_gland: [0.42, 0.36],
+};
+
+/** İç keselerin atış hızı ve genliği: kalp hızlı ve sert, yağ deposu yavaş ve yumuşak atar. */
+const VESICLE_PULSE: Partial<Record<OrganType, [number, number]>> = {
+  heart: [9, 0.22],
+  stomach: [2.5, 0.12],
+  sulfur_vent_organ: [4, 0.2],
+  nitrogen_sac: [1.4, 0.08],
+  fat_store: [1.2, 0.05],
+  ink_sac: [1.6, 0.1],
+  venom: [3, 0.14],
+};
+
+function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome, t: number, id: number, fast: boolean): void {
+  const k = organScale(p);
+  ctx.save();
+  // Uzantılar gövdenin arkasında çizilir: küçülünce kökleri gövdenin içine çekilir. Kaplamalar ve keseler kendi ölçeğini kullanır.
+  const scaled = BEHIND.has(type) && type !== "mucus_coat";
+  if (scaled) ctx.scale(k, k);
+  else {
+    const a = ANCHOR[type];
+    if (a) {
+      ctx.translate(a[0] * fx, a[1] * sy);
+      ctx.scale(k, k);
+      ctx.translate(-a[0] * fx, -a[1] * sy);
+    }
+  }
+  drawOrganBody(ctx, type, scaled ? 1 : p, scaled ? k : 1, r, fx, sy, pal, g, t, id, fast);
+  ctx.restore();
+}
+
+function drawOrganBody(ctx: CanvasRenderingContext2D, type: OrganType, p: number, sc: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome, t: number, id: number, fast: boolean): void {
+  const lw = Math.max(0.35, r * 0.09) / sc;
   ctx.strokeStyle = pal.edge;
   ctx.lineWidth = lw;
   ctx.lineCap = "round";
+  const ph = t * (fast ? 1.7 : 1) + id * 1.3;
   const vesicle = VESICLE[type];
   if (vesicle) {
-    dot(ctx, vesicle[0] * fx, vesicle[1] * sy, vesicle[2] * r * (0.8 + p * 0.4), vesicle[3]);
+    const [rate, amp] = VESICLE_PULSE[type] ?? [2, 0.08];
+    // Kalp "lub-dub" atar: keskin tepe, ardından uzun dinlenme.
+    const beat = type === "heart" ? Math.pow(Math.max(0, Math.sin(ph * rate * 0.5)), 6) : 0.5 + 0.5 * Math.sin(ph * rate);
+    dot(ctx, vesicle[0] * fx, vesicle[1] * sy, vesicle[2] * r * (0.4 + p * 0.8) * (1 + amp * beat), vesicle[3]);
     return;
   }
   switch (type) {
     case "tentacle":
-      for (const k of [-1, 1]) {
+      for (const s of [-1, 1]) {
         const len = r * (0.9 + p);
+        // Dalga köke yakın küçük, uçta büyüktür: kamçı gibi savrulur.
+        const w1 = Math.sin(ph * 6 + s) * len * 0.08;
+        const w2 = Math.sin(ph * 6 + s - 1.2) * len * 0.16;
+        const w3 = Math.sin(ph * 6 + s - 2.4) * len * 0.26;
         ctx.beginPath();
-        ctx.moveTo(-fx * 0.92, k * sy * 0.25);
-        ctx.bezierCurveTo(-fx - len * 0.35, k * sy * 0.9, -fx - len * 0.65, -k * sy * 0.3, -fx - len, k * sy * 0.45);
+        ctx.moveTo(-fx * 0.92, s * sy * 0.25);
+        ctx.bezierCurveTo(-fx - len * 0.35, s * sy * 0.9 + w1, -fx - len * 0.65, -s * sy * 0.3 + w2, -fx - len, s * sy * 0.45 + w3);
         ctx.stroke();
       }
       break;
     case "fin": {
-      const len = r * (0.55 + p * 0.55);
+      const flap = Math.sin(ph * 7);
+      const len = r * (0.55 + p * 0.55) * (1 + 0.1 * flap);
       ctx.fillStyle = pal.pale;
       ctx.beginPath();
       ctx.moveTo(-fx * 0.85, 0);
-      ctx.lineTo(-fx - len, -sy * 0.7);
+      ctx.lineTo(-fx - len, -sy * 0.7 * (1 + 0.18 * flap));
       ctx.lineTo(-fx - len * 0.7, 0);
-      ctx.lineTo(-fx - len, sy * 0.7);
+      ctx.lineTo(-fx - len, sy * 0.7 * (1 + 0.18 * flap));
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
@@ -188,16 +250,18 @@ function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r:
       for (let i = -1; i <= 1; i++) {
         const x = i * fx * 0.5;
         const len = r * (0.35 + p * 0.45);
-        for (const k of [-1, 1]) line(ctx, x, k * sy * 0.85, x - r * 0.18, k * (sy + len));
+        // Bacaklar sırayla yürür: komşu bacak ters fazda, iki yan da karşılıklı.
+        for (const s of [-1, 1]) line(ctx, x, s * sy * 0.85, x - r * 0.18 + Math.sin(ph * 8 + i * 2.1 + (s > 0 ? Math.PI : 0)) * r * 0.2, s * (sy + len));
       }
       break;
     case "wing":
       ctx.fillStyle = pal.pale;
-      for (const k of [-1, 1]) {
+      for (const s of [-1, 1]) {
+        const beat = 0.6 + 0.4 * Math.sin(ph * 6);
         ctx.beginPath();
-        ctx.moveTo(fx * 0.2, k * sy * 0.7);
-        ctx.quadraticCurveTo(-r * 0.2, k * (sy + r * (1 + p * 0.7)), -fx * 0.95, k * (sy + r * 0.25));
-        ctx.quadraticCurveTo(-fx * 0.4, k * sy * 0.9, fx * 0.2, k * sy * 0.7);
+        ctx.moveTo(fx * 0.2, s * sy * 0.7);
+        ctx.quadraticCurveTo(-r * 0.2, s * (sy + r * (1 + p * 0.7) * beat), -fx * 0.95, s * (sy + r * 0.25 * beat));
+        ctx.quadraticCurveTo(-fx * 0.4, s * sy * 0.9, fx * 0.2, s * sy * 0.7);
         ctx.globalAlpha *= 0.6;
         ctx.fill();
         ctx.globalAlpha /= 0.6;
@@ -206,20 +270,22 @@ function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r:
       break;
     case "sucker":
       ctx.beginPath();
-      ctx.arc(-fx - r * 0.14, 0, r * 0.22, 0, Math.PI * 2);
+      ctx.arc(-fx - r * 0.14, 0, r * 0.22 * (1 + 0.2 * Math.sin(ph * 2.5)), 0, Math.PI * 2);
       ctx.stroke();
       break;
     case "olfactory":
-      for (const k of [-1, 1]) line(ctx, fx * 0.85, k * sy * 0.2, fx + r * (0.4 + p * 0.35), k * sy * 0.55);
+      for (const s of [-1, 1]) line(ctx, fx * 0.85, s * sy * 0.2, fx + r * (0.4 + p * 0.35), s * sy * 0.55 + Math.sin(ph * 5 + s * 2) * r * 0.1);
       break;
     case "filter_comb":
-      for (let i = -2; i <= 2; i++) line(ctx, fx * 0.9, i * sy * 0.16, fx + r * (0.3 + p * 0.3), i * sy * 0.3);
+      for (let i = -2; i <= 2; i++) line(ctx, fx * 0.9, i * sy * 0.16, fx + r * (0.3 + p * 0.3), i * sy * 0.3 + Math.sin(ph * 3 + i * 0.9) * r * 0.08);
       break;
     case "claw":
-      for (const k of [-1, 1]) {
+      for (const s of [-1, 1]) {
+        // Kıskaç açılıp kapanır.
+        const open = 0.85 + 0.2 * Math.sin(ph * 3.5 + (s > 0 ? 0 : Math.PI));
         ctx.beginPath();
-        ctx.moveTo(fx * 0.75, k * sy * 0.5);
-        ctx.quadraticCurveTo(fx + r * (0.55 + p * 0.4), k * sy * 0.95, fx + r * (0.4 + p * 0.3), k * sy * 0.12);
+        ctx.moveTo(fx * 0.75, s * sy * 0.5);
+        ctx.quadraticCurveTo(fx + r * (0.55 + p * 0.4), s * sy * 0.95 * open, fx + r * (0.4 + p * 0.3), s * sy * 0.12 * (2 - open));
         ctx.lineWidth = lw * 1.5;
         ctx.stroke();
         ctx.lineWidth = lw;
@@ -230,145 +296,209 @@ function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r:
         const a = Math.PI * 0.35 + (i / 6) * Math.PI * 1.3;
         const cx = Math.cos(a);
         const cy = Math.sin(a);
-        line(ctx, cx * fx * 0.95, cy * sy * 0.95, cx * (fx + r * (0.25 + p * 0.35)), cy * (sy + r * (0.25 + p * 0.35)));
+        const L = r * (0.25 + p * 0.35) * (1 + 0.14 * Math.sin(ph * 3 + i * 0.9));
+        line(ctx, cx * fx * 0.95, cy * sy * 0.95, cx * (fx + L), cy * (sy + L));
       }
       break;
     case "brood_pouch":
       ctx.fillStyle = pal.pale;
       ctx.beginPath();
-      ctx.arc(-r * 0.1, sy * 0.8, r * 0.36, 0, Math.PI);
+      ctx.arc(-r * 0.1, sy * 0.8, r * 0.36 * (1 + 0.07 * Math.sin(ph * 1.6)), 0, Math.PI);
       ctx.fill();
       ctx.stroke();
       break;
-    case "mucus_coat":
-      ctx.globalAlpha *= 0.35;
+    case "mucus_coat": {
+      // Yavaşça soluyan parlak bir film; güç arttıkça belirginleşir ve kalınlaşır.
+      ctx.globalAlpha *= (0.15 + 0.25 * p) * (0.8 + 0.2 * Math.sin(ph * 2));
       ctx.lineWidth = lw * 2.4;
+      const bulge = r * 0.28 * (0.5 + 0.5 * p) * (1 + 0.1 * Math.sin(ph * 1.7));
       ctx.beginPath();
-      ctx.ellipse(0, 0, fx + r * 0.28, sy + r * 0.28, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, fx + bulge, sy + bulge, 0, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.globalAlpha /= 0.35;
       break;
+    }
     case "sprint_muscle":
       for (const x of [-0.15, -0.45]) {
+        const flex = Math.sin(ph * 7 + x * 4) * 0.08;
         ctx.beginPath();
-        ctx.moveTo((x + 0.2) * fx, -sy * 0.42);
+        ctx.moveTo((x + 0.2 + flex) * fx, -sy * 0.42);
         ctx.lineTo(x * fx, 0);
-        ctx.lineTo((x + 0.2) * fx, sy * 0.42);
+        ctx.lineTo((x + 0.2 + flex) * fx, sy * 0.42);
         ctx.stroke();
       }
       break;
     case "eyespot":
-      dot(ctx, fx * 0.58, -sy * 0.32, r * 0.13, pal.edge);
+      dot(ctx, fx * 0.58, -sy * 0.32, r * 0.13 * (1 + 0.15 * Math.sin(ph * 2)), pal.edge);
       break;
-    case "eye":
-      for (const k of [-1, 1]) {
+    case "eye": {
+      // Göz zaman zaman kırpılır; gözbebeği yavaşça dolaşır.
+      const cycle = (t * 0.33 + id * 0.37) % 1;
+      const lid = cycle < 0.07 ? Math.abs(cycle / 0.07 - 0.5) * 2 : 1;
+      const look = Math.sin(ph * 0.8);
+      for (const s of [-1, 1]) {
         const er = r * (0.17 + p * 0.09);
-        dot(ctx, fx * 0.55, k * sy * 0.42, er, "#f4f6f8");
+        ctx.save();
+        ctx.translate(fx * 0.55, s * sy * 0.42);
+        ctx.scale(1, Math.max(0.08, lid));
+        dot(ctx, 0, 0, er, "#f4f6f8");
         ctx.beginPath();
-        ctx.arc(fx * 0.55, k * sy * 0.42, er, 0, Math.PI * 2);
+        ctx.arc(0, 0, er, 0, Math.PI * 2);
         ctx.stroke();
-        dot(ctx, fx * 0.55 + er * 0.3, k * sy * 0.42, er * 0.5, "#14171c");
+        dot(ctx, er * (0.3 + 0.18 * look), er * 0.12 * look, er * 0.5, "#14171c");
+        ctx.restore();
       }
       break;
-    case "bioluminescence":
-      dot(ctx, -fx * 0.25, -sy * 0.05, r * 0.42, "rgba(110,220,245,0.3)");
+    }
+    case "bioluminescence": {
+      const glow = 0.5 + 0.5 * Math.sin(ph * 2.2);
+      dot(ctx, -fx * 0.25, -sy * 0.05, r * 0.42 * (0.9 + 0.2 * glow), `rgba(110,220,245,${(0.18 + 0.22 * glow).toFixed(3)})`);
       dot(ctx, -fx * 0.25, -sy * 0.05, r * 0.14, "#8fe6f8");
       break;
+    }
     case "lateral_line":
       ctx.setLineDash([r * 0.16, r * 0.14]);
+      ctx.lineDashOffset = -ph * r * 0.7;
       line(ctx, -fx * 0.7, sy * 0.48, fx * 0.6, sy * 0.48);
       ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
       break;
-    case "electroreceptor":
+    case "electroreceptor": {
+      const zap = Math.sin(ph * 7);
+      ctx.globalAlpha *= 0.55 + 0.45 * Math.abs(zap);
       ctx.beginPath();
       ctx.moveTo(fx * 0.15, -sy * 0.62);
-      ctx.lineTo(fx * 0.3, -sy * 0.42);
+      ctx.lineTo(fx * 0.3, -sy * (0.42 - 0.06 * zap));
       ctx.lineTo(fx * 0.45, -sy * 0.62);
-      ctx.lineTo(fx * 0.6, -sy * 0.42);
+      ctx.lineTo(fx * 0.6, -sy * (0.42 + 0.06 * zap));
       ctx.stroke();
       break;
-    case "mouth":
+    }
+    case "mouth": {
+      // Ağız çiğner: yay açılıp kapanır.
+      const chew = 0.78 + 0.28 * Math.sin(ph * (fast ? 7 : 4));
       ctx.lineWidth = lw * 1.6;
       ctx.beginPath();
-      ctx.arc(fx, 0, r * (0.22 + p * 0.16), Math.PI * 0.62, Math.PI * 1.38);
+      ctx.arc(fx, 0, r * (0.22 + p * 0.16), Math.PI * (1 - 0.38 * chew), Math.PI * (1 + 0.38 * chew));
       ctx.stroke();
       break;
+    }
     case "symbiotic_gut_flora":
-      for (const [x, y] of [
-        [0.05, 0.42],
-        [-0.15, 0.5],
-        [0.22, 0.52],
-      ])
-        dot(ctx, x * fx, y * sy, r * 0.06, pal.edge);
+      for (const [i, [x, y]] of (
+        [
+          [0.05, 0.42],
+          [-0.15, 0.5],
+          [0.22, 0.52],
+        ] as [number, number][]
+      ).entries())
+        dot(ctx, x * fx + Math.sin(ph * 3 + i * 2.1) * r * 0.035, y * sy + Math.cos(ph * 2.6 + i * 1.7) * r * 0.035, r * 0.06, pal.edge);
       break;
     case "pigment":
-      for (const [x, y] of [
-        [0.3, 0.35],
-        [-0.1, -0.45],
-        [-0.4, 0.3],
-        [0.1, -0.1],
-      ])
-        dot(ctx, x * fx, y * sy, r * 0.11, "#3f9d4a");
+      for (const [i, [x, y]] of (
+        [
+          [0.3, 0.35],
+          [-0.1, -0.45],
+          [-0.4, 0.3],
+          [0.1, -0.1],
+        ] as [number, number][]
+      ).entries()) {
+        const shimmer = Math.sin(ph * 1.8 + i * 1.6);
+        ctx.globalAlpha *= 0.7 + 0.3 * shimmer;
+        dot(ctx, x * fx, y * sy, r * 0.11 * (1 + 0.12 * shimmer), "#3f9d4a");
+        ctx.globalAlpha /= 0.7 + 0.3 * shimmer;
+      }
       break;
-    case "shell":
+    case "shell": {
       ctx.lineWidth = lw * (1.6 + p * 2.2);
       ctx.beginPath();
       ctx.ellipse(0, 0, fx, sy, 0, Math.PI * 0.42, Math.PI * 1.58);
       ctx.stroke();
+      // Kabuğun üstünde gezinen bir parıltı.
+      const a = Math.PI * (0.55 + 1.0 * (0.5 + 0.5 * Math.sin(ph * 0.9)));
+      dot(ctx, Math.cos(a) * fx, Math.sin(a) * sy, lw * 0.9, "rgba(255,255,255,0.65)");
       break;
+    }
     case "camouflage":
-      for (const [x, y] of [
-        [0.45, -0.1],
-        [-0.2, 0.3],
-        [-0.55, -0.3],
-        [0.1, 0.55],
-        [0.15, -0.55],
-      ])
-        dot(ctx, x * fx, y * sy, r * 0.09, pal.inner);
+      for (const [i, [x, y]] of (
+        [
+          [0.45, -0.1],
+          [-0.2, 0.3],
+          [-0.55, -0.3],
+          [0.1, 0.55],
+          [0.15, -0.55],
+        ] as [number, number][]
+      ).entries()) {
+        const fade = 0.6 + 0.4 * Math.sin(ph * 0.9 + i * 1.9);
+        dot(ctx, x * fx + Math.sin(ph * 0.6 + i) * r * 0.05, y * sy + Math.cos(ph * 0.5 + i) * r * 0.05, r * 0.09 * fade, pal.inner);
+      }
       break;
     case "chromatophore":
-      dot(ctx, fx * 0.1, -sy * 0.4, r * 0.15, `hsl(${(g.hue + 130) % 360} 70% 55%)`);
-      dot(ctx, -fx * 0.4, sy * 0.1, r * 0.13, `hsl(${(g.hue + 220) % 360} 70% 55%)`);
-      dot(ctx, fx * 0.35, sy * 0.4, r * 0.11, `hsl(${(g.hue + 60) % 360} 70% 55%)`);
+      for (const [i, [x, y, rr, dh]] of (
+        [
+          [0.1, -0.4, 0.15, 130],
+          [-0.4, 0.1, 0.13, 220],
+          [0.35, 0.4, 0.11, 60],
+        ] as [number, number, number, number][]
+      ).entries()) {
+        const pulse = 1 + 0.25 * Math.sin(ph * 1.6 + i * 2.1);
+        dot(ctx, x * fx, y * sy, r * rr * pulse, `hsl(${(g.hue + dh + 50 * Math.sin(ph * 0.8 + i) + 360) % 360} 70% 55%)`);
+      }
       break;
-    case "regeneration":
-      line(ctx, -fx * 0.45, -sy * 0.5, -fx * 0.45, -sy * 0.2);
-      line(ctx, -fx * 0.45 - r * 0.15, -sy * 0.35, -fx * 0.45 + r * 0.15, -sy * 0.35);
+    case "regeneration": {
+      const beat = Math.max(0, Math.sin(ph * 2.4));
+      const size = 1 + 0.35 * beat;
+      ctx.globalAlpha *= 0.6 + 0.4 * beat;
+      line(ctx, -fx * 0.45, -sy * 0.35 - r * 0.15 * size, -fx * 0.45, -sy * 0.35 + r * 0.15 * size);
+      line(ctx, -fx * 0.45 - r * 0.15 * size, -sy * 0.35, -fx * 0.45 + r * 0.15 * size, -sy * 0.35);
       break;
+    }
     case "gill":
-      for (let i = 0; i < 3; i++) line(ctx, fx * (0.2 + i * 0.16), sy * 0.78, fx * (0.1 + i * 0.16), sy * 0.38);
+      for (let i = 0; i < 3; i++) line(ctx, fx * (0.2 + i * 0.16), sy * 0.78, fx * (0.1 + i * 0.16) + Math.sin(ph * 6 + i * 1.1) * r * 0.05, sy * 0.38);
       break;
-    case "lung":
+    case "lung": {
+      const breathe = 1 + 0.16 * Math.sin(ph * 1.6);
       ctx.fillStyle = "rgba(244,246,248,0.55)";
-      for (const k of [-1, 1]) {
+      for (const s of [-1, 1]) {
         ctx.beginPath();
-        ctx.ellipse(fx * 0.05, k * sy * 0.3, r * 0.3, r * 0.17, 0, 0, Math.PI * 2);
+        ctx.ellipse(fx * 0.05, s * sy * 0.3, r * 0.3 * breathe, r * 0.17 * breathe, 0, 0, Math.PI * 2);
         ctx.fill();
       }
       break;
+    }
     case "torpor":
+      ctx.globalAlpha *= 0.55 + 0.45 * Math.sin(ph * 0.6);
       ctx.beginPath();
       ctx.arc(-fx * 0.62, -sy * 0.02, r * 0.16, Math.PI * 0.3, Math.PI * 1.7);
       ctx.stroke();
       break;
-    case "blubber":
-      ctx.globalAlpha *= 0.55;
+    case "blubber": {
+      const wobble = 1 + 0.03 * Math.sin(ph * 1.5);
+      ctx.globalAlpha *= (0.25 + 0.4 * p) * (0.85 + 0.15 * Math.sin(ph * 1.5));
+      ctx.lineWidth = lw * (0.8 + p * 1.4);
       ctx.beginPath();
-      ctx.ellipse(0, 0, fx * 0.84, sy * 0.84, 0, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, fx * 0.84 * wobble, sy * 0.84 * wobble, 0, 0, Math.PI * 2);
       ctx.stroke();
-      ctx.globalAlpha /= 0.55;
       break;
-    case "swim_bladder":
+    }
+    case "swim_bladder": {
+      const fill = 1 + 0.2 * Math.sin(ph * 1.3);
       ctx.strokeStyle = "rgba(244,246,248,0.8)";
       ctx.beginPath();
-      ctx.ellipse(-fx * 0.05, -sy * 0.3, r * 0.3, r * 0.14, 0, 0, Math.PI * 2);
+      ctx.ellipse(-fx * 0.05, -sy * 0.3, r * 0.3 * fill, r * 0.14 * fill, 0, 0, Math.PI * 2);
       ctx.stroke();
       break;
-    case "immune_gland":
+    }
+    case "immune_gland": {
+      // Bez düzenli aralıklarla halka biçiminde bir uyarı dalgası yayar.
+      const wave = (ph * 0.45) % 1;
       ctx.beginPath();
       ctx.arc(fx * 0.42, sy * 0.36, r * 0.12, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.globalAlpha *= 1 - wave;
+      ctx.beginPath();
+      ctx.arc(fx * 0.42, sy * 0.36, r * (0.12 + 0.3 * wave), 0, Math.PI * 2);
+      ctx.stroke();
       break;
+    }
     default:
       break;
   }
@@ -512,6 +642,10 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
     wag = s * (still ? 0.06 : FAST.has(beh) ? 0.34 : 0.24);
     if (!still) ctx.rotate(Math.sin(anim.t * rate * 0.5 + anim.id) * 0.07);
   }
+  // Organ animasyonları: sahne saati, canlıya özgü faz ve kaçış/av sırasında hızlanma.
+  const ot = anim ? anim.t : 0;
+  const oid = anim ? anim.id : 0;
+  const ofast = anim ? FAST.has(BEHAVIORS[anim.state] ?? "wander") : false;
   const pal = bodyPalette(g, theme.dark);
   const fx = g.stage === 2 ? r * 1.25 : r;
   const sy = g.stage === 2 ? r * 0.85 : r;
@@ -520,7 +654,7 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
       ctx.save();
       ctx.rotate(wag);
     }
-    for (const organ of g.organs) if (BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
+    for (const organ of g.organs) if (BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g, ot, oid, ofast);
     if (wag !== 0) ctx.restore();
     // Erkek süsü: arkada, süs geninin büyüklüğüyle uzayan parlak iplikler.
     if (g.reproductionStrategy === "sexual" && g.sex === "m" && g.ornament > 0.12) {
@@ -550,7 +684,7 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
   }
   drawShell(ctx, g, r, pal, theme.dark, full, anim ? anim.t : 0);
   if (full) {
-    for (const organ of g.organs) if (!BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g);
+    for (const organ of g.organs) if (!BEHIND.has(organ.type)) drawOrgan(ctx, organ.type, organ.power, r, fx, sy, pal, g, ot, oid, ofast);
   }
   // Çekirdek: beslenme biçiminin rengi.
   const drift = anim ? Math.sin(anim.t * 1.3 + anim.id * 0.9) * r * 0.08 : 0;

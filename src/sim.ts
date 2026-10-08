@@ -1,7 +1,7 @@
 import { generateChemistry } from "./chemistry";
 import { rng } from "./rng";
 import { ACT, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, setPlanetCell, wallStats, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
-import { ORGANS, ORGAN_TYPES, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
+import { ORGANS, ORGAN_BIRTH_POWER, ORGAN_TYPES, ORGAN_UPKEEP, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, Quake, World } from "./world";
 import { GroundTone, Tone, bodyHSL, toneMatch, toneOfHSL } from "./ground";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
@@ -348,6 +348,8 @@ export function derive(g: Genome): Derived {
   const base = g.moveSpeed * Math.pow(g.radius / 5.5, -0.2) * chemMods.speed * wallStats(g).speed;
   let meta = Math.pow(g.radius / 5.5, -0.25) * (1 + STAGE_METABOLISM * g.stage) * chemMods.metabolism * wallStats(g).meta;
   if (shell !== undefined) meta *= 1 + shell * 0.2;
+  // Her organ gelişmişliği oranında enerji yer: tomurcuk organ ucuz, tam gelişmiş organ pahalıdır.
+  for (const organ of g.organs) meta *= 1 + ORGAN_UPKEEP * organ.power;
   if (heart !== undefined) meta *= 1 - (0.1 + heart * 0.15);
   if (nitro !== undefined) meta *= 1 - (0.08 + nitro * 0.12);
   if (g.reproductionStrategy === "sexual" && g.sex === "m") meta *= 1 + ORNAMENT_METABOLISM * g.ornament;
@@ -2297,7 +2299,7 @@ export class Sim {
         const options = k.organs.filter((organ) => organ.type !== "shell" && canHostOrgan(c.g.organs, c.g.stage, organ.type));
         if (options.length === 0) return;
         const type = options[rng.int(options.length)].type;
-        c.g.organs.push({ type, power: rng.range(0.15, 0.35) });
+        c.g.organs.push({ type, power: rng.range(ORGAN_BIRTH_POWER[0], ORGAN_BIRTH_POWER[1]) });
         this.rederive(c);
         c.hgtCd = HGT_COOLDOWN;
         this.lineage.get(c.id)?.notes.push(`YGT: +${ORGANS[type].label}`);

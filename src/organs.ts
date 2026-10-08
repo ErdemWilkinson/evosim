@@ -52,9 +52,18 @@ export type OrganType =
 
 export interface Organ {
   type: OrganType;
-  /** 0.05–1 arası göreli güç; mutasyonla hafifçe kayar. */
+  /**
+   * 0.05–1 arası gelişmişlik. Yeni organ ~0,1 ile tomurcuk olarak doğar (küçük çizilir, az iş görür, az enerji yer);
+   * soydan soya mutasyonla büyüyebilir, 1'de tam gelişmiş organ olur (en büyük ve en güçlü, en pahalı).
+   */
   power: number;
 }
+
+/** Yeni ortaya çıkan (mutasyon ya da yatay gen transferi) organın başlangıç gücü aralığı. */
+export const ORGAN_BIRTH_POWER: [number, number] = [0.07, 0.14];
+
+/** Tam gelişmiş (güç 1) bir organın metabolizmaya eklediği oran; güçle doğru orantılıdır. */
+export const ORGAN_UPKEEP = 0.04;
 
 export interface OrganDefinition {
   category: OrganCategory;

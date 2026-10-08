@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ORGANS, ORGAN_SLOTS, Organ, OrganType, pickOrganType } from "./organs";
+import { ORGANS, ORGAN_BIRTH_POWER, ORGAN_SLOTS, Organ, OrganType, pickOrganType } from "./organs";
 import { CATALYSTS, Chemistry, ENERGIES, GENETICS, MEMBRANES, Option, WALLS } from "./chemistry";
 
 export type Diet = "phototroph" | "herbivore" | "parasite" | "filter_feeder" | "omnivore" | "scavenger" | "carnivore" | "chemotroph";
@@ -343,7 +343,7 @@ function mutate(g: Genome, stress: number): Genome {
   fitToStage(g);
   if (rare(NEW_ORGAN_CHANCE)) {
     const type = pickOrganType(g.organs, g.stage);
-    if (type) g.organs.push({ type, power: rng.range(0.25, 0.6) });
+    if (type) g.organs.push({ type, power: rng.range(ORGAN_BIRTH_POWER[0], ORGAN_BIRTH_POWER[1]) });
   }
 
   if (rare(STRATEGY_FLIP_CHANCE)) g.reproductionStrategy = g.reproductionStrategy === "asexual" ? "sexual" : "asexual";
