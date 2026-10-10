@@ -4,6 +4,49 @@ Tarayıcıda çalışan, açık uçlu bir gezegensel evrim simülasyonu. Her toh
 bir gezegen üretir; yaşam o gezegenin yüzey sıvısında tek bir organsız hücreyle başlar ve bütün canlılar onun soyundan gelir; organlar, beslenme biçimi, örgütlenme düzeyi ve davranış mutasyon
 ve seçilimle değişir. Çalışma zamanı bağımlılığı yoktur (TypeScript + Canvas 2D).
 
+**Denemek için:** https://erdemwilkinson.github.io/evosim/ (kurulum yok). Açılış menüsünde
+"Yeni başlıyorum"u seçin: rastgele bir gezegen başlar, köken filmi oynar ve Erdem adlı rehber
+yaklaşık iki dakikalık kısa bir turla ekranı anlatır. Ayrıntıya girmek isteyen "Deneyimliyim"i
+seçer; gezegen penceresinde tohum ve kimyayı görür, bütün araçlar açıktır.
+
+## Bu nedir, bu ne değildir
+
+Evosim **bir model ve öğretici bir araçtır; gerçek biyolojinin ya da gezegen bilimin yerine
+geçme ya da bir öngörüde bulunma iddiası yoktur.** Amacı, seçilim, sürüklenme, türleşme ve
+ekolojik geri beslemelerin kuralları tanımlı, hedefi tanımsız bir dünyada kendiliğinden nasıl
+desenler çıkardığını gözlemlemektir. Hiçbir şey önceden belirlenmiş bir sonuca doğru
+yönlendirilmez; ama bu, kuralların kendisinin basitleştirilmiş ve kısmen keyfî olduğunu
+değiştirmez. Aşağıda en çok yanıltabilecek yerler açıkça yazılıdır.
+
+### Gezegen modeli: ne var, ne yok
+
+| Konu | Simülasyonda yapılan | Yapılmayan / dikkat |
+| --- | --- | --- |
+| Element bolluğu | 22 elementlik havuzdan ağırlıklı rastgele 10'u seçilir, paylar rastgele çarpanlarla belirlenir (`src/chemistry.ts`). | Gezegen oluşumu, yıldız metalikliği ya da diferansiyasyon modellenmez; paylar fiziksel bir hesap değildir. |
+| Yüzey sıvısı ve sıcaklığı | Seçilen çözücünün sıvı aralığının içinden bir sıcaklık çekilir. | Enerji dengesi, sera etkisi, yıldız ışınımı ya da yörünge yoktur. |
+| Yüzey basıncı | Sıvının o sıcaklıkta sıvı kalmasını sağlayan en küçük basıncın altına inmez (Clausius–Clapeyron, yuvarlak değerlerle). | Yalnızca tutarlılık içindir; simülasyona etkisi yoktur. |
+| Arazi | Sıvı oranı, engebe ve dağ payı kimyadan türetilen birkaç sinüs dalgasının toplamından boyanır; sıradağlar bu yüzeyin sırt çizgileridir. | Levha tektoniği, erozyon, volkanizma, yer altı sıvıları ya da gerçek bir jeolojik zaman yoktur. Deprem ve meteor gelişigüzel olaylardır. |
+| Kimyasal besin ve bacalar | Sıvı altındaki sırt çizgilerinde çözünmüş besin üç kata kadar zengindir. | Hidrotermal sistemin termodinamiği hesaplanmaz; "baca" bir yoğunluk haritasıdır. |
+| Köken senaryosu | 20 senaryodan biri kimyaya uygunluğuna göre seçilir ve ilk hücreye küçük çarpanlar uygular. | Köken enerjisi (yıldırım, UV, redoks gradyanı…) elle eşlenmiştir, miktarı hesaplanmaz, etkisi yoktur. |
+| Hücre kimyası | Duvar, zar, kalıtım polimeri, enerji taşıyıcısı ve katalizör merkezi her hücrenin genomundadır. | Çözünürlük ya da tepkime serbest enerjisi hesaplanmaz; seçenek "gereken elementler varsa aday olur" kuralıyla seçilir. |
+| Genom | Sayısal özellikler ve bir karar ağının ağırlıkları. | Gerçek bir nükleotit dizisi ya da protein katlanması değildir. |
+
+Seçeneklerin dayandığı yayınlar arayüzdeki **Kaynakça** penceresinde ve `src/chemistry.ts`
+içindedir; ancak bir kaynağın varlığı, seçeneğin simülasyonda gerçeği eksiksiz temsil ettiği
+anlamına gelmez. Hatalı ya da yanıltıcı bulduğunuz bir yer varsa bir iş kaydı açın ya da
+`ErdemWilkinson` hesabına yazın; düzeltilmesi gereken yerleri `KNOWN_ISSUES.md` içinde
+tutuyorum.
+
+### Ölçüm durumu (dürüst özet)
+
+- Belirlenimcilik ve kayıt gidiş-dönüşü otomatik testle doğrulanmıştır (bkz. "Testler ve ölçüm").
+- Denge testi (beslenme biçimlerinin baskınlığı, kalıcılığı, çöküş) **yalnızca geliştirildiği
+  tohumlarda ve Hızlı/Orta kademede geçer**; Gerçekçi kademede ve bazı tohumlarda kalır.
+- Birçok oyun içi özellik yalnızca derleme ve masaüstü tarayıcıda gezinme düzeyinde sınanmıştır;
+  gerçek telefonda sınanmamıştır. Sınanmayanların listesi "Bilinen sorunlar" bölümündedir.
+- Bu sayfanın ilerisinde tarihli ölçüm notları, geliştirme günlüğü niteliğindedir ve güncel
+  kodu her zaman yansıtmayabilir; her biri hangi tarihte ve kodda ölçüldüğünü yazar.
+
 ## Çalıştırma
 
 ```
@@ -168,8 +211,6 @@ meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve 
 
 **Başlangıç menüsü.** Kayıtlı oyun yoksa ya da yeni gezegen istenirse sayfa tam ekran bir menüyle açılır: Evosim'in ne olduğunu anlatan beş tanıtım slaytı kendiliğinden döner (noktalardan seçilebilir), arkada süzülen hücreler birbirine çarpar (esnek çarpışma), boş bir yere ya da bir düğmeye basılınca (basılı tutulursa daha uzun) oraya toplanır, sonra yeniden dağılır. Basılan noktada (boş yer, dil düğmeleri, Kaynakça) daire ve kare biçimleri saçılıp söner; uzuvlar yalnızca "Başla"ya basınca çıkar. "Başla"ya basınca toplar toplanmaz: oldukları yerde titreyip organ çıkarır, bir kısmı mutasyonla renk değiştirir; Başla düğmesinden çıkan uzuvlar en yakın dört hücreye uzanıp saplanır ve enerjilerini çekmeye başlar (~2,4 sn), sonra menü aşağı doğru sönerek gezegen ekranına geçilir; bekleme sırasında "Başla"ya bir kez daha basmak geçişi hemen yapar. "Başla" gezegen penceresine, "Kaynakça" kaynak listesine götürür. Dil seçimi menüde de var. "Başla" gezegen penceresine götürür, orada çarpıya ya da Esc'ye basmak menüye döner (gezegen başlamaz). Menü açıkken oyun arayüzü ilk karesinden itibaren gizlidir (yenilemede görünüp kaybolmaz), oyun açılınca yumuşakça gelir. Adres çubuğu hep çalışan dünyanın tohumunu taşıdığı için sayfa yenilenince aynı tohumun kaydı varsa oyun doğrudan kaldığı yerden açılır; farklı bir tohumun bağlantısı gelirse eski gezegen penceresi ve "kayıt geri yüklenir" notu çıkar. Kayıt geri yüklenen oturumlarda ve paylaşım bağlantılarında menü atlanır. Masaüstü ve 390 px genişlikte tarayıcıda denendi (taşma ve konsol hatası yok); gerçek telefonda denenmedi.
 
-**Karşılama sorusu.** Gezegen oluşturma ekranı açılınca Erdem imleci gelir (sayfa her yüklendiğinde bir kez; yanıt yalnızca o oturum için hatırlanır) ve "Simülasyona yeni başlıyor gibisin, yardım edeyim mi?" diye sorar; yanıtlanana kadar arkadaki hiçbir yere basılamaz. Evet: Rehber başlar ve önce bu ekranı anlatır (tohum, rastgele, günün gezegeni, harita, gezegenin kimyası, dil), sonra oyunu kendisi başlatır; köken filmi normal akışında izlenir (film sürerken Erdem görünmez), film bitince (ya da oyuncu atlayınca) Erdem geri gelip oyunun içini gezdirir. Hayır: imleç "Simülasyonu başlat" düğmesini gösterir ve çekilir; oyunda Rehber düğmesi parlar (Rehber kendiliğinden açılmaz). Rehber düğmesinden çıkar ve Kapat'ta düğmesine küçülerek girer; kart üst/alt arasında bulanıklıkla süzülür, neon çerçeveli; oyun içi adımlar 10 sn sonra kendiliğinden ilerler; oyun başladıktan sonra Geri gezegen adımlarına dönmez. Rehber artık Yapı penceresini de kendisi açıp gezdirir (dört düzey, kabuk kesiti, molekül, atom ve komşu atomlara geçiş) ve kapatır.
-
 **Organların gelişmişliği.** Yeni ortaya çıkan organ (mutasyon ya da yatay gen transferi) ~0,1 güçle tomurcuk olarak doğar: küçük çizilir, az iş görür ve metabolizmadan güçle orantılı pay alır (tam gelişmiş organ ≈ %4). Güç soydan soya mutasyonla büyüyebilir; 1'de organ tam boyutuna ve tam etkisine ulaşır. Tüm organların haritada kendi animasyonu vardır (kamçı savrulur, yüzgeç çırpar, bacak yürür, kalp atar, göz kırpar, ağız çiğner vb.). Oyun ekranındaki gaz rozeti artık gezegenin ana atmosfer gazının adını taşır (yalnızca Dünya'da O₂).
 
 **Kabuk kesiti.** Yapı penceresindeki kesit her canlının kendi duvarını, zarını, kalıtım polimerini, enerji taşıyıcısını ve katalizörünü ayrı ayrı çizer: sekiz duvar türü (peptidoglikan ağ, silika levha ve gözenek, kalsit pul, demir-sülfür küp, selüloz lif, borat köprü, S-katman altıgen kafes, manganez kın), yedi zar türü (kıvrık fosfolipit çift katman, yağ asidi, eter lipit dalları, peptit sarmal, azotozom, siloksan, halkalı karbon tabakası, mineral gözenek), on kalıtım polimeri (sekiz renkli çift sarmal, TNA, GNA, RNA benzeri tek omurga, PNA merdiveni, amiloid iplikleri, halkalı karbon istifi, kil kristali, siloksan şerit, bileşimsel bulut), beş enerji taşıyıcısı ve katalizör merkezleri (Fe₄S₄ küpü, metal+ligand, organik halka).
@@ -178,7 +219,7 @@ meteor, kaldır, olay tetikleme, bitki verimi, seçili bireyin organlarını ve 
 
 **Yeni gezegen penceresi.** 900 px ve üstü genişlikte yatay açılır: solda başlık, tohum ve harita, sağda gezegenin elementleri ve özellikleri (üç sütun); 1366×768 ve 989×863 ekranda kaydırma gerekmez. Telefonda eskisi gibi dikey ve kaydırmalıdır.
 
-**Rehber.** Üst çubuktaki "Rehber" düğmesi, "Erdem" yazılı hayalet bir fare imlecini başlatır (41 adım; oyun içinden başlatılınca gezegen ekranı adımları atlanır): imleç hız düğmelerine, yakınlaşmaya, bir canlıya, sekmelere ve Oyun düğmesine kendisi tıklar, ne işe yaradıklarını anlatır; "Yapıyı incele", Soy ağacı, Kaynakça, Kayıt ve Yeni gezegen gibi pencere açanları yalnızca gösterir. İleri/Geri/Kapat ve ok tuşları, Esc ile çıkış çalışır; bitince hız, oyun modu, sekme ve seçim eski hâline döner. İlk açılışta düğme parlar. Telefonda kart imlecin tersi yönde durur. Genom bölümünü de öğretir: Birey sekmesindeki gen şeridini, bir basamağa tıklayınca açılan gen kartını (aynı basamağa ya da ✕'e basınca kapanır), renklerin anlamını (ilk canlıdan kalan, mutasyonla değişen, yeni organ geni) ve mutasyonun rastgele, seçilimin çevreden geldiğini; oyundaki genomun gerçek bir nükleotit dizisi değil, sayısal özellikler ve karar ağı ağırlıkları listesi olduğunu açıkça söyler. Tarayıcıda masaüstü ve 390 px genişlikte (genom adımları yalnızca masaüstünde) adımların tamamı otomatik gezildi, konsol hatası ve yatay taşma yok; gerçek telefonda denenmedi.
+**Rehber.** Üst çubuktaki "Rehber" düğmesi, "Erdem" yazılı hayalet bir fare imlecini başlatır (44 adım, 13'ü kısa turda; oyun içinden başlatılınca gezegen ekranı adımları atlanır): imleç hız düğmelerine, yakınlaşmaya, bir canlıya, sekmelere ve Oyun düğmesine kendisi tıklar, ne işe yaradıklarını anlatır; "Yapıyı incele", Soy ağacı, Kaynakça, Kayıt ve Yeni gezegen gibi pencere açanları yalnızca gösterir. İleri/Geri/Kapat ve ok tuşları, Esc ile çıkış çalışır; bitince hız, oyun modu, sekme ve seçim eski hâline döner. İlk açılışta düğme parlar. Telefonda kart imlecin tersi yönde durur. Genom bölümünü de öğretir: Birey sekmesindeki gen şeridini, bir basamağa tıklayınca açılan gen kartını (aynı basamağa ya da ✕'e basınca kapanır), renklerin anlamını (ilk canlıdan kalan, mutasyonla değişen, yeni organ geni) ve mutasyonun rastgele, seçilimin çevreden geldiğini; oyundaki genomun gerçek bir nükleotit dizisi değil, sayısal özellikler ve karar ağı ağırlıkları listesi olduğunu açıkça söyler. Tarayıcıda masaüstü ve 390 px genişlikte (genom adımları yalnızca masaüstünde) adımların tamamı otomatik gezildi, konsol hatası ve yatay taşma yok; gerçek telefonda denenmedi.
 
 **Yapı inceleme, yakınlaşmalı.** Düzeyler arası geçiş artık animasyonludur: kabuk kesitinde duvara, zara ya da hücre içine (kalıtım polimeri; katalizör noktalarına) dokununca görüntü o yapıya yakınlaşıp moleküle geçer; bir atoma dokununca atoma yakınlaşılır; üst düzey düğmeleriyle aynı yolla uzaklaşılır (hareket azaltma tercihinde geçiş anlıktır). Üstünden geçilen katman vurgulanır. Organlar da aynı yolu izler: parça listesinden bir organ seçilince "Organ kesiti" açılır (üstte organın canlıdaki yeri, altta malzemesinin doku düzeyinde nasıl dizildiği: mineral levhalar, lif demetleri ya da damlacıklar), dokuya dokununca molekül ve atom düzeyine inilir.
 
