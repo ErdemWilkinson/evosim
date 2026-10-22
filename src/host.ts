@@ -1,6 +1,7 @@
 import { BEHAVIORS, Creature, GROWTH_BIRTH, MAX_CREATURES, SOUP_CAPACITY, STEP, SaveData, Sim } from "./sim";
 import { Command, CreatureDetail, FLAG, Frame, HostMessage, PLANT_LAND_BIT, PLANT_SCALE, STRIDE, SpeciesInfo, UiPayload } from "./protocol";
 import { EVOLUTION_SPEEDS, Genome, cloneGenome } from "./genome";
+import { STAGE_LABEL } from "./organs";
 
 /**
  * Simülasyonun sahibi. Web Worker içinde çalışır (bkz. worker.ts); Worker
@@ -300,7 +301,7 @@ export class SimHost {
   }
 
   private ui(sim: Sim): UiPayload {
-    const stages: [number, number, number] = [0, 0, 0];
+    const stages = STAGE_LABEL.map(() => 0);
     let onLand = 0;
     let sexual = 0;
     let infected = 0;

@@ -1,7 +1,7 @@
 import { generateChemistry } from "./chemistry";
 import { rng } from "./rng";
-import { ACT, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, setPlanetCell, wallStats, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
-import { ORGANS, ORGAN_BIRTH_POWER, ORGAN_TYPES, ORGAN_UPKEEP, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
+import { ACT, CTX, CTX_LEN, CTX_STRIDE, Diet, DIETS, DIET_LABEL, Genome, IN, cloneGenome, syncBrainCtx, crossoverGenomes, divideGenome, irradiateGenome, fitToStage, setPlanetCell, wallStats, geneticDistance, randomGenome, sanitizeGenome, setMutationScale, stressFactor, EVOLUTION_SPEEDS, EvolutionSpeed } from "./genome";
+import { MAX_STAGE, ORGANS, ORGAN_BIRTH_POWER, ORGAN_TYPES, ORGAN_UPKEEP, Organ, OrganType, STAGE_LABEL, canHostOrgan, organPower, setForbiddenOrgans } from "./organs";
 import { Band, MAP_H, MAP_W, Quake, World } from "./world";
 import { GroundTone, Tone, bodyHSL, toneMatch, toneOfHSL } from "./ground";
 import { PlanetProfile, generatePlanetProfile } from "./planet";
@@ -133,6 +133,18 @@ const DIET_DIVIDE_THRESHOLD: Record<Diet, number> = { carnivore: 1.15, omnivore:
 const DIET_DIVIDE_COOLDOWN: Record<Diet, number> = { carnivore: 2.5, omnivore: 1.2, scavenger: 1.1, parasite: 1.4, herbivore: 1, filter_feeder: 1, phototroph: 1.3, chemotroph: 1 };
 const STAGE_COOLDOWN = 0.25;
 const STAGE_METABOLISM = 0.05;
+/** Beyin organı (güç 1) metabolizmayı genel organ bedeline ek olarak bu oranda artırır: sinir dokusu
+ *  pahalıdır (Aiello & Wheeler 1995, Curr. Anthropol. 36:199; Niven & Laughlin 2008, J. Exp. Biol. 211:1792). */
+const GANGLION_UPKEEP = 0.08;
+/** Beyin uyaranları tek merkezde birleştirir: karar aralığı (1 + bu oran × etkin güç) kat kısalır (Holland 2003). */
+const GANGLION_SPEEDUP = 0.4;
+/** Süperorganizmada trofalaksi: enerjisi %60'ın üstündeki birey, yakındaki aç (%30 altı) akrabasına saniyede
+ *  en çok bu kadar enerji aktarır; aktarımın %80'i alıcıya ulaşır (Wilson & Hölldobler 2005; LeBoeuf ve ark. 2016). */
+const SHARE_RADIUS = 40;
+const SHARE_NEEDY = 0.3;
+const SHARE_GIVER = 0.6;
+const SHARE_RATE = 2;
+const SHARE_EFFICIENCY = 0.8;
 const PARENTAL_CARE_RADIUS = 50;
 const PARENTAL_CARE_SECONDS = 20;
 const PARENTAL_CARE_DISCOUNT = 0.3;
@@ -329,6 +341,18 @@ export interface Derived {
   canLand: boolean;
   canDeep: boolean;
   wing: boolean;
+  /** Beyin organı (0 = yok): bağlam katmanlarının temel ağırlıklara eklenme oranı, güçle 0,5–1. */
+  ganglion: number;
+  /** Gaz vezikülü: derin sıvıda ışığın sığ sıvıya doğru kapanan payı (0–0,8). */
+  float: number;
+  /** Manyetozom: iz ve besin yönü örnekleme uzaklığına ve yön tutma süresine eklenen pay (0–1). */
+  magneto: number;
+  /** Elektrik organı (yalnızca sıvıda): hasar artışı ve saldırganı durdurma olasılığı (0–0,5). */
+  electric: number;
+  /** Kızılötesi çukuru (yalnızca karada): av algısına eklenen menzil. */
+  pit: number;
+  /** Çalıntı kloroplast: fotosentez hızına oranla pasif enerji (0–0,2). */
+  klepto: number;
 }
 
 /** Gezegen kimyasının çarpanları (bkz. chemistry.ts); simülasyon kurulurken atanır. */
@@ -346,6 +370,7 @@ export function derive(g: Genome): Derived {
   const stomach = p("stomach");
   const gut = p("symbiotic_gut_flora");
   const regen = p("regeneration");
+  const gang = p("ganglion");
   const val = (v: number | undefined, a: number, b: number): number => (v === undefined ? 0 : a + v * b);
   const cutter = val(p("thicket_cutter"), 0.5, 0.5);
 
@@ -358,6 +383,7 @@ export function derive(g: Genome): Derived {
   for (const organ of g.organs) meta *= 1 + ORGAN_UPKEEP * organ.power;
   if (heart !== undefined) meta *= 1 - (0.1 + heart * 0.15);
   if (nitro !== undefined) meta *= 1 - (0.08 + nitro * 0.12);
+  if (gang !== undefined) meta *= 1 + GANGLION_UPKEEP * gang;
   if (g.reproductionStrategy === "sexual" && g.sex === "m") meta *= 1 + ORNAMENT_METABOLISM * g.ornament;
 
   let feed = 1;
@@ -398,6 +424,12 @@ export function derive(g: Genome): Derived {
     canLand: leg !== undefined,
     canDeep: leg === undefined || fin !== undefined || p("gill") !== undefined,
     wing: wing !== undefined,
+    ganglion: val(gang, 0.5, 0.5),
+    float: val(p("gas_vesicle"), 0.4, 0.4),
+    magneto: val(p("magnetosome"), 0.5, 0.5),
+    electric: val(p("electric_organ"), 0.2, 0.3),
+    pit: val(p("pit_organ"), 25, 35),
+    klepto: val(p("kleptoplast"), 0.08, 0.12),
   };
 }
 
@@ -601,6 +633,7 @@ const MILESTONE_FLAGS: Record<string, string> = {
   parasite: "parasite",
   symbiosis: "symbiosis",
   stage2: "multicellular",
+  stage3: "eusocial",
   land: "land",
   sexual: "sexual",
 };
@@ -659,6 +692,9 @@ export interface SpeciesStats {
   infected: number;
   organs: { type: OrganType; count: number; power: number }[];
   brain: number[];
+  /** Beyinli üyelerin bağlam katmanlarının ortalaması (yoksa boş) ve beyinli üye oranı. */
+  ctx: number[];
+  ctxShare: number;
   series: number[];
   children: number[];
 }
@@ -775,6 +811,8 @@ export class Sim {
   private readonly nHash = new Hash<Nutrient>(64);
   /** Adım başına bir kez hesaplanan ortam değerleri. */
   private env = { light: 1, night: false, oxygen: 0.5 };
+  /** Beyinli bireyin o anki etkin ağırlıkları (temel + bağlam); her kararda yeniden yazılır. */
+  private readonly ctxBrain = new Float64Array(CTX_STRIDE);
 
   private flags: Record<string, boolean> = {};
   private organPeak: Partial<Record<OrganType, number>> = {};
@@ -1039,6 +1077,7 @@ export class Sim {
 
   /** Genom yaşarken değiştiyse türetilmiş değerleri yeniler. */
   private rederive(c: Creature): void {
+    syncBrainCtx(c.g);
     c.d = derive(c.g);
     c.maxEnergy = maxEnergyOf(c.g);
     c.maxHp = maxHpOf(c.g);
@@ -1265,6 +1304,7 @@ export class Sim {
     }
     if (g.stage === 1) this.once("stage1", "stage", () => `İlk koloni: hücreler bölündükten sonra bir arada kaldı (#${g.id}). Yüzgeç, solungaç, kalp gibi organlar artık mümkün.`);
     if (g.stage === 2) this.once("stage2", "stage", () => `İlk çok hücreli canlı (#${g.id}). Göz, akciğer, bacak ve kanat artık mümkün: kara ulaşılabilir.`, g.id);
+    if (g.stage === 3) this.once("stage3", "stage", () => `İlk süperorganizma (#${g.id}): yavru bakan bir soy, akrabalarıyla besin paylaşan bir topluluğa dönüştü.`, g.id);
     if (g.diet !== "chemotroph") this.once(`diet:${g.diet}`, "diet", () => `İlk ${lower(DIET_LABEL[g.diet])} birey doğdu (#${g.id}, ${g.generation}. nesil).`, g.id);
     if (g.reproductionStrategy === "sexual") this.once("sexual", "gene", () => `Eşeyli üreme ilk kez ortaya çıktı (#${g.id}): bu soyda artık dişiler ve erkekler var.`, g.id);
     if (g.laysEggs) this.once("eggs", "gene", () => `Yumurtlama ilk kez ortaya çıktı (#${g.id}).`);
@@ -1649,6 +1689,12 @@ export class Sim {
     return band === Band.DeepWater ? PHOTO_LIGHT.deep : band === Band.ShallowWater ? PHOTO_LIGHT.shallow : PHOTO_LIGHT.land;
   }
 
+  /** Fotosentezin kullandığı ışık: gaz vezikülü derin sıvıda canlıyı ışığa yakın tutar (Walsby 1994). */
+  private photoLight(c: Creature): number {
+    const l = this.lightAt(c.x, c.y);
+    return c.d.float > 0 && l === PHOTO_LIGHT.deep ? l + (PHOTO_LIGHT.shallow - l) * c.d.float : l;
+  }
+
   /** Algıla → karar ağıyla eylem seç → hedefi belirle. */
   private think(c: Creature): void {
     const g = c.g;
@@ -1666,7 +1712,7 @@ export class Sim {
     if (c.host) {
       if (c.host.alive) {
         // Simbiyont tutunmuşken de fotosentez yapar.
-        if (g.diet === "phototroph") c.passive += PHOTO_RATE * d.photo * this.lightAt(c.x, c.y) * env.light;
+        if (g.diet === "phototroph") c.passive += PHOTO_RATE * d.photo * this.photoLight(c) * env.light;
         c.state = "attached";
         return;
       }
@@ -1695,6 +1741,8 @@ export class Sim {
     let sharers = 0;
     const scan = Math.max(TERRITORY_RADIUS, PHOTO_SHADE_RADIUS, SIGNAL_RADIUS);
     let heard = 0;
+    let needy: Creature | null = null;
+    let needyE = SHARE_NEEDY;
     this.cHash.query(c.x, c.y, scan, (o) => {
       if (o === c || !o.alive) return;
       const dx = o.x - c.x;
@@ -1702,6 +1750,10 @@ export class Sim {
       const dist2 = dx * dx + dy * dy;
       if (o.g.speciesId === g.speciesId && dist2 <= 3600) kin++;
       if (o.signal > 0 && o.g.speciesId === g.speciesId && dist2 <= SIGNAL_RADIUS * SIGNAL_RADIUS) heard = Math.max(heard, o.signal * (1 - Math.sqrt(dist2) / SIGNAL_RADIUS));
+      if (g.stage === 3 && o.g.stage === 3 && o.g.speciesId === g.speciesId && dist2 <= SHARE_RADIUS * SHARE_RADIUS && o.energy / o.maxEnergy < needyE) {
+        needyE = o.energy / o.maxEnergy;
+        needy = o;
+      }
       if (g.diet === "carnivore" && o.g.diet === "carnivore" && dist2 <= TERRITORY_RADIUS * TERRITORY_RADIUS && !(g.packHunter && o.g.packHunter && o.g.speciesId === g.speciesId)) rivals++;
       if (g.diet === "phototroph" && o.g.diet === "phototroph" && dist2 <= PHOTO_SHADE_RADIUS * PHOTO_SHADE_RADIUS) shaders++;
       if (g.diet === "filter_feeder" && o.g.diet === "filter_feeder" && !o.onLand && dist2 <= FILTER_RADIUS * FILTER_RADIUS) sharers++;
@@ -1711,6 +1763,15 @@ export class Sim {
       }
     });
     if (g.diet === "carnivore") c.crowd = 1 + Math.min(TERRITORY_COST_MAX, rivals * TERRITORY_COST_PER_RIVAL);
+    // Trofalaksi: tok süperorganizma bireyi en aç akrabasını besler (kayıplı aktarım, rastgelelik yok).
+    const fed = needy as Creature | null;
+    if (fed && c.energy > c.maxEnergy * SHARE_GIVER) {
+      const give = Math.min(SHARE_RATE * c.thinkT, c.energy - c.maxEnergy * SHARE_GIVER, (fed.maxEnergy * SHARE_NEEDY - fed.energy) / SHARE_EFFICIENCY);
+      if (give > 0) {
+        c.energy -= give;
+        fed.energy += give * SHARE_EFFICIENCY;
+      }
+    }
 
     if (g.diet === "filter_feeder" && !c.onLand) {
       const plants: Nutrient[] = [];
@@ -1729,7 +1790,7 @@ export class Sim {
         plants.splice(rng.int(plants.length), 1)[0].dead = true;
       }
     } else if (g.diet === "phototroph") {
-      c.passive += (PHOTO_RATE * d.photo * this.lightAt(c.x, c.y) * env.light) / (1 + PHOTO_SHADE_PER_NEIGHBOR * shaders);
+      c.passive += (PHOTO_RATE * d.photo * this.photoLight(c) * env.light) / (1 + PHOTO_SHADE_PER_NEIGHBOR * shaders);
       // Yerleşik üretici: enerjisi yeten fotosentetik canlı bulunduğu yere bir üretici öbeği bırakır.
       // Bitki örtüsü yalnızca buradan başlar, sonra kendi kendine yayılır.
       if (c.energy >= c.maxEnergy * PRODUCER_SHED_ENERGY && rng.chance(PRODUCER_SHED_RATE * c.thinkT) && this.plantOk(c.onLand, c.x, c.y) && !this.plantCrowded(c.x, c.y)) {
@@ -1746,12 +1807,15 @@ export class Sim {
       this.soup[cell] = conc - take;
       c.passive += take / c.thinkT;
     }
+    // Çalıntı kloroplast: yenilen üreticinin kloroplastları bağırsakta çalışmayı sürdürür (Händeler ve ark. 2009).
+    if (d.klepto > 0 && (g.diet === "herbivore" || g.diet === "omnivore") && c.energy < c.maxEnergy) c.passive += PHOTO_RATE * d.klepto * this.photoLight(c) * env.light;
 
     // --- duyusal girdiler ---
     const threatRange = sense * 0.75 * (c.onLand ? 1 : d.lateral);
     const threat = g.diet !== "carnivore" ? this.findThreat(c, threatRange) : null;
     const hunter = g.diet === "carnivore" || g.diet === "omnivore";
-    const prey = hunter && c.attackCd <= ATTACK_INTERVAL && c.digestT <= 0 ? this.findPrey(c, sense) : null;
+    // Kızılötesi çukuru yalnızca karada işler: sıvı ısı ışınımını emer.
+    const prey = hunter && c.attackCd <= ATTACK_INTERVAL && c.digestT <= 0 ? this.findPrey(c, sense + (c.onLand ? d.pit : 0)) : null;
     let nutrient: Nutrient | null = null;
     let corpse: Corpse | null = null;
     let host: Creature | null = null;
@@ -1778,7 +1842,16 @@ export class Sim {
     ];
 
     // --- karar ağı: mümkün eylemler arasında en yüksek puanlı olan ---
-    const brain = g.brain;
+    // Beyinli bireyde bulunduğu yerin (derin su / sığ su / kara) ve geceyse gecenin katmanı, organ
+    // gücüyle ölçeklenip temel ağırlıklara eklenir: aynı uyaran ortama göre farklı eyleme götürür.
+    let brain: ArrayLike<number> = g.brain;
+    if (d.ganglion > 0 && g.ctx.length === CTX_LEN) {
+      const at = (c.onLand ? CTX.land : deep ? CTX.deep : CTX.shallow) * CTX_STRIDE;
+      const night = env.night ? CTX.night * CTX_STRIDE : -1;
+      const w = this.ctxBrain;
+      for (let k = 0; k < CTX_STRIDE; k++) w[k] = g.brain[k] + d.ganglion * (g.ctx[at + k] + (night >= 0 ? g.ctx[night + k] : 0));
+      brain = w;
+    }
     let best: number = ACT.explore;
     let bestScore = -Infinity;
     for (let a = 0; a < ACT.memory; a++) {
@@ -1853,8 +1926,8 @@ export class Sim {
             const start = rng.range(0, Math.PI * 2);
             for (let i = 0; i < 8; i++) {
               const a = start + (i / 8) * Math.PI * 2;
-              const x = c.x + Math.cos(a) * SOUP_CELL;
-              const y = c.y + Math.sin(a) * SOUP_CELL;
+              const x = c.x + Math.cos(a) * SOUP_CELL * (1 + d.magneto);
+              const y = c.y + Math.sin(a) * SOUP_CELL * (1 + d.magneto);
               if (!this.passable(c, x, y)) continue;
               const there = this.soup[this.soupIndex(x, y)];
               if (there > richest) {
@@ -1862,7 +1935,7 @@ export class Sim {
                 c.heading = a;
               }
             }
-            c.wanderT = 1.5;
+            c.wanderT = 1.5 * (1 + d.magneto);
           }
         } else if (g.diet === "phototroph") {
           c.state = "bask";
@@ -1891,14 +1964,14 @@ export class Sim {
             const start = rng.range(0, Math.PI * 2);
             for (let i = 0; i < 8; i++) {
               const a = start + (i / 8) * Math.PI * 2;
-              const x = c.x + Math.cos(a) * SOUP_CELL;
-              const y = c.y + Math.sin(a) * SOUP_CELL;
+              const x = c.x + Math.cos(a) * SOUP_CELL * (1 + d.magneto);
+              const y = c.y + Math.sin(a) * SOUP_CELL * (1 + d.magneto);
               if (!this.passable(c, x, y)) continue;
               const there = this.trace[this.soupIndex(x, y)];
               if (there > strongest) {
                 strongest = there;
                 c.heading = a;
-                c.wanderT = 1.5;
+                c.wanderT = 1.5 * (1 + d.magneto);
               }
             }
           }
@@ -1931,7 +2004,9 @@ export class Sim {
     pred.attackCd = ATTACK_INTERVAL;
     pred.flashT = 0.3;
     if (prey.d.miss > 0 && rng.chance(prey.d.miss)) return;
-    const dmg = pred.d.attack * (1 + this.packBonus(pred)) * prey.d.resist * (pred.g.diet === "omnivore" ? byGut(OMNIVORE_ATTACK, pred.g) : 1);
+    // Elektrik organı yalnızca sıvıda işler: akımı iletken ortam taşır (Catania 2014).
+    const shock = pred.d.electric > 0 && !pred.onLand ? 1 + pred.d.electric : 1;
+    const dmg = pred.d.attack * shock * (1 + this.packBonus(pred)) * prey.d.resist * (pred.g.diet === "omnivore" ? byGut(OMNIVORE_ATTACK, pred.g) : 1);
     prey.hp -= dmg;
     prey.hurtT = 0.4;
     if (prey.d.venom > 0) {
@@ -1939,6 +2014,7 @@ export class Sim {
       pred.hurtT = 0.4;
     }
     if (prey.d.ink > 0 && prey.hp > 0 && rng.chance(prey.d.ink)) pred.attackCd = 2.5;
+    if (prey.d.electric > 0 && !prey.onLand && prey.hp > 0 && rng.chance(prey.d.electric)) pred.attackCd = Math.max(pred.attackCd, 1.5);
     if (prey.hp <= 0) {
       const mass = this.biomass(prey);
       const gain = Math.sqrt(pred.d.feed);
@@ -1991,7 +2067,7 @@ export class Sim {
 
     c.thinkT -= dt;
     if (c.thinkT <= 0) {
-      c.thinkT = THINK_INTERVAL + rng.next() * 0.08;
+      c.thinkT = (THINK_INTERVAL + rng.next() * 0.08) / (1 + GANGLION_SPEEDUP * c.d.ganglion);
       this.think(c);
     }
 
@@ -2595,7 +2671,7 @@ export class Sim {
 
   public editStage(id: number, stage: number): boolean {
     const c = this.findCreature(id);
-    if (!c || stage < 0 || stage > 2 || stage === c.g.stage) return false;
+    if (!c || stage < 0 || stage > MAX_STAGE || stage === c.g.stage) return false;
     c.g.stage = stage;
     fitToStage(c.g);
     this.rederive(c);
@@ -2871,6 +2947,8 @@ export class Sim {
       }
     }
     const brain = sp.type.brain.map((_, i) => sum((c) => c.g.brain[i]) / n);
+    const brained = members.filter((c) => c.g.ctx.length === CTX_LEN);
+    const ctx = brained.length > 0 ? Array.from({ length: CTX_LEN }, (_, i) => brained.reduce((s, c) => s + c.g.ctx[i], 0) / brained.length) : [];
     const sexual = members.filter((c) => c.g.reproductionStrategy === "sexual");
     const children: number[] = [];
     for (const s of this.species.values()) if (s.parentId === id && s.established) children.push(s.id);
@@ -2891,6 +2969,8 @@ export class Sim {
       infected: members.filter((c) => c.infectedT > 0).length,
       organs: Array.from(organs, ([type, e]) => ({ type, count: e.count, power: e.power / e.count })).sort((a, b) => b.count - a.count),
       brain: members.length > 0 ? brain : sp.type.brain.slice(),
+      ctx,
+      ctxShare: brained.length / n,
       series: sp.series,
       children,
     };
@@ -3167,7 +3247,7 @@ function cleanSave(raw: SaveData): SaveData {
           .filter((o) => organ(o?.type))
           .slice(0, 40)
           .map((o) => ({ type: o.type, power: Math.min(1, Math.max(0.05, num(o.power, 0.3))) })),
-        stage: Math.min(2, Math.max(0, Math.floor(num(k?.stage)))),
+        stage: Math.min(MAX_STAGE, Math.max(0, Math.floor(num(k?.stage)))),
       }))
       .filter((k) => k.energy > 0),
     trace: Array.isArray(raw.trace) && raw.trace.length === SOUP_COLS * SOUP_ROWS ? raw.trace.map((v) => Math.min(1e5, Math.max(0, num(v)))) : undefined,
@@ -3285,9 +3365,10 @@ function cleanSave(raw: SaveData): SaveData {
 
 /** Sürüm 5: kayıt durumu eksiksiz taşır (canlının adım içi durumu, leşler, deprem bölgeleri, zamanlayıcılar).
  *  Sürüm 6: çözünmüş besin alanı ve kemotrof beslenme biçimi.
- *  Sürüm 7: dönüm noktaları ve olaylarda isteğe bağlı `ms`/`id` alanları (yalnızca gözlem verisi; eski kayıtlar olduğu gibi yüklenir). */
-export const SAVE_VERSION = 10;
-const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, 8, 9, SAVE_VERSION];
+ *  Sürüm 7: dönüm noktaları ve olaylarda isteğe bağlı `ms`/`id` alanları (yalnızca gözlem verisi; eski kayıtlar olduğu gibi yüklenir).
+ *  Sürüm 11: genomda beyin organının bağlam katmanları (`ctx`; eski kayıtlarda beyin organı yok, boş kalır). */
+export const SAVE_VERSION = 11;
+const SUPPORTED_SAVE_VERSIONS = [2, 3, 4, 5, 6, 7, 8, 9, 10, SAVE_VERSION];
 /** Canlının kayda `rest` dizisi olarak, bu sırayla yazılan sayısal durumu. */
 const CREATURE_REST = ["size", "mem", "signal", "heading", "hostAngle", "parasites", "attachT", "resistT", "digestT", "meal", "cover", "passive", "filterDebt", "crowd", "senseNow", "thinkT", "wanderT", "blockedT", "attackCd", "hgtCd", "readyT", "careT", "bornT", "flashT", "hurtT", "gv"] as const;
 

@@ -44,7 +44,7 @@ for (const seed of seeds) {
     }
     const diets = sim.dietCounts().map((n, i) => (n ? `${LABELS[i]} ${n}` : "")).filter(Boolean).join(" · ");
     const land = sim.creatures.filter((c) => c.onLand).length;
-    const stages = [0, 1, 2].map((s) => sim.creatures.filter((c) => c.g.stage === s).length).join("/");
+    const stages = [0, 1, 2, 3].map((s) => sim.creatures.filter((c) => c.g.stage === s).length).join("/");
     const sexual = sim.creatures.filter((c) => c.g.reproductionStrategy === "sexual").length;
     if ((!brief && !summary) || t + every >= seconds) console.log(`t=${String(Math.round(sim.time)).padStart(5)}  n=${String(sim.creatures.length).padStart(3)}  tür=${String(sim.livingSpecies().length).padStart(2)}  nesil=${String(sim.maxGeneration).padStart(3)}  besin=${String(sim.nutrients.length).padStart(3)}  kara=${String(land).padStart(3)}  düzey=${stages}  eşeyli=${sexual}  ${diets}`);
   }

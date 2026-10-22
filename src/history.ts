@@ -13,6 +13,7 @@ export const MS_LABEL: Record<string, string> = {
   land: "İlk karaya çıkış",
   sexual: "İlk eşeyli üreme",
   dieoff: "Kitlesel yok oluş",
+  eusocial: "İlk süperorganizma",
 };
 
 const MS_ORDER = Object.keys(MS_LABEL);

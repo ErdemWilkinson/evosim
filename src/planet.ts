@@ -30,6 +30,8 @@ export function generatePlanetProfile(world: World): PlanetProfile {
   const forbiddenOrgans: OrganType[] = [];
   if (!chem.has.has("N")) forbiddenOrgans.push("nitrogen_sac");
   if (!chem.has.has("S")) forbiddenOrgans.push("sulfur_vent_organ");
+  if (!chem.has.has("Fe")) forbiddenOrgans.push("magnetosome");
+  if (!chem.has.has("Na") && !chem.has.has("K")) forbiddenOrgans.push("electric_organ");
 
   return { seed: world.seed, chem, liquidPercent, narrative, forbiddenOrgans };
 }

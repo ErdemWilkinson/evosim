@@ -1,4 +1,4 @@
-import { BRAIN_ACTIONS, BRAIN_INPUTS, DIETS, DIET_DESCRIPTION, DIET_LABEL, Diet, GENE_BOUNDS, Genome, IN } from "./genome";
+import { BRAIN_ACTIONS, BRAIN_CONTEXTS, BRAIN_INPUTS, CTX_STRIDE, DIETS, DIET_DESCRIPTION, DIET_LABEL, Diet, GENE_BOUNDS, Genome, IN } from "./genome";
 import { CATEGORY_LABEL, ORGANS, ORGAN_SLOTS, ORGAN_TYPES, OrganCategory, OrganType, STAGE_LABEL } from "./organs";
 import { ELEMENTS, GeneticOption, PHASE_REF } from "./chemistry";
 import { PlanetProfile } from "./planet";
@@ -312,6 +312,15 @@ export function brainMatrix(weights: readonly number[]): string {
   return `${html}</table></div>`;
 }
 
+/** Beyin organının bağlam katmanları: her ortam için ayrı bir ısı haritası. Bu ağırlıklar organ gücüyle çarpılıp temel ağa eklenir. */
+const CTX_TITLE: Record<(typeof BRAIN_CONTEXTS)[number], string> = { "derin su": "Derin suda", "sığ su": "Sığ suda", kara: "Karada", gece: "Gece (konuma eklenir)" };
+export function brainContextHtml(ctx: readonly number[], power: number, share?: number): string {
+  if (ctx.length === 0) return "";
+  const blocks = BRAIN_CONTEXTS.map((name, k) => `<h4 class="ctx-h">${CTX_TITLE[name]}</h4>${brainMatrix(ctx.slice(k * CTX_STRIDE, (k + 1) * CTX_STRIDE))}`).join("");
+  const who = share === undefined ? "" : ` Türün ${pct(share)} kadarında beyin var; gösterilen onların ortalaması.`;
+  return `<div class="ctx-brain"><p class="foot">Beyin: bulunduğu yerin katmanı (ve geceyse gece katmanı) ×${nf(power, 2)} ile çarpılıp yukarıdaki temel ağırlıklara eklenir.${who}</p>${blocks}</div>`;
+}
+
 export function planetHtml(planet: PlanetProfile, actions = true): string {
   const c = planet.chem;
   const blocked = planet.forbiddenOrgans.map((t) => ORGANS[t].label);
@@ -516,6 +525,10 @@ export function dnaHtml(g: Genome, origin: Genome | null, genetic: GeneticOption
     const effect = Math.abs(w) < 0.05 ? "bu eylemi etkilemiyor" : `bu eylemin puanını ${w > 0 ? "artırıyor" : "azaltıyor"}`;
     numeric(`Karar ağı: ${input} → ${action}`, w, origin.brain[i], -8, 8, `Karar ağının bir ağırlığı: "${input}" girdisi büyüdükçe "${action}" eyleminin puanı bu sayıyla çarpılıp eklenir. Şu an ${effect}.`, 2);
   }
+  if (g.ctx.length > 0) {
+    const mean = g.ctx.reduce((t, w) => t + Math.abs(w), 0) / g.ctx.length;
+    genes.push({ name: "Beyin bağlam ağırlıkları", kind: 2, detail: "beyinle kazanıldı", note: `Dört ortam katmanı (derin su, sığ su, kara, gece) × ${CTX_STRIDE} ağırlık. Ortalama büyüklük ${nf(mean, 2)}.`, body: `<div class="gene-vals"><span>İlk canlıda yok</span><span>Ort. |ağırlık| <b>${nf(mean, 2)}</b></span></div>` });
+  }
   for (const organ of g.organs) {
     genes.push({ name: `Organ: ${ORGANS[organ.type].label}`, kind: 2, detail: "sonradan kazanıldı", note: ORGANS[organ.type].description, body: `<div class="gene-scale" role="img" aria-label="Organ gücü"><i class="now" style="left:${(organ.power * 100).toFixed(1)}%"></i></div><div class="gene-vals"><span>0</span><span>İlk canlıda yok</span><span>Güç <b>${nf(organ.power, 2)}</b></span><span>1</span></div>` });
   }
@@ -636,7 +649,7 @@ export function updateSpeciesCard(ui: UiPayload, info: SpeciesInfo, all: Species
           .map((o) => `<div class="bar-row wide" title="${esc(ORGANS[o.type].description)}"><span>${ORGANS[o.type].label}</span><i><i style="display:block;height:100%;width:${(o.count / n) * 100}%"></i></i><b>${pct(o.count / n)} · ${nf(o.power, 2)}</b></div>`)
           .join("")
   );
-  setHtml($("sp-brain"), brainMatrix(d.brain));
+  setHtml($("sp-brain"), brainMatrix(d.brain) + brainContextHtml(d.ctx, 0.5 + 0.5 * (d.organs.find((o) => o.type === "ganglion")?.power ?? 0), d.ctxShare));
   const byId = new Map(all.map((s) => [s.id, s]));
   const link = (s: SpeciesInfo): string => `<button type="button" class="link" data-species="${s.id}">${esc(s.name)}</button>${s.count > 0 ? ` <span class="mono dim">${s.count}</span>` : ` <span class="mono dim">tükendi</span>`}`;
   const parent = byId.get(info.parentId);
@@ -795,7 +808,7 @@ export function updateCreatureCard(d: CreatureDetail, species: SpeciesInfo | und
         `</div>`
     );
   } else setHtml($("cr-edit"), "");
-  setHtml($("cr-brain"), brainMatrix(g.brain));
+  setHtml($("cr-brain"), brainMatrix(g.brain) + brainContextHtml(g.ctx, 0.5 + 0.5 * (g.organs.find((o) => o.type === "ganglion")?.power ?? 0)));
   $("cr-chain").textContent = `${d.inspection.chain} kuşak izleniyor`;
   setHtml(
     $("cr-history"),

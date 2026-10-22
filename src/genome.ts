@@ -1,5 +1,5 @@
 import { rng } from "./rng";
-import { ORGANS, ORGAN_BIRTH_POWER, ORGAN_SLOTS, Organ, OrganType, pickOrganType } from "./organs";
+import { MAX_STAGE, ORGANS, ORGAN_BIRTH_POWER, ORGAN_SLOTS, Organ, OrganType, pickOrganType } from "./organs";
 import { CATALYSTS, Chemistry, ENERGIES, GENETICS, MEMBRANES, Option, WALLS } from "./chemistry";
 
 export type Diet = "phototroph" | "herbivore" | "parasite" | "filter_feeder" | "omnivore" | "scavenger" | "carnivore" | "chemotroph";
@@ -41,6 +41,27 @@ export const BRAIN_INPUTS = ["sabit", "açlık", "tehdit", "besin", "av", "kalab
 export const BRAIN_ACTIONS = ["kaç", "beslen", "avlan", "dinlen", "keşfet", "çağır", "hafıza"] as const;
 export const IN = BRAIN_INPUTS.length;
 export const ACT = { flee: 0, forage: 1, hunt: 2, rest: 3, explore: 4, call: 5, memory: 6 } as const;
+/**
+ * Beyin organının bağlam katmanları: aynı uyaran, bulunulan yere ve zamana göre farklı eyleme
+ * yol açabilir (ör. sığ suda tehdit → kaç, derin suda → avlan). Her katman temel ağ ile aynı
+ * düzende (eylem × girdi) ağırlıklardır; organ gücüyle ölçeklenip temel ağırlıklara eklenir.
+ * Konum katmanlarından biri (derin su / sığ su / kara) her zaman, gece katmanı geceleri eklenir.
+ * Dayanak: av riskine göre ortam seçimi ve davranış (Lima & Dill 1990; Werner ve ark. 1983;
+ * Brown, Laundré & Gurung 1999).
+ */
+export const BRAIN_CONTEXTS = ["derin su", "sığ su", "kara", "gece"] as const;
+export const CTX = { deep: 0, shallow: 1, land: 2, night: 3 } as const;
+export const CTX_STRIDE = IN * BRAIN_ACTIONS.length;
+export const CTX_LEN = BRAIN_CONTEXTS.length * CTX_STRIDE;
+
+/** Bağlam ağırlıkları beyin organıyla gelir ve onunla gider: yeni kazanılan organ sıfırdan başlar (o an davranış değişmez). */
+export function syncBrainCtx(g: Genome): void {
+  const has = g.organs.some((o) => o.type === "ganglion");
+  if (!has) {
+    if (g.ctx.length) g.ctx = [];
+  } else if (g.ctx.length !== CTX_LEN) g.ctx = new Array<number>(CTX_LEN).fill(0);
+}
+
 /** Eski kayıtlardaki ağ düzeni: 5 eylem × 8 girdi. */
 const OLD_IN = 8;
 const OLD_ACTIONS = 5;
@@ -140,7 +161,7 @@ export interface Genome {
   generation: number;
   speciesId: number;
 
-  /** Örgütlenme düzeyi: 0 tek hücre, 1 koloni, 2 çok hücreli. */
+  /** Örgütlenme düzeyi: 0 tek hücre, 1 koloni, 2 çok hücreli, 3 süperorganizma. */
   stage: number;
   radius: number;
   hue: number;
@@ -168,6 +189,8 @@ export interface Genome {
 
   organs: Organ[];
   brain: number[];
+  /** Beyin organının bağlam katmanları (`CTX_LEN` ağırlık); organ yoksa boş. */
+  ctx: number[];
   reproductionStrategy: "asexual" | "sexual";
   /** Kalıtılmaz; her doğumda rastgele atanır. Yalnızca eşeyli türlerde anlamlıdır. */
   sex: "f" | "m";
@@ -198,6 +221,7 @@ export const STAGE_RADIUS: readonly [number, number][] = [
   [3, 6.5],
   [4, 9],
   [5.5, 12],
+  [5.5, 12],
 ];
 
 // Taban oranlar "Hızlı" evrim kademesidir. Sayısal kaymalar (beden, hız, karar ağı) ve
@@ -215,6 +239,10 @@ const DIET_FLIP_CHANCE = 0.035;
 const PACK_HUNTER_FLIP_CHANCE = 0.035;
 const STAGE_UP_CHANCE = 0.014;
 const STAGE_DOWN_CHANCE = 0.002;
+/** Süperorganizmaya geçiş, öteki geçişlerden dört kat seyrektir (büyük geçişler nadirdir; Szathmáry 2015)
+ *  ve yalnızca yavru bakımı olan soyda olur: yumurta ya da kuluçka kesesi, savunulan yuvanın karşılığıdır
+ *  (Wilson & Hölldobler 2005). */
+const SOCIAL_UP_FACTOR = 0.25;
 const BRAIN_MUTATION_CHANCE = 0.06;
 const BRAIN_MUTATION_STRENGTH = 0.35;
 
@@ -274,6 +302,7 @@ export function randomGenome(id: number): Genome {
     ...planetCell.def,
     organs: [],
     brain: defaultBrain(),
+    ctx: [],
     reproductionStrategy: "asexual",
     sex: rng.chance(0.5) ? "f" : "m",
     laysEggs: false,
@@ -309,6 +338,7 @@ export function fitToStage(g: Genome): void {
   g.radius = clamp(g.radius, min, max);
   g.organs = g.organs.filter((organ) => ORGANS[organ.type].stage <= g.stage);
   if (g.organs.length > ORGAN_SLOTS[g.stage]) g.organs.length = ORGAN_SLOTS[g.stage];
+  syncBrainCtx(g);
 }
 
 function mutate(g: Genome, stress: number): Genome {
@@ -329,9 +359,17 @@ function mutate(g: Genome, stress: number): Genome {
   for (let i = 0; i < g.brain.length; i++) {
     if (rng.next() < BRAIN_MUTATION_CHANCE * nScale) g.brain[i] = clamp(g.brain[i] + (rng.next() - 0.5) * 2 * BRAIN_MUTATION_STRENGTH * strengthScale, -8, 8);
   }
+  // Bağlam katmanları: her ağırlık aynı olasılıkla kayar; atlamalı (geometrik) örneklemeyle
+  // 280 ağırlık için 280 kez zar atılmaz, istatistik aynıdır.
+  if (g.ctx.length) {
+    const p = Math.min(1, BRAIN_MUTATION_CHANCE * nScale);
+    const skip = (): number => (p >= 1 ? 0 : Math.floor(Math.log(1 - rng.next()) / Math.log(1 - p)));
+    for (let i = skip(); i < g.ctx.length; i += 1 + skip()) g.ctx[i] = clamp(g.ctx[i] + (rng.next() - 0.5) * 2 * BRAIN_MUTATION_STRENGTH * strengthScale, -8, 8);
+  }
 
   // Örgütlenme düzeyi: nadir, büyük bir geçiş. Geri dönüş daha da nadirdir.
   if (g.stage < 2 && rare(STAGE_UP_CHANCE)) g.stage++;
+  else if (g.stage === 2 && (g.laysEggs || g.organs.some((o) => o.type === "brood_pouch")) && rare(STAGE_UP_CHANCE * SOCIAL_UP_FACTOR)) g.stage++;
   else if (g.stage > 0 && rare(STAGE_DOWN_CHANCE)) g.stage--;
 
   for (const organ of g.organs) {
@@ -345,6 +383,7 @@ function mutate(g: Genome, stress: number): Genome {
     const type = pickOrganType(g.organs, g.stage);
     if (type) g.organs.push({ type, power: rng.range(ORGAN_BIRTH_POWER[0], ORGAN_BIRTH_POWER[1]) });
   }
+  syncBrainCtx(g);
 
   if (rare(STRATEGY_FLIP_CHANCE)) g.reproductionStrategy = g.reproductionStrategy === "asexual" ? "sexual" : "asexual";
   // Yumurta, dış kabuklu ve besin depolu çok hücreli bir yapıdır: yalnızca çok hücreli
@@ -417,6 +456,7 @@ export function crossoverGenomes(a: Genome, b: Genome, id: number, stress = 1): 
     catalyst: pick(a.catalyst, b.catalyst),
     organs,
     brain: a.brain.map((w, i) => pick(w, b.brain[i] ?? w)),
+    ctx: a.ctx.length && b.ctx.length ? a.ctx.map((w, i) => pick(w, b.ctx[i] ?? w)) : (a.ctx.length ? a.ctx : b.ctx).slice(),
     reproductionStrategy: pick(a.reproductionStrategy, b.reproductionStrategy),
     sex: "f",
     laysEggs: pick(a.laysEggs, b.laysEggs),
@@ -437,6 +477,7 @@ const DISTANCE_GENES: NumericGene[] = ["radius", "moveSpeed", "senseRadius", "me
  *  - organlar: yalnızca birinde bulunan her tip için 0,10
  *  - diyet farkı 0,50 · örgütlenme düzeyi farkı 0,50 (her biri tek başına türleşme)
  *  - karar ağı: ağırlıkların ortalama mutlak farkı × 0,5 (en çok 0,2)
+ *  - beyin bağlam katmanları (ikisinde de varsa): ortalama mutlak fark × 0,5 (en çok 0,1)
  *  - üreme stratejisi 0,08 · yumurtlama 0,05
  */
 export function geneticDistance(a: Genome, b: Genome): number {
@@ -453,6 +494,11 @@ export function geneticDistance(a: Genome, b: Genome): number {
   let brainDiff = 0;
   for (let i = 0; i < a.brain.length; i++) brainDiff += Math.abs(a.brain[i] - (b.brain[i] ?? 0));
   d += Math.min(0.2, (brainDiff / a.brain.length) * 0.5);
+  if (a.ctx.length && b.ctx.length) {
+    let ctxDiff = 0;
+    for (let i = 0; i < a.ctx.length; i++) ctxDiff += Math.abs(a.ctx[i] - (b.ctx[i] ?? 0));
+    d += Math.min(0.1, (ctxDiff / a.ctx.length) * 0.5);
+  }
   if (a.diet !== b.diet) d += 0.5;
   d += Math.abs(a.stage - b.stage) * 0.5;
   if (a.reproductionStrategy !== b.reproductionStrategy) d += 0.08;
@@ -483,13 +529,14 @@ export function sanitizeGenome(raw: unknown): Genome {
     // Eski düzen (sürüm 8 öncesi): ağırlıklar yeni ızgaraya taşınır; yeni girdi ve satırlar 0 kalır.
     for (let a = 0; a < OLD_ACTIONS; a++) for (let i = 0; i < OLD_IN; i++) brain[a * IN + i] = num(r.brain[a * OLD_IN + i], -8, 8, brain[a * IN + i]);
   } else if (Array.isArray(r.brain)) for (let i = 0; i < brain.length; i++) brain[i] = num(r.brain[i], -8, 8, brain[i]);
+  const ctx = Array.isArray(r.ctx) && r.ctx.length === CTX_LEN ? (r.ctx as unknown[]).map((v) => num(v, -8, 8, 0)) : [];
   const parents = Array.isArray(r.parentIds) && r.parentIds.length === 2 ? ([int(r.parentIds[0]), int(r.parentIds[1])] as [number, number]) : null;
   const g: Genome = {
     id: int(r.id),
     parentIds: parents,
     generation: int(r.generation),
     speciesId: int(r.speciesId),
-    stage: int(r.stage, 2),
+    stage: int(r.stage, MAX_STAGE),
     radius: num(r.radius, ...GENE_BOUNDS.radius, 5),
     hue: num(r.hue, 0, 360, 180),
     saturation: num(r.saturation, ...GENE_BOUNDS.saturation, 60),
@@ -509,6 +556,7 @@ export function sanitizeGenome(raw: unknown): Genome {
     catalyst: cellId("catalyst", r.catalyst),
     organs,
     brain,
+    ctx,
     reproductionStrategy: r.reproductionStrategy === "sexual" ? "sexual" : "asexual",
     sex: r.sex === "m" ? "m" : "f",
     laysEggs: r.laysEggs === true,
@@ -520,5 +568,5 @@ export function sanitizeGenome(raw: unknown): Genome {
 }
 
 export function cloneGenome(g: Genome): Genome {
-  return { ...g, parentIds: g.parentIds ? [g.parentIds[0], g.parentIds[1]] : null, organs: g.organs.map((organ) => ({ ...organ })), brain: g.brain.slice() };
+  return { ...g, parentIds: g.parentIds ? [g.parentIds[0], g.parentIds[1]] : null, organs: g.organs.map((organ) => ({ ...organ })), brain: g.brain.slice(), ctx: g.ctx.slice() };
 }

@@ -135,6 +135,11 @@ const VESICLE: Partial<Record<OrganType, [number, number, number, string]>> = {
   fat_store: [-0.48, -0.22, 0.19, "#ead48a"],
   ink_sac: [-0.52, 0.18, 0.14, "#1d1d26"],
   venom: [-0.6, -0.1, 0.13, "#8c54c4"],
+  ganglion: [0.2, -0.3, 0.14, "#e7b7c8"],
+  gas_vesicle: [-0.05, -0.45, 0.12, "rgba(225,238,255,0.75)"],
+  magnetosome: [0.02, 0.12, 0.07, "#2a2a33"],
+  kleptoplast: [-0.22, 0.14, 0.13, "#56c25f"],
+  electric_organ: [-0.45, 0.3, 0.15, "#8fc4ff"],
 };
 
 function line(ctx: CanvasRenderingContext2D, x0: number, y0: number, x1: number, y1: number): void {
@@ -162,6 +167,7 @@ const ANCHOR: Partial<Record<OrganType, [number, number]>> = {
   bioluminescence: [-0.25, -0.05],
   lateral_line: [-0.05, 0.48],
   electroreceptor: [0.37, -0.52],
+  pit_organ: [0.85, 0],
   mouth: [1, 0],
   symbiotic_gut_flora: [0.04, 0.48],
   pigment: [0, 0],
@@ -184,6 +190,11 @@ const VESICLE_PULSE: Partial<Record<OrganType, [number, number]>> = {
   fat_store: [1.2, 0.05],
   ink_sac: [1.6, 0.1],
   venom: [3, 0.14],
+  ganglion: [0.8, 0.06],
+  gas_vesicle: [0.6, 0.04],
+  magnetosome: [0.5, 0.03],
+  kleptoplast: [1.5, 0.06],
+  electric_organ: [7, 0.25],
 };
 
 function drawOrgan(ctx: CanvasRenderingContext2D, type: OrganType, p: number, r: number, fx: number, sy: number, pal: BodyPalette, g: Genome, t: number, id: number, fast: boolean): void {
@@ -375,6 +386,10 @@ function drawOrganBody(ctx: CanvasRenderingContext2D, type: OrganType, power: nu
       line(ctx, -fx * 0.7, sy * 0.48, fx * 0.6, sy * 0.48);
       ctx.setLineDash([]);
       ctx.lineDashOffset = 0;
+      break;
+    case "pit_organ":
+      // İki ısı çukuru: ağzın iki yanında koyu, sığ oyuklar.
+      for (const s of [-1, 1]) dot(ctx, fx * 0.82, s * sy * 0.22, r * 0.09, "rgba(20,14,12,0.55)");
       break;
     case "electroreceptor": {
       const zap = Math.sin(ph * 7);
@@ -581,7 +596,7 @@ function memberColor(id: string): string {
 function drawShell(ctx: CanvasRenderingContext2D, g: Genome, r: number, pal: BodyPalette, dark: boolean, full: boolean, t: number): void {
   const stage = g.stage;
   ctx.save();
-  if (stage === 2) ctx.scale(1.25, 0.85);
+  if (stage >= 2) ctx.scale(1.25, 0.85);
   // Koyu iç: gövdenin tonu korunur, iç karanlık bir zeminle örtülür; kenarda renkli şerit kalır.
   ctx.fillStyle = dark ? "rgba(6,8,18,0.58)" : "rgba(18,22,40,0.4)";
   ctx.beginPath();
@@ -661,8 +676,8 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
   const oid = anim ? anim.id : 0;
   const ofast = anim ? FAST.has(BEHAVIORS[anim.state] ?? "wander") : false;
   const pal = bodyPalette(g, theme.dark);
-  const fx = g.stage === 2 ? r * 1.25 : r;
-  const sy = g.stage === 2 ? r * 0.85 : r;
+  const fx = g.stage >= 2 ? r * 1.25 : r;
+  const sy = g.stage >= 2 ? r * 0.85 : r;
   if (full) {
     if (wag !== 0) {
       ctx.save();
@@ -685,7 +700,7 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
   ctx.lineWidth = Math.max(0.5, r * 0.1);
   ctx.stroke();
   if (full) {
-    if (g.stage === 2) {
+    if (g.stage >= 2) {
       ctx.lineWidth = Math.max(0.3, r * 0.05);
       ctx.globalAlpha *= 0.5;
       for (const x of [-0.45, 0.2]) {
@@ -695,6 +710,17 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
       }
       ctx.globalAlpha /= 0.5;
     }
+    // Süperorganizma: türün renginde kesikli bir topluluk halkası.
+    if (g.stage === 3) {
+      ctx.save();
+      ctx.strokeStyle = `hsl(${g.hue} 70% ${theme.dark ? 66 : 42}%)`;
+      ctx.lineWidth = Math.max(0.3, r * 0.07);
+      ctx.setLineDash([r * 0.25, r * 0.2]);
+      ctx.beginPath();
+      ctx.ellipse(0, 0, fx * 1.22, sy * 1.3, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
   drawShell(ctx, g, r, pal, theme.dark, full, anim ? anim.t : 0);
   if (full) {
@@ -702,7 +728,7 @@ export function drawCreature(ctx: CanvasRenderingContext2D, g: Genome, theme: Th
   }
   // Çekirdek: beslenme biçiminin rengi.
   const drift = anim ? Math.sin(anim.t * 1.3 + anim.id * 0.9) * r * 0.08 : 0;
-  dot(ctx, (g.stage === 2 ? -fx * 0.12 : 0) + drift, anim ? Math.cos(anim.t * 1.1 + anim.id) * r * 0.06 : 0, r * (full ? 0.3 : 0.42), theme.diet[g.diet]);
+  dot(ctx, (g.stage >= 2 ? -fx * 0.12 : 0) + drift, anim ? Math.cos(anim.t * 1.1 + anim.id) * r * 0.06 : 0, r * (full ? 0.3 : 0.42), theme.diet[g.diet]);
 }
 
 // ------------------------------------------------------------------ sahne

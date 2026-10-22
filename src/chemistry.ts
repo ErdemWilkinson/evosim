@@ -18,9 +18,11 @@ export interface ElementInfo {
   shells: number[];
   color: string;
   weight: number;
+  /** Yalnızca iz miktarda bulunur (kabukta milyonda birkaç yüz ya da daha az): ana çekilişe ve ilk dört iz elemente girmez. */
+  traceOnly?: { chance: number; share: [number, number] };
 }
 
-const el = (sym: string, name: string, z: number, shells: number[], color: string, weight: number): ElementInfo => ({ sym, name, z, shells, color, weight });
+const el = (sym: string, name: string, z: number, shells: number[], color: string, weight: number, traceOnly?: ElementInfo["traceOnly"]): ElementInfo => ({ sym, name, z, shells, color, weight, traceOnly });
 
 /** Ağırlıklar kabaca kozmik/kayaç bolluğunu izler: hafif ve kaya yapıcı elementler sık çıkar. */
 export const ELEMENTS: Record<string, ElementInfo> = Object.fromEntries(
@@ -47,6 +49,12 @@ export const ELEMENTS: Record<string, ElementInfo> = Object.fromEntries(
     el("Cu", "Bakır", 29, [2, 8, 18, 1], "#d98f5c", 1.5),
     el("Zn", "Çinko", 30, [2, 8, 18, 2], "#8f9bd1", 1.5),
     el("Mo", "Molibden", 42, [2, 8, 18, 13, 1], "#6fc7c2", 1),
+    // Seyrek iz elementler: bulunma olasılığı ve payı kabuk bolluğunu izler (V ~100, Co ~25, W ~1, Se ~0,1 ppm;
+    // Rudnick & Gao 2003, Treatise on Geochemistry 3:1; Güneş Sistemi bolluğu: Lodders 2003, ApJ 591:1220).
+    el("V", "Vanadyum", 23, [2, 8, 11, 2], "#a6a9c8", 0, { chance: 0.6, share: [5e-5, 2e-4] }),
+    el("Co", "Kobalt", 27, [2, 8, 15, 2], "#f090a0", 0, { chance: 0.5, share: [1e-5, 5e-5] }),
+    el("Se", "Selenyum", 34, [2, 8, 18, 6], "#ffa100", 0, { chance: 0.3, share: [1e-7, 1e-6] }),
+    el("W", "Volfram", 74, [2, 8, 18, 32, 12, 2], "#2194d6", 0, { chance: 0.2, share: [1e-6, 5e-6] }),
   ].map((e) => [e.sym, e])
 );
 
@@ -60,6 +68,8 @@ export interface Option {
   /** Yazındaki dayanak. */
   ref: string;
   weight?: number;
+  /** false: gezegenin ilk hücresi bununla kurulmaz; yalnızca sonradan, hücre yapısı değişirken ortaya çıkabilir. */
+  founder?: false;
 }
 
 export interface Solvent extends Option {
@@ -136,6 +146,7 @@ export const MEMBRANES: (Option & { polar: boolean | null; scaffold?: string })[
   { id: "peptide", name: "Amfifilik peptit kabuğu", needs: ["C", "H", "N", "O"], polar: null, scaffold: "carbon", weight: 1.5, note: "Bir ucu çözücüyü seven, öbür ucu sevmeyen kısa peptitler yan yana dizilip kese kurar.", ref: "Zhang 2012, Acc. Chem. Res. 45:2142" },
   { id: "pah", name: "Halkalı karbon tabakası", needs: ["C", "H"], polar: null, scaffold: "carbon", weight: 1, note: "Düz, halkalı karbon molekülleri yan yana dizilip zarı sertleştirir ve geçirgenliğini azaltır; oksijen ya da azot gerektirmez.", ref: "Groen, Deamer, Kros & Ehrenfreund 2012, Orig. Life Evol. Biosph. 42:295" },
   { id: "siloxane", name: "Siloksan zar", needs: ["Si", "O"], polar: null, scaffold: "silicon", weight: 4, note: "Si–O–Si omurgalı esnek zincirler; yan gruplar çözücüye göre içe ya da dışa döner.", ref: "Petkowski, Bains & Seager 2020, Life 10:84" },
+  { id: "hopanoid", name: "Hopanoit destekli çift katman", needs: ["C", "H", "O", "P"], polar: true, scaffold: "carbon", weight: 2, founder: false, note: "Fosfolipit katmanların arasına sert, halkalı hopanoit molekülleri yerleşir; zar sıkılaşır, sıcakta ve asitte dağılmaz (kolesterolün bakterideki karşılığı).", ref: "Sáenz ve ark. 2015, PNAS 112:11971" },
   { id: "pore", name: "Mineral gözenek bölmesi", needs: [], polar: null, weight: 0.6, note: "Zar yoktur; canlı kimya, mineral çökeltinin mikron boyu gözeneklerinde hapsolur ve gözenek duvarı zarın işini görür.", ref: "Martin & Russell 2003, Phil. Trans. R. Soc. B 358:59" },
 ];
 
@@ -154,6 +165,7 @@ export const WALLS: WallOption[] = [
   { id: "cellulose", name: "Polisakkarit lif duvar", needs: ["C", "H", "O"], hp: 1.1, speed: 0.98, meta: 1.01, weight: 2, note: "Uzun şeker zincirleri demetlenip lif oluşturur; çekmeye dayanıklıdır.", ref: "Cosgrove 2005, Nat. Rev. Mol. Cell Biol. 6:850" },
   { id: "borate", name: "Borat köprülü duvar", needs: ["B", "C", "O"], hp: 1.12, speed: 0.98, meta: 1.01, weight: 2, note: "Bor atomu iki şeker zincirini dört oksijen üzerinden birbirine kilitler.", ref: "O'Neill, Ishii, Albersheim & Darvill 2004, Annu. Rev. Plant Biol. 55:109" },
   { id: "slayer", name: "S-katman protein kafesi", needs: ["C", "H", "N", "O", "S"], hp: 1.05, speed: 1.02, meta: 1, weight: 2, note: "Tek tip proteinin kendiliğinden dizildiği iki boyutlu kristal kafes.", ref: "Sleytr, Schuster, Egelseer & Pum 2014, FEMS Microbiol. Rev. 38:823" },
+  { id: "pseudomurein", name: "Psödomürein ağ", needs: ["C", "H", "N", "O"], hp: 1.08, speed: 1, meta: 1.02, weight: 2, founder: false, note: "Peptidoglikana benzer ama şekerleri farklı bağlarla dizilir; peptidoglikanı kesen enzimler ona işlemez (bazı arkelerde).", ref: "Kandler & König 1998, Cell. Mol. Life Sci. 54:305" },
   { id: "manganese", name: "Manganez oksit kın", needs: ["Mn", "O"], hp: 1.14, speed: 0.94, meta: 1.03, weight: 1.5, note: "Hücre çevresinde çöken koyu MnO₂ kabuk; oksitleyicilere ve ışınıma karşı kalkan olur.", ref: "Tebo ve ark. 2004, Annu. Rev. Earth Planet. Sci. 32:287" },
 ];
 
@@ -168,6 +180,7 @@ export const GENETICS: GeneticOption[] = [
   { id: "hachimoji", name: "Sekiz harfli fosfodiester polimer", needs: ["C", "N", "O", "P"], error: 0.8, shape: "helix", weight: 1.5, note: "Dört yerine sekiz baz, dört eşleşen çift: aynı uzunlukta daha çok bilgi taşır ve çift sarmal kararlı kalır.", ref: "Hoshika ve ark. 2019, Science 363:884" },
   { id: "tna", name: "Treoz nükleik asit", needs: ["C", "N", "O", "P"], error: 0.95, shape: "helix", weight: 1.5, note: "Omurgadaki şeker beş değil dört karbonludur; yapımı daha basittir, yine de bazlar eşleşip sarmal kurar.", ref: "Schöning ve ark. 2000, Science 290:1347" },
   { id: "gna", name: "Glikol nükleik asit", needs: ["C", "N", "O", "P"], error: 1, shape: "helix", weight: 1, note: "Omurga halkasızdır: üç karbonlu glikol birimleri fosfatla bağlanır; bilinen en yalın eşleşen polimerlerden biridir.", ref: "Zhang, Peritz & Meggers 2005, J. Am. Chem. Soc. 127:4174" },
+  { id: "hna", name: "Heksitol nükleik asit", needs: ["C", "N", "O", "P"], error: 1, shape: "helix", weight: 1, founder: false, note: "Omurgadaki şeker altı üyeli bir halkadır; bazlar yine eşleşir. Laboratuvarda kopyalanıp evrimleştirildi.", ref: "Pinheiro ve ark. 2012, Science 336:341" },
   { id: "amyloid", name: "Amiloid peptit şablonu", needs: ["C", "N", "O"], error: 1.5, shape: "sheet", weight: 1.5, note: "Kısa peptitler üst üste dizilip lif kurar; lifin ucundaki dizilim, eklenen yeni peptidin dizilimini belirler.", ref: "Maury 2009, Orig. Life Evol. Biosph. 39:141" },
   { id: "phosphodiester", name: "Fosfodiester polimer (RNA benzeri)", needs: ["C", "N", "O", "P"], error: 0.9, shape: "helix", weight: 4, note: "Şeker–fosfat omurga üzerine dizili bazlar; omurgadaki tekrar eden yük, dizilim ne olursa olsun polimeri çözünür ve kopyalanabilir tutar.", ref: "Benner 2004, Acc. Chem. Res. 37:784" },
   { id: "pna", name: "Peptit nükleik asit", needs: ["C", "N", "O"], error: 1.05, shape: "ladder", weight: 3, note: "Omurga fosfatsızdır: amit bağlarıyla kurulur, bazlar yine eşleşir. Fosforun az olduğu dünyalar için önerilir.", ref: "Nelson, Levy & Miller 2000, PNAS 97:3868" },
@@ -182,6 +195,7 @@ export const ENERGIES: Option[] = [
   { id: "thioester", name: "Tiyoester", needs: ["C", "O", "S"], weight: 3, note: "Enerji, karbon–kükürt (C(=O)–S) bağında taşınır; fosfattan önceki enerji parası olabileceği öne sürülür.", ref: "de Duve 1991, Blueprint for a Cell" },
   { id: "sodium", name: "Sodyum gradyanı", needs: ["Na"], weight: 2, note: "Zarın iki yanındaki Na⁺ farkı bir pil gibi kullanılır.", ref: "Mulkidjanian, Dibrov & Galperin 2008, Biochim. Biophys. Acta 1777:985" },
   { id: "proton", name: "Proton gradyanı", needs: ["H"], weight: 2, note: "Zarın iki yanındaki H⁺ (asitlik) farkı enerji kaynağıdır.", ref: "Lane & Martin 2012, Cell 151:1406" },
+  { id: "acetylphosphate", name: "Asetil fosfat", needs: ["C", "O", "P"], weight: 2, founder: false, note: "Asetil grubuna bağlı fosfat: sulu ortamda kendiliğinden oluşabilen, tiyoesterle fosfat arasında köprü sayılan yalın bir enerji taşıyıcısı.", ref: "Whicher, Camprubi, Pinna, Herschy & Lane 2018, Orig. Life Evol. Biosph. 48:159" },
   { id: "redox", name: "Mineral yüzeyde elektron aktarımı", needs: [], weight: 0.5, note: "Elektronlar doğrudan iletken mineral yüzeyden alınıp verilir.", ref: "Wächtershäuser 1988, Microbiol. Rev. 52:452" },
 ];
 
@@ -193,6 +207,10 @@ export const CATALYSTS: Option[] = [
   { id: "molybdenum", name: "Molibden merkezi", needs: ["Mo"], weight: 2, note: "Azotu ve nitratı işleyen enzimlerde iki elektronluk aktarım yapar.", ref: "Schwarz, Mendel & Ribbe 2009, Nature 460:839" },
   { id: "manganese", name: "Manganez kümesi", needs: ["Mn"], weight: 2, note: "Dört manganezli küme çözücüyü parçalayıp elektron koparabilir.", ref: "Umena, Kawakami, Shen & Kamiya 2011, Nature 473:55" },
   { id: "magnesium", name: "Magnezyum iyonu", needs: ["Mg"], weight: 2, note: "Fosfatlı molekülleri tutup katlar; katalitik polimerlerin çalışması için gerekir.", ref: "Bowman, Lenz, Hud & Williams 2012, Curr. Opin. Struct. Biol. 22:262" },
+  { id: "tungsten", name: "Volfram merkezi", needs: ["W"], weight: 2, founder: false, note: "Molibdenin ağır eşi; çok sıcak ortamlarda karbon bileşiklerini yükseltgeyip indirgeyen enzimlerin merkezindeki metal.", ref: "Kletzin & Adams 1996, FEMS Microbiol. Rev. 18:5" },
+  { id: "selenocysteine", name: "Selenosistein merkezi", needs: ["Se", "C", "N", "O"], weight: 2, founder: false, note: "Kükürdün yerine selenyum taşıyan amino asit; elektronu daha kolay verir ve enzimi yükseltgenmeye karşı korur.", ref: "Stadtman 1996, Annu. Rev. Biochem. 65:83" },
+  { id: "cobalamin", name: "Kobalamin (B₁₂ benzeri) merkezi", needs: ["Co", "C", "N"], weight: 2, founder: false, note: "Halkalı bir yapının ortasındaki kobalt, karbon iskeletini yeniden düzenleyen ve metil grubu taşıyan tepkimeleri yürütür.", ref: "Banerjee & Ragsdale 2003, Annu. Rev. Biochem. 72:209" },
+  { id: "vanadium", name: "Vanadyum merkezi", needs: ["V", "O"], weight: 2, founder: false, note: "Vanadat, halojenleri yükseltgeyen enzimlerde ve bazı azot bağlayıcı enzimlerde molibdenin yerini tutar.", ref: "Winter & Moore 2009, J. Biol. Chem. 284:18577; Robson ve ark. 1986, Nature 322:388" },
   { id: "organo", name: "Metalsiz organik katalizör", needs: [], weight: 0.5, note: "Metal yoktur; küçük organik moleküller ve polimer katlanması tepkimeleri hızlandırır.", ref: "Barbas 2008, Angew. Chem. Int. Ed. 47:42" },
 ];
 
@@ -271,6 +289,12 @@ export const ORIGINS: Origin[] = [
     steps: ["Büyük bir çarpma kabuğu eritiyor; krater {sıvı} ile doluyor.", "Çatlamış sıcak kayaçta binlerce yıl süren bir sıcak akışkan dolaşımı başlıyor; çarpmanın getirdiği organikler camsı, gözenekli kayaçta birikiyor.", "Kil ve cam gözeneklerinde yapı taşları zincirleniyor; {zar} gözenekleri kaplıyor.", "Krater soğurken ılık kıyıda tutunan ilk hücreler göle yayılıyor." ] },
   { id: "pumice", name: "Pomza salları", ref: "Brasier, Matthewman, McMahon & Wacey 2011, Astrobiology 11:725", scene: "mineral", fit: (c) => (has(c, "Si") ? 2 : 0.3), founder: { moveSpeed: 0.95, radius: 1.05 },
     steps: ["Volkanik patlamalar denize yüzen pomza taşları saçıyor.", "Pomzanın sayısız gözeneği yüzerken yağları, metalleri ve fosfatı emiyor; taş kıyıya vurup kuruyor, yeniden yüzüyor.", "Her gözenek ayrı bir deney kabı; birinde {zar} ve {genetik} bir araya geliyor.", "Gözenekten çıkan ilk hücre, salın taşıdığı her kıyıya yayılıyor." ] },
+  { id: "borate_desert", name: "Borat çölü havuzu", ref: "Ricardo, Carrigan, Olcott & Benner 2004, Science 303:196", scene: "pool", fit: (c) => (has(c, "B", "O") ? (hot(c) ? 3 : 2) : 0), founder: { maxLifespan: 1.04 },
+    steps: ["Kurak bir havzada sığ {sıvı} göletleri buharlaşıyor; kıyılarında beyaz borat kabukları birikiyor.", "Borat, şeker öncüllerine bağlanıp onları kararlı tutuyor: yoksa çabucak katrana dönecek olan riboz korunuyor.", "Kuruyup ıslanan kıyıda korunan şekerler zincire ({genetik}) giriyor; yağımsı moleküller {zar} kuruyor.", "Kurumaya dayanıklı ilk bölme, yağmurla genişleyen göletten taşıp yayılıyor."] },
+  { id: "mica", name: "Mika tabakaları arası", ref: "Hansma 2010, J. Theor. Biol. 266:175", scene: "mineral", fit: (c) => (has(c, "Si", "Al", "K") ? 3 : 0), founder: { moveSpeed: 0.94, radius: 0.96 },
+    steps: ["Granitin çatlaklarında ince mika tabakaları üst üste diziliyor; aralarında {sıvı} dolu, nanometre inceliğinde boşluklar var.", "Tabakalar ısı ve akıntıyla açılıp kapandıkça aradaki moleküller sıkışıp ayrılıyor; bu mekanik iş zincirlerin kurulmasına enerji veriyor.", "Mika yüzeyindeki potasyum iyonları yüklü molekülleri sıraya diziyor; tabakalar arası boşluk ilk bölmeyi ({zar} öncesi) oluşturuyor.", "Tabakaların arasından kurtulan ilk bölme, kendi {zar} yapısıyla serbestçe yaşıyor."] },
+  { id: "volcanic_lightning", name: "Volkanik yıldırım", ref: "Johnson, Cleaves, Dworkin, Glavin, Lazcano & Bada 2008, Science 322:404", scene: "sky", fit: (c) => (has(c, "S") && !cold(c) ? 2.5 : hot(c) ? 1 : 0), founder: {},
+    steps: ["Bir yanardağ kül ve buhar bulutu püskürtüyor; bulutun içinde sürtünen kül taneleri yıldırım üretiyor.", "Buharlı, kükürtlü gazda çakan yıldırımlar, kuru bir atmosferdekinden çok daha çeşitli amino asit öncülü kuruyor.", "Öncüller külle birlikte {sıvı} kıyısına yağıyor; sığ birikintilerde {zar} kuruluyor.", "İçine bir kopyalayıcı ({genetik}) hapseden kese, volkanın eteğinde ilk hücre oluyor."] },
 ];
 
 /** Kökende işleyen enerji kaynağı türleri. */
@@ -307,6 +331,9 @@ export const ORIGIN_POWER: Record<string, string> = {
   formamide: "geothermal",
   impact_crater: "impact",
   pumice: "geothermal",
+  borate_desert: "cycles",
+  mica: "cycles",
+  volcanic_lightning: "lightning",
 };
 
 export interface ChemistryBase {
@@ -366,8 +393,8 @@ export function generateChemistry(seedRaw: number): Chemistry {
     return items[items.length - 1];
   };
 
-  // 10 element: ağırlıklı, yinelemesiz çekiliş.
-  const pool = Object.values(ELEMENTS);
+  // 10 element: ağırlıklı, yinelemesiz çekiliş (seyrek iz elementler dışarıda).
+  const pool = Object.values(ELEMENTS).filter((e) => !e.traceOnly);
   const chosen: ElementInfo[] = [];
   while (chosen.length < 10) {
     const e = pickWeighted(pool.filter((p) => !chosen.includes(p)), (p) => p.weight);
@@ -396,8 +423,9 @@ export function generateChemistry(seedRaw: number): Chemistry {
   const pick = <T extends Option>(options: T[], extra: (o: T) => boolean = () => true): T => {
     // Hidrojen evrenin en bol elementidir: on temel element arasında olmasa da iz
     // miktarda her gezegende bulunur, bu yüzden yapı seçiminde eksik sayılmaz.
-    const fits = options.filter((o) => hasAll(o.needs.filter((n) => n !== "H")) && extra(o));
-    return pickWeighted(fits.length > 0 ? fits : options.filter((o) => o.needs.length === 0), (o) => o.weight ?? 1);
+    const founders = options.filter((o) => o.founder !== false);
+    const fits = founders.filter((o) => hasAll(o.needs.filter((n) => n !== "H")) && extra(o));
+    return pickWeighted(fits.length > 0 ? fits : founders.filter((o) => o.needs.length === 0), (o) => o.weight ?? 1);
   };
   const membrane = pick(MEMBRANES, (m) => (m.polar === null || m.polar === solvent.polar) && (m.scaffold === undefined || m.scaffold === scaffold.id || (scaffold.id === "boron" && m.scaffold === "carbon" && has.has("C"))));
   const wall = pick(WALLS);
@@ -453,7 +481,7 @@ export function generateChemistry(seedRaw: number): Chemistry {
 
   // İz elementler: ana çekilişten ayrı bir üreteçle seçilir, bu yüzden hiçbir gezegenin yapısı değişmez.
   const tr = makeRng(seed ^ 0x2b7e1516);
-  const rest = Object.values(ELEMENTS).filter((e) => !has.has(e.sym));
+  const rest = Object.values(ELEMENTS).filter((e) => !has.has(e.sym) && !e.traceOnly);
   const trace: TraceElement[] = [];
   while (trace.length < 4 && rest.length > 0) {
     let total = 0;
@@ -469,6 +497,20 @@ export function generateChemistry(seedRaw: number): Chemistry {
     }
     const e = rest.splice(at, 1)[0];
     trace.push({ sym: e.sym, share: (0.0005 + tr.next() * 0.0045) * (0.5 + e.weight / 15) });
+  }
+  // Seyrek iz elementler (V, Co, Se, W): kendi üreteciyle, her biri için hep iki çekiliş (var mı, payı),
+  // böylece hiçbir gezegenin öteki elementleri değişmez. En çok ikisi eklenir.
+  const ur = makeRng(seed ^ 0x3c6ef372);
+  let rare = 0;
+  for (const e of Object.values(ELEMENTS)) {
+    if (!e.traceOnly) continue;
+    const present = ur.next() < e.traceOnly.chance;
+    const [lo, hi] = e.traceOnly.share;
+    const share = lo + ur.next() * (hi - lo);
+    if (present && rare < 2) {
+      trace.push({ sym: e.sym, share });
+      rare++;
+    }
   }
   trace.sort((a, b) => b.share - a.share);
   // Yüzey basıncı: ana çekilişten ayrı üreteçle log-düzgün 0,3–30 bar çekilir, sonra sıvının o sıcaklıkta

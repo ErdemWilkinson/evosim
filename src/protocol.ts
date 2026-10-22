@@ -84,7 +84,8 @@ export interface UiPayload {
   extinct: boolean;
   onLand: number;
   eggs: number;
-  stages: [number, number, number];
+  /** Örgütlenme düzeyi başına birey sayısı (STAGE_LABEL sırasıyla). */
+  stages: number[];
   sexual: number;
   infected: number;
   oxygen: number;

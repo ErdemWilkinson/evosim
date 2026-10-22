@@ -11,6 +11,7 @@
 //   --save  özet sonucu scripts/balance-log.json dosyasına ekler
 //   --json  tohum başına ham sonucu (teşhis ölçümleriyle birlikte) dosyaya yazar; noise.mjs okur
 //   --diag  teşhis ölçümlerini (ilk görülme zamanları, başlangıç, genler, eşeyli üreme) basar
+//   --ctx   beyin organı: taşıyan payı, bağlam katmanlarının ortama göre ayrışması, avcı yoğunluğuyla uyumu
 import { build } from "esbuild";
 import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
 import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -41,6 +42,9 @@ if (!isMainThread) {
   const symb = { samples: 0, sym: 0, hosts: 0, symSamples: 0, hostE: 0, hostN: 0, otherE: 0, otherN: 0 };
   const growth = { samples: 0, n: 0, juv: 0, stunted: 0, sizeSum: 0 };
   const brainD = { n: 0, calls: 0, callW: 0, memW: 0, heardW: 0, callers: 0, creatures: 0, alarm: 0 };
+  // Beyin organı (yalnızca okur): katman sırası derin su, sığ su, kara, gece; ağırlık indeksleri eylem×10+girdi.
+  const NEW_ORGANS = ["ganglion", "gas_vesicle", "magnetosome", "electric_organ", "pit_organ", "kleptoplast"];
+  const ctxD = { samples: 0, creatures: 0, stage3: 0, organs: Object.fromEntries(NEW_ORGANS.map((t) => [t, 0])), stage2: 0, carriers: 0, power: 0, bad: 0, flee: [0, 0, 0, 0], hunt: [0, 0, 0, 0], forage: [0, 0, 0, 0], carrierBand: [0, 0, 0], predBand: [0, 0, 0], allBand: [0, 0, 0] };
   const oxy = { n: 0, sum: 0, sq: 0, min: 1, max: 0 };
   const tone = Array.from({ length: 3 }, () => HABITATS.map(() => ({ n: 0, match: 0, bs: 0, bc: 0, ga: 0, gb: 0, dh: 0, dhn: 0 })));
   const bodyOf = (c) => {
@@ -165,6 +169,29 @@ if (!isMainThread) {
       }
     }
     {
+      ctxD.samples++;
+      for (const c of pop) {
+        ctxD.creatures++;
+        if (c.g.stage === 3) ctxD.stage3++;
+        for (const o of c.g.organs) if (o.type in ctxD.organs) ctxD.organs[o.type]++;
+        const gang = c.g.organs.find((o) => o.type === "ganglion");
+        const band = c.onLand ? 2 : sim.world.isDeep(c.x, c.y) ? 0 : 1;
+        ctxD.allBand[band]++;
+        if (c.g.diet === "carnivore" || c.g.diet === "omnivore") ctxD.predBand[band]++;
+        if (c.g.stage >= 2) ctxD.stage2++;
+        if (!gang !== (c.g.ctx.length === 0)) ctxD.bad++;
+        if (!gang || c.g.ctx.length === 0) continue;
+        ctxD.carriers++;
+        ctxD.power += gang.power;
+        ctxD.carrierBand[band]++;
+        for (let k = 0; k < 4; k++) {
+          ctxD.flee[k] += c.g.ctx[k * 70 + 2];
+          ctxD.hunt[k] += c.g.ctx[k * 70 + 20];
+          ctxD.forage[k] += c.g.ctx[k * 70 + 10];
+        }
+      }
+    }
+    {
       const o = sim.oxygen();
       oxy.n++; oxy.sum += o; oxy.sq += o * o; oxy.min = Math.min(oxy.min, o); oxy.max = Math.max(oxy.max, o);
     }
@@ -203,7 +230,7 @@ if (!isMainThread) {
         }
       });
     }
-    const multi = pop.filter((c) => c.g.stage === 2).length;
+    const multi = pop.filter((c) => c.g.stage >= 2).length;
     const onLand = pop.filter((c) => c.onLand).length;
     const sex = pop.filter((c) => c.g.reproductionStrategy === "sexual").length;
     multicellular = Math.max(multicellular, multi);
@@ -251,6 +278,7 @@ if (!isMainThread) {
     tone,
     oxy,
     brainD,
+    ctxD,
     symb,
     growth,
     clusters: (() => {
@@ -361,6 +389,37 @@ Büyüme (24 tohum): ortalama boy ${(tot("sizeSum") / Math.max(1, tot("n"))).toF
     const n = Math.max(1, tot("creatures"));
     console.log(`
 Hafıza ve çağrı (24 tohum): çağrı yapan canlı payı ${(tot("calls") / n).toFixed(4)} · ort. |çağır satırı| ${(tot("callW") / n).toFixed(3)} · ort. |hafıza satırı| ${(tot("memW") / n).toFixed(3)} · çağrıyı kaçışa bağlayan pay (w[kaç,çağrı]>0,5) ${(tot("alarm") / n).toFixed(4)} · tehdide çağıranlar ${(tot("callers") / n).toFixed(4)}`);
+  }
+  if (process.argv.includes("--ctx")) {
+    const tot = (k) => results.reduce((a, r) => a + r.ctxD[k], 0);
+    const carriers = tot("carriers");
+    const f = (v) => (v >= 0 ? "+" : "") + v.toFixed(3);
+    console.log(`
+Beyin organı (${results.length} tohum): çok hücreli örnek ${tot("stage2")} · beyinli örnek ${carriers} (${(carriers / Math.max(1, tot("stage2"))).toFixed(3)} çok hücreli başına) · ort. güç ${(tot("power") / Math.max(1, carriers)).toFixed(3)} · organ/katman uyumsuzluğu ${tot("bad")}${tot("bad") ? "  ← HATA" : ""}`);
+    const all = Math.max(1, tot("creatures"));
+    const organTot = (t) => results.reduce((a, r) => a + r.ctxD.organs[t], 0);
+    const seedsWith = (f) => results.filter(f).length;
+    console.log(`Süperorganizma: birey payı ${(tot("stage3") / all).toFixed(4)} · görülen tohum ${seedsWith((r) => r.ctxD.stage3 > 0)}/${results.length}`);
+    console.log(`Yeni organlar (birey payı · görülen tohum): ${Object.keys(results[0].ctxD.organs).map((t) => `${t} ${(organTot(t) / all).toFixed(4)} · ${seedsWith((r) => r.ctxD.organs[t] > 0)}`).join("  |  ")}`);
+    console.log("tohum  beyinli  derin/sığ/kara  kaç·tehdit[derin sığ kara gece]  avlan·sabit[derin sığ kara gece]  sığ−derin kaç  avcı yoğ. sığ/derin");
+    let agree = 0;
+    let decided = 0;
+    for (const r of results) {
+      const c = r.ctxD;
+      if (c.carriers < 30) continue;
+      const m = (arr) => arr.map((v) => v / c.carriers);
+      const flee = m(c.flee);
+      const hunt = m(c.hunt);
+      const dens = (b) => c.predBand[b] / Math.max(1, c.allBand[b]);
+      const diff = flee[1] - flee[0];
+      const ratio = dens(1) / Math.max(1e-6, dens(0));
+      if (Math.abs(diff) > 0.05 && Math.abs(Math.log(ratio)) > 0.1) {
+        decided++;
+        if (Math.sign(diff) === Math.sign(Math.log(ratio))) agree++;
+      }
+      console.log(`${String(r.seed).padStart(5)}  ${String(c.carriers).padStart(7)}  ${c.carrierBand.join("/").padStart(14)}  ${m(c.flee).map(f).join(" ")}  ${hunt.map(f).join(" ")}  ${f(diff)}  ${ratio.toFixed(2)}`);
+    }
+    console.log(`İşaret uyumu (sığda avcı daha yoğunsa sığda kaçış ağırlığı daha yüksek mi): ${agree}/${decided} kararlı tohum`);
   }
   if (process.argv.includes("--atmo")) {
     const rows = results.map((r) => { const m = r.oxy.sum / r.oxy.n; return { m, sd: Math.sqrt(Math.max(0, r.oxy.sq / r.oxy.n - m * m)), lo: r.oxy.min, hi: r.oxy.max }; });

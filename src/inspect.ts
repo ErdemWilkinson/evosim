@@ -94,6 +94,14 @@ const MOLECULES: Record<string, Mol> = {
   zinc: metalCenter("Zn"),
   molybdenum: metalCenter("Mo"),
   magnesium: metalCenter("Mg"),
+  tungsten: metalCenter("W"),
+  vanadium: metalCenter("V"),
+  cobalamin: porphyrin("Co"),
+  selenocysteine: mol("selenosistein (selenyumlu amino asit)", "N 0 .5|C 1 0|C 1 -1.1|Se 1 -2.3|C 2 .5|O 2 1.6|O 3 0", "0-1 1-2 2-3 1-4 4=5 4-6"),
+  hopanoid: { ...PAH, formula: "hopan iskeleti: kaynaşık karbon halkaları (yalınlaştırılmış)" },
+  pseudomurein: mol("N-asetiltalosaminüronik asit birimi + peptit köprüsü", "C 0 0|C 1 -.5|C 2 0|C 2 1.1|C 1 1.6|O 0 1.1|N 3 -.5|C 4 0|O 4 1.1|C 5 -.5|O 3 1.6|R 4 2.1", "0-1 1-2 2-3 3-4 4-5 5-0 2-6 6-7 7=8 7-9 3-10 10-11"),
+  hna: mol("heksitol–fosfat omurga, bir baz", "C 0 0|C 1 -.5|C 2 0|C 2 1.1|C 1 1.6|O 0 1.1|N 3 -.5|R 4 -1|O 1 2.7|P 2 3.2|O 2 4.3|O 3 2.6|O 3 3.7|R 4 4", "0-1 1-2 2-3 3-4 4-5 5-0 2-6 6-7 4-8 8-9 9=10 9-11 9-12 12-13"),
+  acetylphosphate: mol("CH₃–C(=O)–O–PO₃²⁻ (asetil fosfat)", "C 0 .5|C 1 0|O 1 -1.1|O 2 .5|P 3 0|O 3 -1.1|O 3 1.1|O 4 .5", "0-1 1=2 1-3 3-4 4=5 4-6 4-7"),
   organo: mol("prolin (halkalı amino asit)", "N 0 0|C 1 -.4|C 1.6 .6|C .8 1.3|C -.2 .9|C 1.6 -1.5|O 2.7 -1.6|O 1 -2.5", "0-1 1-2 2-3 3-4 4-0 1-5 5=6 5-7"),
   mgporphyrin: porphyrin("Mg"),
   znporphyrin: porphyrin("Zn"),
@@ -173,6 +181,12 @@ export const ORGAN_REFS: Partial<Record<OrganType, string>> = {
   blubber: "Walther & Farese 2012, Annu. Rev. Biochem. 81:687",
   fat_store: "Walther & Farese 2012, Annu. Rev. Biochem. 81:687",
   sulfur_vent_organ: "Cavanaugh ve ark. 1981, Science 213:340",
+  gas_vesicle: "Walsby 1994, Microbiol. Rev. 58:94",
+  magnetosome: "Blakemore 1975, Science 190:377; Frankel, Bazylinski, Johnson & Taylor 1997, Biophys. J. 73:994; Bazylinski & Frankel 2004, Nat. Rev. Microbiol. 2:217",
+  electric_organ: "Gallant ve ark. 2014, Science 344:1522; Catania 2014, Science 346:1231",
+  pit_organ: "Gracheva ve ark. 2010, Nature 464:1006",
+  kleptoplast: "Händeler, Grzymbowski, Krug & Wägele 2009, Front. Zool. 6:28; Johnson 2011, Photosynth. Res. 107:117",
+  ganglion: "Holland 2003, Nat. Rev. Neurosci. 4:617 (sinir sisteminin erken evrimi); Niven & Laughlin 2008, J. Exp. Biol. 211:1792 (sinir dokusunun enerji bedeli)",
 };
 
 /**
@@ -220,6 +234,24 @@ function organMaterial(type: OrganType, chem: Chemistry): Material {
     olfactory: disulfide("Koku alıcı proteini", "Zara gömülü alıcının cebine uyan molekül bağlanınca alıcı biçim değiştirir ve sinyal başlar; kükürt köprüleri cebin biçimini sabit tutar."),
     lateral_line: { ...fibre, note: `Jöle bir kubbeye gömülü ince tüyler akıntıyla eğilir ve basınç dalgalarını algılar. ${fibre.note}` },
     electroreceptor: has("Na") ? { name: "Sodyum iyon kanalı", note: "Çevredeki zayıf elektrik alanı, alıcı hücrenin zarındaki kanalları açıp Na⁺ akışını değiştirir.", needs: [], mol: MOLECULES.sodium } : has("K") ? { name: "Potasyum iyon kanalı", note: "Çevredeki zayıf elektrik alanı, alıcı hücrenin zarındaki kanalları açıp K⁺ akışını değiştirir.", needs: [], mol: mol("K⁺ iyonu", "K 0 0", "") } : from(chem.energy, "İyon kanalı kuracak sodyum ya da potasyum yok; alıcı, enerji gradyanındaki değişimi algılar."),
+    ganglion: has("Na")
+      ? { name: "Sinir hücresi zarı (sodyum kanallı)", note: "Sinir hücreleri bir düğümde toplanır; zarlarındaki kanallardan geçen Na⁺ akışı sinyali taşır. Bu akışı sürdürmek pahalıdır: iyon pompaları sürekli enerji yakar.", needs: [], mol: MOLECULES.sodium }
+      : has("K")
+        ? { name: "Sinir hücresi zarı (potasyum kanallı)", note: "Sinir hücreleri bir düğümde toplanır; zarlarındaki kanallardan geçen K⁺ akışı sinyali taşır. Bu akışı sürdürmek pahalıdır: iyon pompaları sürekli enerji yakar.", needs: [], mol: mol("K⁺ iyonu", "K 0 0", "") }
+        : from(chem.energy, "İyon kanalı kuracak sodyum ya da potasyum yok; sinir hücreleri sinyali enerji taşıyıcısının gradyanıyla iletir."),
+    gas_vesicle: { name: "Gaz vezikülü proteini (GvpA benzeri)", note: `İçi boş, ince protein kabuklar sıvıyı dışarıda tutar; içlerine atmosferdeki gaz (${gas}) sızar ve hücre hafifler.`, needs: ["C", "N", "O"], mol: PEPTIDE },
+    magnetosome: has("Fe", "O")
+      ? { name: "Manyetit (Fe₃O₄) zinciri", note: "Zarla sarılı manyetit kristalleri zincir hâlinde dizilir; zincir pusula iğnesi gibi alan çizgilerine döner.", needs: [], mol: lattice("Fe₃O₄ (manyetit) örgüsü", "Fe", "O") }
+      : has("Fe", "S")
+        ? { name: "Greigit (Fe₃S₄) zinciri", note: "Zarla sarılı demir sülfür kristalleri zincir hâlinde dizilir; zincir pusula iğnesi gibi alan çizgilerine döner.", needs: [], mol: MOLECULES.ironsulfide }
+        : from(chem.catalyst, "Manyetik mineral kuracak oksijen ya da kükürt yok; demir katalizör metaline bağlı kalır."),
+    electric_organ: has("Na")
+      ? { name: "Elektrosit yığını (sodyum kanallı)", note: "Yassı, kas kökenli hücreler pil gibi üst üste dizilir; hepsi aynı anda Na⁺ kanallarını açınca gerilimleri toplanır.", needs: [], mol: MOLECULES.sodium }
+      : has("K")
+        ? { name: "Elektrosit yığını (potasyum kanallı)", note: "Yassı, kas kökenli hücreler pil gibi üst üste dizilir; hepsi aynı anda K⁺ kanallarını açınca gerilimleri toplanır.", needs: [], mol: mol("K⁺ iyonu", "K 0 0", "") }
+        : from(chem.energy, "İyon kanalı kuracak sodyum ya da potasyum yok; boşalma enerji taşıyıcısının gradyanından gelir."),
+    pit_organ: { name: "Isıya duyarlı iyon kanalı (TRPA1 benzeri)", note: "İnce bir zarın üzerindeki kanallar kızılötesi ışınımla ısınınca açılır; zar ne kadar inceyse o kadar az ısı yeter.", needs: ["C", "N", "O"], mol: PEPTIDE },
+    kleptoplast: from(chem.pigment, "Yenilen üreticinin ışık toplayan organelleri sindirilmeden bağırsak hücrelerine alınır ve bir süre çalışmayı sürdürür."),
     mouth: { ...mineral, note: `Ağız kenarındaki sert kazıyıcı plakalar besini parçalar. ${mineral.note}` },
     stomach: has("Cl") ? { name: "Hidroklorik asit ve sindirim enzimi", note: "Mide çeperi asit salgılar; asit besini açar, enzimler bağlarını koparır.", needs: [], mol: GASES.HCl } : from(chem.catalyst, "Klor olmadığı için güçlü asit yapılamaz; sindirimi metalli enzimler yürütür."),
     symbiotic_gut_flora: from(chem.membrane, "Bağırsakta yaşayan ortak mikroplar konağın sindiremediği besini parçalar; her biri kendi zarıyla çevrili ayrı bir hücredir."),
@@ -2213,8 +2245,78 @@ function drawOriginScene(ctx: CanvasRenderingContext2D, c: Chemistry, w: number,
       }
       break;
     }
+    case "borate_desert": {
+      // Kurak havza: beyaz borat kabuğuyla çevrili, kuruyup dolan sığ gölet.
+      sky("#1a1830", "#4a3428", horizon);
+      disc(w * 0.8, h * 0.15, 22, "#ffe3a8");
+      hills(horizon, 40, 22);
+      land(horizon, 22);
+      const y = horizon + (h - horizon) * 0.5;
+      const level = 0.55 + Math.sin(t * 0.9) * 0.35;
+      ctx.fillStyle = "#efeae0";
+      ctx.beginPath();
+      ctx.ellipse(cx, y, w * 0.36, (h - horizon) * 0.32, 0, 0, Math.PI * 2);
+      ctx.fill();
+      pool(y, w * 0.3 * level, (h - horizon) * 0.26 * level);
+      for (let i = 0; i < 18; i++) {
+        const a = rnd(i, 1) * Math.PI * 2;
+        chip(el(i), cx + Math.cos(a) * w * 0.33, y + Math.sin(a) * (h - horizon) * 0.29, 6, 0.95);
+      }
+      break;
+    }
+    case "mica": {
+      // Üst üste mika tabakaları; aralarındaki boşluk açılıp kapanırken moleküller sıkışıp ayrılır.
+      sky("#0d1430", "#2a2440", h * 0.25);
+      land(h * 0.25, 10);
+      const gap = 10 + (0.5 + 0.5 * Math.sin(t * 1.8)) * 16;
+      for (let row = 0; row < 8; row++) {
+        const y = h * 0.34 + row * (8 + gap);
+        ctx.fillStyle = `rgba(214, 205, 180, ${0.55 + row * 0.04})`;
+        ctx.fillRect(w * 0.12, y, w * 0.76, 7);
+        ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(w * 0.12, y, w * 0.76, 7);
+        if (row < 7) for (let i = 0; i < 9; i++) chip(el(i + row), w * (0.16 + i * 0.085) + Math.sin(t * 2 + i + row) * gap * 0.3, y + 7 + gap / 2, 4.5, 0.9);
+      }
+      break;
+    }
+    case "volcanic_lightning": {
+      // Yanardağın kül bulutu ve bulutun içinde çakan yıldırımlar.
+      sky("#0b0d1c", "#2e1f26", horizon);
+      sea(horizon, 16);
+      ctx.fillStyle = ground(7);
+      ctx.beginPath();
+      ctx.moveTo(w * 0.2, horizon);
+      ctx.lineTo(w * 0.42, horizon - h * 0.3);
+      ctx.lineTo(w * 0.52, horizon - h * 0.3);
+      ctx.lineTo(w * 0.74, horizon);
+      ctx.fill();
+      for (let i = 0; i < 26; i++) {
+        const life = (t * 0.22 + rnd(i, 9)) % 1;
+        ctx.globalAlpha = (1 - life) * 0.55;
+        disc(w * 0.47 + Math.sin(life * 4 + i) * 60 * life, horizon - h * 0.3 - life * h * 0.42, 16 + life * 34, "#5f5660");
+      }
+      ctx.globalAlpha = 1;
+      const strike = Math.floor(t * 2.2);
+      if ((t * 2.2) % 1 < 0.25) {
+        ctx.strokeStyle = "#f4f1ff";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        let x = w * (0.38 + rnd(strike, 3) * 0.2);
+        let y = horizon - h * 0.62;
+        ctx.moveTo(x, y);
+        for (let k = 0; k < 6; k++) {
+          x += (rnd(strike, k) - 0.5) * 34;
+          y += 18;
+          ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      break;
+    }
+    case "pumice":
     default: {
-      // Pomza salları: deniz yüzeyinde yüzen gözenekli volkanik taşlar.
+      // Pomza salları: deniz yüzeyinde yüzen gözenekli volkanik taşlar (tanınmayan köken de buraya düşer).
       sky("#0d1430", "#3b2a30", horizon);
       ctx.fillStyle = ground(7);
       ctx.beginPath();

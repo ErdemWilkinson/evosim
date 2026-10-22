@@ -35,6 +35,7 @@
   --s0: #2e6f86;
   --s1: #4fc3b6;
   --s2: #d2fff2;
+  --s3: #ffd166;
   --shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
   --display: "Unbounded", "Onest", system-ui, sans-serif;
   --sans: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -664,6 +665,7 @@ input[type="range"] {
 .ms-parasite { --ms: #e0719f; }
 .ms-multicellular { --ms: #8a7dff; }
 .ms-land { --ms: #7ed87f; }
+.ms-eusocial { --ms: #ffd166; }
 .ms-sexual { --ms: #ff9fd6; }
 .ms-dieoff { --ms: #b7bed6; }
 
@@ -972,6 +974,10 @@ input[type="range"] {
 
 .s2 {
   background: var(--s2);
+}
+
+.s3 {
+  background: var(--s3);
 }
 
 .block {
@@ -1443,6 +1449,17 @@ textarea {
 
 .matrix-wrap {
   overflow-x: auto;
+}
+
+/* Beyin organının bağlam katmanları: temel ağın altında, ortam başına bir başlık ve ısı haritası. */
+.ctx-brain {
+  margin-top: 10px;
+}
+
+.ctx-h {
+  margin: 10px 0 4px;
+  font: 600 12px var(--sans);
+  color: var(--ink-2);
 }
 
 .matrix {
