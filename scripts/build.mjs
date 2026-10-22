@@ -63,6 +63,8 @@ const options = (artifact) => ({
   minify: !serve,
   legalComments: "none",
   banner: { js: BANNER },
+  // Diske yazılmaz (write: false); geliştirme sunucusu (`ctx.serve`) çıktı yolu olmadan başlamıyor.
+  outfile: join(dist, "bundle.js"),
   write: false,
 });
 
